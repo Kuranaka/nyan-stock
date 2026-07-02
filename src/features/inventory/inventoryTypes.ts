@@ -1,0 +1,51 @@
+export type InventoryCategory =
+  | 'dry_food'
+  | 'wet_food'
+  | 'treat'
+  | 'cat_litter'
+  | 'supplement'
+  | 'medicine'
+  | 'care'
+  | 'other';
+
+export type InventoryUnit = 'g' | 'kg' | 'ml' | 'L' | 'piece' | 'bag';
+
+export type PurchaseLinks = {
+  amazon?: string;
+  rakuten?: string;
+  yahoo?: string;
+  other?: string;
+};
+
+export type InventoryItem = {
+  id: string;
+  catId: string;
+  name: string;
+  category: InventoryCategory;
+  amount: number;
+  unit: InventoryUnit;
+  dailyUsage?: number;
+  purchaseDate: string;
+  openedDate?: string;
+  estimatedEndDate?: string;
+  notifyBeforeDays: number[];
+  purchaseLinks: PurchaseLinks;
+  memo?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PurchaseHistory = {
+  id: string;
+  inventoryItemId: string;
+  purchasedAt: string;
+  amount: number;
+  unit: InventoryUnit;
+  price?: number;
+  shopName?: string;
+  purchaseUrl?: string;
+  memo?: string;
+  createdAt: string;
+};
+
+export type InventoryStatus = 'in_stock' | 'watch' | 'warning' | 'out' | 'unknown';

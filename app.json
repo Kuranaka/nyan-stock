@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "にゃんストック",
+    "slug": "nyan-stock",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nyanstock",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.nyanstock"
+    },
+    "android": {
+      "package": "com.example.nyanstock"
+    },
+    "plugins": ["expo-router", "expo-notifications"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
