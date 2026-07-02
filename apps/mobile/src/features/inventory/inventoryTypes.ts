@@ -20,6 +20,7 @@ export type PurchaseLinks = {
 export type InventoryItem = {
   id: string;
   catId: string;
+  productMasterId?: string;
   name: string;
   category: InventoryCategory;
   amount: number;

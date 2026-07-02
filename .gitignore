@@ -7,6 +7,8 @@ apps/web/out/
 dist/
 *.log
 *.tsbuildinfo
+.env
+services/*/.env
 expo-env.d.ts
 apps/mobile/expo-env.d.ts
 apps/web/next-env.d.ts

@@ -1,0 +1,26 @@
+declare module 'node:fs/promises' {
+  export function readFile(path: string, encoding: BufferEncoding): Promise<string>;
+  export function writeFile(path: string, data: string, encoding: BufferEncoding): Promise<void>;
+  export function mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+}
+
+declare module 'node:path' {
+  const path: {
+    dirname(value: string): string;
+    join(...parts: string[]): string;
+    resolve(...parts: string[]): string;
+  };
+  export default path;
+}
+
+declare module 'node:url' {
+  export function fileURLToPath(url: string): string;
+}
+
+type BufferEncoding = 'utf8';
+
+declare const process: {
+  argv: string[];
+  env: Record<string, string | undefined>;
+  exitCode?: number;
+};

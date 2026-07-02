@@ -3,4 +3,5 @@ export const storageKeys = {
   inventoryItems: 'nyan-stock:inventory-items',
   purchaseHistory: 'nyan-stock:purchase-history',
   settings: 'nyan-stock:settings',
+  userProductSuggestions: 'nyan-stock:user-product-suggestions',
 };

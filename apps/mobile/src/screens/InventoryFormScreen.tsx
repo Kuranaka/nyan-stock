@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Href } from 'expo-router';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -17,11 +18,21 @@ import {
 } from '@/features/inventory/inventoryStorage';
 import { InventoryCategory, InventoryItem, InventoryUnit } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import {
+  findProductsByKeyword,
+  productCategoryLabels,
+  productCategoryToInventoryCategory,
+  productPurchaseLinksToInventoryLinks,
+  productUnitToInventoryUnit,
+} from '@/features/products/productMaster';
+import { ProductMaster } from '@/features/products/productTypes';
+import { saveUserProductSuggestion } from '@/features/products/userProductSuggestionStorage';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { nowIso, todayIso } from '@/utils/date';
 import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
 type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'url', string>>;
+type AddMethod = 'master' | 'barcode' | 'manual';
 
 export default function InventoryFormScreen() {
   const router = useRouter();
@@ -29,6 +40,8 @@ export default function InventoryFormScreen() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [current, setCurrent] = useState<InventoryItem | undefined>();
+  const [addMethod, setAddMethod] = useState<AddMethod>('master');
+  const [productMasterId, setProductMasterId] = useState<string | undefined>();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<InventoryCategory>('dry_food');
   const [amount, setAmount] = useState('');
@@ -44,6 +57,9 @@ export default function InventoryFormScreen() {
   const [other, setOther] = useState('');
   const [memo, setMemo] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const [masterSearchKeyword, setMasterSearchKeyword] = useState('');
+  const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
+  const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [productSearchKeyword, setProductSearchKeyword] = useState('');
   const [productSearchResults, setProductSearchResults] = useState<RakutenSearchResult[]>([]);
   const [productSearchLoading, setProductSearchLoading] = useState(false);
@@ -78,8 +94,11 @@ export default function InventoryFormScreen() {
         const item = await getInventoryItem(id);
         if (!item) return;
         setCurrent(item);
+        setAddMethod('manual');
+        setProductMasterId(item.productMasterId);
         setSelectedCatId(item.catId);
         setName(item.name);
+        setMasterSearchKeyword(item.name);
         setProductSearchKeyword(item.name);
         setCategory(item.category);
         setAmount(String(item.amount));
@@ -154,6 +173,31 @@ export default function InventoryFormScreen() {
     }
   };
 
+  const searchProductMasters = () => {
+    const keyword = masterSearchKeyword.trim() || name.trim();
+    const results = findProductsByKeyword(keyword);
+    setMasterSearchKeyword(keyword);
+    setMasterSearchResults(results);
+    setMasterSearchMessage(results.length === 0 ? '商品マスタに該当する商品が見つかりませんでした。' : '');
+  };
+
+  const applyProductMaster = (product: ProductMaster) => {
+    const nextCategory = productCategoryToInventoryCategory(product.category);
+    const nextLinks = productPurchaseLinksToInventoryLinks(product);
+    setProductMasterId(product.id);
+    setName(product.name);
+    setCategory(nextCategory);
+    setAmount(product.amount !== undefined ? String(product.amount) : '');
+    setUnit(product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
+    setAmazon(nextLinks.amazon ?? '');
+    setRakuten(nextLinks.rakuten ?? '');
+    setYahoo(nextLinks.yahoo ?? '');
+    setOther(nextLinks.other ?? '');
+    setProductSearchKeyword(product.name);
+    setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
+    Alert.alert('商品マスタから反映しました', '内容は保存前に自由に編集できます。');
+  };
+
   const applyRakutenResult = (result: RakutenSearchResult) => {
     setName(result.name);
     setRakuten(result.url);
@@ -165,9 +209,16 @@ export default function InventoryFormScreen() {
     if (!validate() || !selectedCatId) return;
     const now = nowIso();
     const dailyUsageNumber = parseOptionalNumber(dailyUsage) ?? calculatedDailyUsage;
+    const purchaseLinks = {
+      amazon: amazon.trim() || undefined,
+      rakuten: rakuten.trim() || undefined,
+      yahoo: yahoo.trim() || undefined,
+      other: other.trim() || undefined,
+    };
     await saveInventoryItem({
       id: current?.id ?? createId('item'),
       catId: selectedCatId,
+      productMasterId,
       name: name.trim(),
       category,
       amount: Number(amount),
@@ -176,16 +227,22 @@ export default function InventoryFormScreen() {
       purchaseDate,
       openedDate: openedDate.trim() || undefined,
       notifyBeforeDays,
-      purchaseLinks: {
-        amazon: amazon.trim() || undefined,
-        rakuten: rakuten.trim() || undefined,
-        yahoo: yahoo.trim() || undefined,
-        other: other.trim() || undefined,
-      },
+      purchaseLinks,
       memo: memo.trim() || undefined,
       createdAt: current?.createdAt ?? now,
       updatedAt: now,
     });
+    if (!productMasterId && !current) {
+      await saveUserProductSuggestion({
+        id: createId('suggestion'),
+        name: name.trim(),
+        category,
+        purchaseUrl: purchaseLinks.amazon ?? purchaseLinks.rakuten ?? purchaseLinks.yahoo ?? purchaseLinks.other,
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
     await updateSettings({ selectedCatId });
     const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
     await scheduleInventoryNotifications(items, settings);
@@ -208,6 +265,66 @@ export default function InventoryFormScreen() {
             ))}
           </View>
         </>
+      ) : null}
+
+      {!current ? (
+        <AppCard style={styles.searchCard}>
+          <Text style={styles.sectionTitle}>追加方法</Text>
+          <View style={styles.wrapRow}>
+            <AppButton
+              title="商品名で検索"
+              variant={addMethod === 'master' ? 'primary' : 'secondary'}
+              onPress={() => setAddMethod('master')}
+            />
+            <AppButton
+              title="バーコードで読み取る"
+              variant={addMethod === 'barcode' ? 'primary' : 'secondary'}
+              onPress={() => {
+                setAddMethod('barcode');
+                router.push('/barcode-scan' as Href);
+              }}
+            />
+            <AppButton
+              title="手入力で追加"
+              variant={addMethod === 'manual' ? 'primary' : 'secondary'}
+              onPress={() => {
+                setAddMethod('manual');
+                setProductMasterId(undefined);
+              }}
+            />
+          </View>
+          {addMethod === 'master' ? (
+            <>
+              <AppTextInput
+                label="商品マスタを検索"
+                value={masterSearchKeyword}
+                onChangeText={setMasterSearchKeyword}
+                placeholder="例：ドライフード チキン"
+              />
+              <AppButton title="商品名で検索" variant="secondary" onPress={searchProductMasters} />
+              {masterSearchMessage ? <Text style={styles.errorText}>{masterSearchMessage}</Text> : null}
+              {masterSearchResults.map((product) => (
+                <View key={product.id} style={styles.searchResult}>
+                  <Text style={styles.resultName}>{product.name}</Text>
+                  <Text style={styles.resultMeta}>
+                    {[
+                      product.brand,
+                      productCategoryLabels[product.category],
+                      product.amount !== undefined && product.unit ? `${product.amount}${product.unit}` : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(' ・ ')}
+                  </Text>
+                  <AppButton
+                    title="この商品を登録する"
+                    variant="secondary"
+                    onPress={() => applyProductMaster(product)}
+                  />
+                </View>
+              ))}
+            </>
+          ) : null}
+        </AppCard>
       ) : null}
 
       <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} />
