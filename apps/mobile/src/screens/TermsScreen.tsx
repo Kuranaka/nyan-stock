@@ -1,20 +1,95 @@
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppCard } from '@/components/AppCard';
 import { colors } from '@/constants/colors';
+
+const sections = [
+  {
+    title: '1. 適用',
+    body: [
+      'この利用規約（以下「本規約」といいます。）は、にゃんストック運営（以下「運営者」といいます。）が提供する猫用品の在庫管理・買い忘れ防止アプリ「にゃんストック」（以下「本アプリ」といいます。）の利用条件を定めるものです。',
+      '利用者は、本アプリを利用することにより、本規約に同意したものとみなされます。',
+    ],
+  },
+  {
+    title: '2. サービス内容',
+    body: [
+      '本アプリは、フード、猫砂、おやつ、サプリメント等の猫用品の在庫、残り日数、購入履歴、商品リンク、通知設定等の管理を補助するサービスです。',
+      '本アプリは、獣医療上の診断、治療、予防、助言、または医薬品の服用指示を行うものではありません。猫の健康状態、食事、薬、サプリメント等に不安がある場合は、獣医師その他の専門家に相談してください。',
+    ],
+  },
+  {
+    title: '3. 利用環境・データ管理',
+    body: [
+      '利用者は、自己の責任において、本アプリを利用するために必要な端末、通信環境、アプリストアアカウント等を準備し、維持するものとします。',
+      'アプリ内のデータは、原則として利用者の端末内に保存されます。端末の故障、紛失、削除、機種変更等によりデータが失われる場合があります。',
+    ],
+  },
+  {
+    title: '4. 通知・残り日数表示',
+    body: [
+      '本アプリが表示する残り日数、推定終了日、通知タイミング、月次コスト等は、利用者が入力した情報に基づく目安です。',
+      '実際の消費量、価格、配送日数、販売状況、猫の体調や生活環境によって結果は変動します。利用者は、表示内容を参考情報として利用するものとします。',
+    ],
+  },
+  {
+    title: '5. 商品リンク・外部サイト',
+    body: [
+      '本アプリでは、利用者が登録した商品URLまたは商品検索結果から、外部の販売サイトへ移動できる場合があります。',
+      '外部サイトでの商品内容、価格、在庫、配送、返品、キャンセル、決済、個人情報の取扱い等は、各外部サイトの規約およびポリシーに従います。運営者は、外部サイトで行われる取引について当事者となりません。',
+      '商品リンクにはアフィリエイトリンクが含まれる場合があります。リンク経由で商品を購入した場合、運営者が紹介料を受け取ることがあります。',
+    ],
+  },
+  {
+    title: '6. 禁止事項',
+    body: [
+      '利用者は、本アプリの利用にあたり、法令または公序良俗に反する行為、第三者または運営者の権利を侵害する行為、不正アクセス、リバースエンジニアリング、過度な負荷をかける行為、虚偽情報の入力、その他運営者が不適切と判断する行為をしてはなりません。',
+    ],
+  },
+  {
+    title: '7. サービスの変更・停止',
+    body: [
+      '運営者は、機能改善、保守、障害対応、法令対応、事業上の判断等により、事前の通知なく本アプリの全部または一部を変更、追加、停止、終了することがあります。',
+    ],
+  },
+  {
+    title: '8. 免責',
+    body: [
+      '運営者は、本アプリが利用者の特定の目的に適合すること、常に正確・完全・最新であること、障害なく利用できることを保証しません。',
+      '運営者の故意または重過失による場合を除き、本アプリの利用または利用不能により生じた損害について、運営者は責任を負いません。',
+    ],
+  },
+  {
+    title: '9. 規約の変更',
+    body: [
+      '運営者は、必要に応じて本規約を変更することがあります。重要な変更がある場合は、本アプリまたはWebサイト上でお知らせします。',
+    ],
+  },
+  {
+    title: '10. 準拠法・管轄',
+    body: [
+      '本規約は日本法に準拠します。本アプリに関して紛争が生じた場合は、法令に別段の定めがある場合を除き、運営者所在地を管轄する日本の裁判所を第一審の専属的合意管轄裁判所とします。',
+    ],
+  },
+];
 
 export default function TermsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <AppCard>
+        <Text style={styles.meta}>施行日: 2026年7月3日</Text>
         <Text style={styles.title}>利用規約</Text>
-        <Text style={styles.text}>
-          本アプリは猫用品の在庫管理を補助するものです。獣医療上の診断や助言を行うものではありません。フードや健康に不安がある場合は獣医師に相談してください。
-        </Text>
-        <Text style={styles.text}>
-          商品購入は外部サイトの規約に従います。外部サイトでの商品内容、価格、配送、返品などについては各サイトの案内を確認してください。
-        </Text>
-        <Text style={styles.todo}>TODO: 正式リリース前に文面を見直す。</Text>
+        {sections.map((section) => (
+          <View key={section.title} style={styles.section}>
+            <Text style={styles.heading}>{section.title}</Text>
+            {section.body.map((paragraph) => (
+              <Text key={paragraph} style={styles.text}>
+                {paragraph}
+              </Text>
+            ))}
+          </View>
+        ))}
+        <Text style={styles.text}>運営者: にゃんストック運営</Text>
       </AppCard>
     </ScrollView>
   );
@@ -24,21 +99,31 @@ const styles = StyleSheet.create({
   container: {
     padding: 18,
   },
+  meta: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   title: {
     color: colors.text,
     fontSize: 22,
     fontWeight: '900',
     marginBottom: 12,
   },
+  section: {
+    marginTop: 14,
+  },
+  heading: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
   text: {
     color: colors.text,
-    fontSize: 16,
-    lineHeight: 25,
-    marginBottom: 12,
-  },
-  todo: {
-    color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: 10,
   },
 });

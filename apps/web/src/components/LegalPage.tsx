@@ -1,12 +1,18 @@
 import Link from 'next/link';
 
+type LegalSection = {
+  title: string;
+  body: string[];
+};
+
 type LegalPageProps = {
   title: string;
   lead: string;
-  items: string[];
+  effectiveDate: string;
+  sections: LegalSection[];
 };
 
-export function LegalPage({ title, lead, items }: LegalPageProps) {
+export function LegalPage({ title, lead, effectiveDate, sections }: LegalPageProps) {
   return (
     <main className="min-h-screen px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-3xl">
@@ -14,19 +20,25 @@ export function LegalPage({ title, lead, items }: LegalPageProps) {
           にゃんストックへ戻る
         </Link>
         <article className="mt-8 rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-10">
-          <p className="text-sm font-bold text-caramel">正式公開前に見直し予定</p>
+          <p className="text-sm font-bold text-caramel">施行日: {effectiveDate}</p>
           <h1 className="mt-3 text-3xl font-black text-ink sm:text-4xl">{title}</h1>
           <p className="mt-5 leading-8 text-muted">{lead}</p>
-          <ul className="mt-8 space-y-4">
-            {items.map((item) => (
-              <li key={item} className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold leading-6 text-ink">
-                {item}
-              </li>
+          <div className="mt-10 space-y-8">
+            {sections.map((section, index) => (
+              <section key={section.title}>
+                <h2 className="text-xl font-black text-ink">
+                  第{index + 1}条 {section.title}
+                </h2>
+                <div className="mt-3 space-y-3">
+                  {section.body.map((paragraph) => (
+                    <p key={paragraph} className="text-sm leading-7 text-muted">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </section>
             ))}
-          </ul>
-          <p className="mt-8 rounded-2xl border border-line px-4 py-3 text-sm font-bold text-muted">
-            TODO: 正式リリース前に法務確認
-          </p>
+          </div>
         </article>
       </div>
     </main>
