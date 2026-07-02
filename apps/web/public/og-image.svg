@@ -1,0 +1,11 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#FFFDF8"/>
+  <rect x="86" y="80" width="1028" height="470" rx="48" fill="#FFFFFF" stroke="#EFE1CF" stroke-width="4"/>
+  <circle cx="930" cy="174" r="88" fill="#F8E6C8"/>
+  <rect x="150" y="156" width="116" height="116" rx="34" fill="#F8E6C8"/>
+  <path d="M184 190L208 166L232 190V230C232 242 222 252 210 252H206C194 252 184 242 184 230V190Z" fill="#D99A4E"/>
+  <text x="150" y="350" font-family="Arial, sans-serif" font-size="72" font-weight="800" fill="#3A2A1A">にゃんストック</text>
+  <text x="150" y="425" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#7A6A58">猫用品の買い忘れを防ぐ在庫管理アプリ</text>
+  <rect x="772" y="278" width="248" height="72" rx="36" fill="#3A2A1A"/>
+  <text x="814" y="325" font-family="Arial, sans-serif" font-size="26" font-weight="800" fill="#FFFFFF">残り2日</text>
+</svg>

@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "nyan-stock",
+    "slug": "nyan-stock",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nyanstock",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFDF8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.nyanstock"
+    },
+    "android": {
+      "package": "com.example.nyanstock",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#FFF7E8"
+      }
+    },
+    "plugins": ["expo-router", "expo-notifications"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
