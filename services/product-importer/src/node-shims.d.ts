@@ -4,6 +4,11 @@ declare module 'node:fs/promises' {
   export function mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 }
 
+declare module 'node:fs' {
+  export function existsSync(path: string): boolean;
+  export function readFileSync(path: string, encoding: BufferEncoding): string;
+}
+
 declare module 'node:path' {
   const path: {
     dirname(value: string): string;

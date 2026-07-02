@@ -1,4 +1,4 @@
-import { config, delay } from '../config.js';
+import { config, delay, warnMissingEnv } from '../config.js';
 import { RawProduct } from '../types.js';
 
 type YahooItem = {
@@ -36,7 +36,8 @@ export async function searchYahooItemsByJanCode(janCode: string): Promise<RawPro
 
 async function searchYahooItems(params: { query?: string; janCode?: string }): Promise<RawProduct[]> {
   if (!config.yahooClientId) {
-    console.warn('[yahoo] YAHOO_CLIENT_ID is not set. Skipping Yahoo import.');
+    warnMissingEnv('yahoo', ['YAHOO_CLIENT_ID']);
+    console.warn('[yahoo] Skipping Yahoo import because YAHOO_CLIENT_ID is required.');
     return [];
   }
 
