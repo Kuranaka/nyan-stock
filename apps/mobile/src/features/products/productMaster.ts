@@ -4,6 +4,11 @@ import { InventoryCategory, InventoryUnit, PurchaseLinks } from '@/features/inve
 
 import { ProductCategory, ProductMaster, ProductUnit } from './productTypes';
 
+type ProductSearchOptions = {
+  category?: ProductCategory;
+  limit?: number;
+};
+
 export const productCategoryLabels: Record<ProductCategory, string> = {
   dry_food: 'ドライフード',
   wet_food: 'ウェットフード',
@@ -29,14 +34,17 @@ export function findProductByJanCode(janCode: string): ProductMaster | undefined
   return getProductMasters().find((product) => product.janCode === normalizedJanCode || product.gtin === normalizedJanCode);
 }
 
-export function findProductsByKeyword(keyword: string): ProductMaster[] {
+export function findProductsByKeyword(keyword: string, options: ProductSearchOptions = {}): ProductMaster[] {
   const normalizedKeyword = normalizeProductName(keyword);
-  if (!normalizedKeyword) return [];
+  const normalizedJanCode = keyword.replace(/\D/g, '');
+  const limit = options.limit ?? 20;
 
   return getProductMasters()
-    .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword) }))
+    .filter((product) => !options.category || product.category === options.category)
+    .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, normalizedJanCode) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || b.product.confidence - a.product.confidence)
+    .slice(0, limit)
     .map(({ product }) => product);
 }
 
@@ -62,7 +70,12 @@ export function productPurchaseLinksToInventoryLinks(product: ProductMaster): Pu
   };
 }
 
-function scoreProduct(product: ProductMaster, normalizedKeyword: string): number {
+function scoreProduct(product: ProductMaster, normalizedKeyword: string, normalizedJanCode: string): number {
+  if (!normalizedKeyword) return Math.max(product.confidence, 1);
+  if (normalizedJanCode && (product.janCode === normalizedJanCode || product.gtin === normalizedJanCode)) {
+    return 1000 + product.confidence;
+  }
+
   const normalizedFields = [
     product.normalizedName,
     normalizeProductName(product.name),

@@ -25,7 +25,7 @@ import {
   productPurchaseLinksToInventoryLinks,
   productUnitToInventoryUnit,
 } from '@/features/products/productMaster';
-import { ProductMaster } from '@/features/products/productTypes';
+import { ProductCategory, ProductMaster } from '@/features/products/productTypes';
 import { saveUserProductSuggestion } from '@/features/products/userProductSuggestionStorage';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { nowIso, todayIso } from '@/utils/date';
@@ -33,6 +33,16 @@ import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/valid
 
 type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'url', string>>;
 type AddMethod = 'master' | 'barcode' | 'manual';
+type ProductCategoryFilter = ProductCategory | 'all';
+
+const masterResultLimit = 20;
+const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] = [
+  { value: 'all', label: 'すべて' },
+  ...Object.entries(productCategoryLabels).map(([value, label]) => ({
+    value: value as ProductCategory,
+    label,
+  })),
+];
 
 export default function InventoryFormScreen() {
   const router = useRouter();
@@ -58,6 +68,7 @@ export default function InventoryFormScreen() {
   const [memo, setMemo] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [masterSearchKeyword, setMasterSearchKeyword] = useState('');
+  const [masterCategoryFilter, setMasterCategoryFilter] = useState<ProductCategoryFilter>('all');
   const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [productSearchKeyword, setProductSearchKeyword] = useState('');
@@ -175,10 +186,17 @@ export default function InventoryFormScreen() {
 
   const searchProductMasters = () => {
     const keyword = masterSearchKeyword.trim() || name.trim();
-    const results = findProductsByKeyword(keyword);
+    const results = findProductsByKeyword(keyword, {
+      category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
+      limit: masterResultLimit,
+    });
     setMasterSearchKeyword(keyword);
     setMasterSearchResults(results);
-    setMasterSearchMessage(results.length === 0 ? '商品マスタに該当する商品が見つかりませんでした。' : '');
+    setMasterSearchMessage(
+      results.length === 0
+        ? '商品マスタに該当する商品が見つかりませんでした。'
+        : `${results.length}件を表示しています。`,
+    );
   };
 
   const applyProductMaster = (product: ProductMaster) => {
@@ -299,22 +317,42 @@ export default function InventoryFormScreen() {
                 label="商品マスタを検索"
                 value={masterSearchKeyword}
                 onChangeText={setMasterSearchKeyword}
-                placeholder="例：ドライフード チキン"
+                placeholder="商品名・ブランド・JAN"
               />
+              <Text style={styles.label}>カテゴリで絞り込み</Text>
+              <View style={styles.wrapRow}>
+                {productCategoryOptions.map((option) => (
+                  <AppButton
+                    key={option.value}
+                    title={option.label}
+                    variant={masterCategoryFilter === option.value ? 'primary' : 'secondary'}
+                    onPress={() => setMasterCategoryFilter(option.value)}
+                  />
+                ))}
+              </View>
               <AppButton title="商品名で検索" variant="secondary" onPress={searchProductMasters} />
-              {masterSearchMessage ? <Text style={styles.errorText}>{masterSearchMessage}</Text> : null}
+              {masterSearchMessage ? <Text style={styles.resultSummary}>{masterSearchMessage}</Text> : null}
               {masterSearchResults.map((product) => (
                 <View key={product.id} style={styles.searchResult}>
-                  <Text style={styles.resultName}>{product.name}</Text>
+                  <View style={styles.resultHeader}>
+                    <Text style={styles.resultName}>{product.name}</Text>
+                    <Text style={styles.confidenceBadge}>信頼度 {product.confidence}</Text>
+                  </View>
                   <Text style={styles.resultMeta}>
                     {[
                       product.brand,
                       productCategoryLabels[product.category],
                       product.amount !== undefined && product.unit ? `${product.amount}${product.unit}` : undefined,
+                      product.janCode ? `JAN ${product.janCode}` : undefined,
                     ]
                       .filter(Boolean)
                       .join(' ・ ')}
                   </Text>
+                  <View style={styles.badgeRow}>
+                    {getProductSourceLabels(product).map((label) => (
+                      <Text key={label} style={styles.sourceBadge}>{label}</Text>
+                    ))}
+                  </View>
                   <AppButton
                     title="この商品を登録する"
                     variant="secondary"
@@ -445,6 +483,20 @@ export default function InventoryFormScreen() {
   );
 }
 
+function getProductSourceLabels(product: ProductMaster): string[] {
+  const labels: Record<string, string> = {
+    rakuten: '楽天',
+    yahoo: 'Yahoo',
+    amazon: 'Amazon',
+    gs1: 'GS1',
+    manual: '手動',
+    official: '公式',
+    user: 'ユーザー',
+  };
+  const providers = product.sources.map((source) => labels[source.provider] ?? source.provider);
+  return Array.from(new Set(providers)).slice(0, 3);
+}
+
 const styles = StyleSheet.create({
   container: {
     gap: 16,
@@ -474,11 +526,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  resultSummary: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
   searchResult: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: 8,
     paddingTop: 12,
+  },
+  resultHeader: {
+    gap: 8,
   },
   resultName: {
     color: colors.text,
@@ -489,6 +550,37 @@ const styles = StyleSheet.create({
   resultMeta: {
     color: colors.subText,
     fontSize: 12,
+    lineHeight: 18,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  sourceBadge: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  confidenceBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    color: colors.subText,
+    fontSize: 11,
+    fontWeight: '700',
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   wrapRow: {
     flexDirection: 'row',
