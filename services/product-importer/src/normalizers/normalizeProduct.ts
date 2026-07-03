@@ -1,6 +1,7 @@
 import { detectAmount } from './detectAmount.js';
 import { detectBrand } from './detectBrand.js';
 import { detectCategory } from './detectCategory.js';
+import { normalizeGtin, normalizeJanCode } from './normalizeJanCode.js';
 import { ProductMaster, ProductProvider, RawProduct } from '../types.js';
 
 const noiseWords = [
@@ -51,6 +52,8 @@ export function convertRawProductToProductMaster(raw: RawProduct): ProductMaster
   const brand = raw.brand ?? detectBrand(raw.rawName);
   const category = detectCategory(`${raw.rawName} ${raw.categoryText ?? ''}`);
   const normalizedName = normalizeProductName(raw.rawName);
+  const gtin = normalizeGtin(raw.gtin ?? raw.janCode);
+  const janCode = normalizeJanCode(raw.janCode ?? raw.gtin);
   const product: ProductMaster = {
     id: createProductId(raw.provider, raw.externalId, normalizedName),
     name: removeNoiseWords(raw.rawName).trim(),
@@ -59,8 +62,8 @@ export function convertRawProductToProductMaster(raw: RawProduct): ProductMaster
     category,
     amount: amount?.amount,
     unit: amount?.unit,
-    janCode: raw.janCode,
-    gtin: raw.janCode,
+    janCode,
+    gtin,
     rakutenItemCode: raw.provider === 'rakuten' ? raw.externalId : undefined,
     yahooItemCode: raw.provider === 'yahoo' ? raw.externalId : undefined,
     imageUrl: raw.imageUrl,
@@ -74,8 +77,8 @@ export function convertRawProductToProductMaster(raw: RawProduct): ProductMaster
       {
         provider: raw.provider,
         externalId: raw.externalId,
-        janCode: raw.janCode,
-        gtin: raw.janCode,
+        janCode,
+        gtin,
         url: raw.url,
         imageUrl: raw.imageUrl,
         rawName: raw.rawName,

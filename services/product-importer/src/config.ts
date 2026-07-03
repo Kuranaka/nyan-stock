@@ -3,15 +3,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const serviceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repositoryRoot = path.resolve(serviceDir, '..', '..');
 const envPath = path.join(serviceDir, '.env');
 
 loadLocalEnv(envPath);
 
 export const config = {
+  repositoryRoot,
   rakutenApplicationId: process.env.RAKUTEN_APPLICATION_ID,
   rakutenAccessKey: process.env.RAKUTEN_ACCESS_KEY,
   yahooClientId: process.env.YAHOO_CLIENT_ID,
   databaseUrl: process.env.DATABASE_URL,
+  supabaseUrl: process.env.SUPABASE_URL,
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseProductMasterTable: process.env.SUPABASE_PRODUCT_MASTER_TABLE ?? 'product_masters',
   requestDelayMs: Number(process.env.PRODUCT_IMPORT_REQUEST_DELAY_MS ?? 1000),
   outputJsonPath:
     process.env.PRODUCT_MASTER_OUTPUT_PATH ??

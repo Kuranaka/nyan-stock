@@ -1,4 +1,5 @@
 import { config, delay, warnMissingEnv } from '../config.js';
+import { normalizeJanCode } from '../normalizers/normalizeJanCode.js';
 import { RawProduct } from '../types.js';
 
 type YahooItem = {
@@ -35,7 +36,12 @@ export async function searchYahooItemsByKeyword(keyword: string): Promise<RawPro
 }
 
 export async function searchYahooItemsByJanCode(janCode: string): Promise<RawProduct[]> {
-  return searchYahooItems({ janCode });
+  const normalizedJanCode = normalizeJanCode(janCode);
+  if (!normalizedJanCode) {
+    console.warn(`[yahoo] Invalid JAN/GTIN check digit or length: ${janCode}`);
+    return [];
+  }
+  return searchYahooItems({ janCode: normalizedJanCode });
 }
 
 async function searchYahooItems(params: { query?: string; janCode?: string }): Promise<RawProduct[]> {
@@ -82,7 +88,7 @@ async function searchYahooItems(params: { query?: string; janCode?: string }): P
         price: item.price,
         imageUrl: item.image?.medium ?? item.image?.small,
         url: item.url,
-        janCode: item.janCode,
+        janCode: normalizeJanCode(item.janCode),
         shopName: item.seller?.name,
         fetchedAt,
         raw: item,

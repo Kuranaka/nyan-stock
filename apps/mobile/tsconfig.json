@@ -6,6 +6,9 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      "@nyan-stock/shared": [
+        "../../packages/shared/src"
       ]
     }
   },

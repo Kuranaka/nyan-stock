@@ -8,11 +8,15 @@
     "import:products": "tsx src/scripts/importProducts.ts",
     "import:keyword": "tsx src/scripts/importByKeyword.ts",
     "import:jan": "tsx src/scripts/importByJanCode.ts",
-    "dedupe": "tsx src/scripts/dedupeProducts.ts"
+    "dedupe": "tsx src/scripts/dedupeProducts.ts",
+    "export:mobile-seed": "tsx src/scripts/exportMobileSeed.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
     "tsx": "^4.19.2",
     "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
   }
 }

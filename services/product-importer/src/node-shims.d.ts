@@ -22,6 +22,15 @@ declare module 'node:url' {
   export function fileURLToPath(url: string): string;
 }
 
+declare module 'pg' {
+  export class Client {
+    constructor(config: { connectionString?: string });
+    connect(): Promise<void>;
+    end(): Promise<void>;
+    query(sql: string, values?: unknown[]): Promise<{ rows: any[] }>;
+  }
+}
+
 type BufferEncoding = 'utf8';
 
 declare const process: {

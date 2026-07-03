@@ -3,6 +3,7 @@ export * from './normalizers/normalizeProduct.js';
 export * from './normalizers/detectAmount.js';
 export * from './normalizers/detectBrand.js';
 export * from './normalizers/detectCategory.js';
+export * from './normalizers/normalizeJanCode.js';
 export * from './providers/rakuten.js';
 export * from './providers/yahoo.js';
 export * from './repositories/productRepository.js';

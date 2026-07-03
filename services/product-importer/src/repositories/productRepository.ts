@@ -7,7 +7,10 @@ import { ProductMaster } from '../types.js';
 
 export async function loadProductMasters(): Promise<ProductMaster[]> {
   if (config.databaseUrl) {
-    console.warn('[repository] DATABASE_URL is set, but DB persistence is not implemented yet. Using JSON fallback.');
+    return loadFromPostgres();
+  }
+  if (hasSupabaseConfig()) {
+    return loadFromSupabase();
   }
   try {
     const raw = await readFile(config.outputJsonPath, 'utf8');
@@ -19,7 +22,12 @@ export async function loadProductMasters(): Promise<ProductMaster[]> {
 
 export async function saveProductMasters(products: ProductMaster[]): Promise<void> {
   if (config.databaseUrl) {
-    console.warn('[repository] DATABASE_URL is set, but DB persistence is not implemented yet. Using JSON fallback.');
+    await saveToPostgres(products);
+    return;
+  }
+  if (hasSupabaseConfig()) {
+    await saveToSupabase(products);
+    return;
   }
   await mkdir(path.dirname(config.outputJsonPath), { recursive: true });
   await writeFile(config.outputJsonPath, `${JSON.stringify(products, null, 2)}\n`, 'utf8');
@@ -32,3 +40,105 @@ export async function upsertProductMasters(incoming: ProductMaster[]): Promise<P
   await saveProductMasters(next);
   return next;
 }
+
+async function loadFromPostgres(): Promise<ProductMaster[]> {
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString: config.databaseUrl });
+  await client.connect();
+  try {
+    await ensurePostgresSchema(client);
+    const result = await client.query('select data from product_masters order by updated_at desc');
+    return result.rows.map((row: { data: ProductMaster }) => row.data);
+  } finally {
+    await client.end();
+  }
+}
+
+async function saveToPostgres(products: ProductMaster[]): Promise<void> {
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString: config.databaseUrl });
+  await client.connect();
+  try {
+    await ensurePostgresSchema(client);
+    await client.query('begin');
+    for (const product of products) {
+      await client.query(
+        `insert into product_masters (id, data, updated_at)
+         values ($1, $2::jsonb, $3)
+         on conflict (id) do update
+         set data = excluded.data,
+             updated_at = excluded.updated_at`,
+        [product.id, JSON.stringify(product), product.updatedAt],
+      );
+    }
+    await client.query('commit');
+    console.log(`[repository] saved product masters to PostgreSQL: ${products.length}`);
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+async function ensurePostgresSchema(client: PostgresClient): Promise<void> {
+  await client.query(`
+    create table if not exists product_masters (
+      id text primary key,
+      data jsonb not null,
+      updated_at timestamptz not null
+    )
+  `);
+}
+
+async function loadFromSupabase(): Promise<ProductMaster[]> {
+  const response = await fetch(supabaseEndpoint('select=data&order=updated_at.desc'), {
+    headers: supabaseHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`[repository] Supabase load failed ${response.status}: ${await response.text()}`);
+  }
+  const rows = (await response.json()) as Array<{ data: ProductMaster }>;
+  return rows.map((row) => row.data);
+}
+
+async function saveToSupabase(products: ProductMaster[]): Promise<void> {
+  const rows = products.map((product) => ({
+    id: product.id,
+    data: product,
+    updated_at: product.updatedAt,
+  }));
+  const response = await fetch(supabaseEndpoint('on_conflict=id'), {
+    method: 'POST',
+    headers: {
+      ...supabaseHeaders(),
+      Prefer: 'resolution=merge-duplicates',
+    },
+    body: JSON.stringify(rows),
+  });
+  if (!response.ok) {
+    throw new Error(`[repository] Supabase save failed ${response.status}: ${await response.text()}`);
+  }
+  console.log(`[repository] saved product masters to Supabase: ${products.length}`);
+}
+
+function hasSupabaseConfig(): boolean {
+  return Boolean(config.supabaseUrl && config.supabaseServiceRoleKey);
+}
+
+function supabaseEndpoint(query: string): string {
+  return `${config.supabaseUrl}/rest/v1/${config.supabaseProductMasterTable}?${query}`;
+}
+
+function supabaseHeaders(): Record<string, string> {
+  const key = config.supabaseServiceRoleKey ?? '';
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+type PostgresClient = {
+  query: (sql: string, values?: unknown[]) => Promise<{ rows: unknown[] }>;
+};

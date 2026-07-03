@@ -1,4 +1,5 @@
 import { productMasterSeed } from '@/data/productMaster.seed';
+import { generatedProductMasterSeed } from '@/data/productMaster.generated';
 import { InventoryCategory, InventoryUnit, PurchaseLinks } from '@/features/inventory/inventoryTypes';
 
 import { ProductCategory, ProductMaster, ProductUnit } from './productTypes';
@@ -25,18 +26,22 @@ export function normalizeProductName(name: string): string {
 export function findProductByJanCode(janCode: string): ProductMaster | undefined {
   const normalizedJanCode = janCode.replace(/\D/g, '');
   if (!normalizedJanCode) return undefined;
-  return productMasterSeed.find((product) => product.janCode === normalizedJanCode || product.gtin === normalizedJanCode);
+  return getProductMasters().find((product) => product.janCode === normalizedJanCode || product.gtin === normalizedJanCode);
 }
 
 export function findProductsByKeyword(keyword: string): ProductMaster[] {
   const normalizedKeyword = normalizeProductName(keyword);
   if (!normalizedKeyword) return [];
 
-  return productMasterSeed
+  return getProductMasters()
     .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || b.product.confidence - a.product.confidence)
     .map(({ product }) => product);
+}
+
+function getProductMasters(): ProductMaster[] {
+  return [...generatedProductMasterSeed, ...productMasterSeed];
 }
 
 export function productCategoryToInventoryCategory(category: ProductCategory): InventoryCategory {
