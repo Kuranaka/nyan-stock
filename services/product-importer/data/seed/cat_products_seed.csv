@@ -1,0 +1,288 @@
+﻿product_id,product_name,brand_id,brand_name,manufacturer,category_id,category_name,subcategory_id,subcategory_name,product_type,variations_or_target,priority,note,source_url,is_active
+product_0001,銀のスプーン 贅沢うまみ仕立て,brand_066,銀のスプーン,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,まぐろ・かつお・白身魚・お魚づくし等 / 年齢別,A,量販店・ECでの初期マスタ優先度高,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0002,銀のスプーン 三ツ星グルメ,brand_066,銀のスプーン,ユニ・チャーム,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,ドライ・パウチ・フレーク・ジュレ・とろリッチ等,A,量販店・ECでの初期マスタ優先度高,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0003,銀のスプーン 缶,brand_066,銀のスプーン,ユニ・チャーム,cat_food,フード,subcat_002,ウェットフード,シリーズ,まぐろ・かつお・ささみ系 / 子ねこ用等,A,量販店・ECでの初期マスタ優先度高,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0004,銀のスプーン パウチ,brand_066,銀のスプーン,ユニ・チャーム,cat_food,フード,subcat_002,ウェットフード,シリーズ,まぐろ・かつお・ささみ・ジュレ系,A,量販店・ECでの初期マスタ優先度高,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0005,銀のスプーン おいしい顔が見られるおやつ カリカリッチ,brand_066,銀のスプーン,ユニ・チャーム,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,シーフード・チキン等,A,量販店・ECでの初期マスタ優先度高,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0006,銀のスプーン にゃんSpoon,brand_066,銀のスプーン,ユニ・チャーム,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,まぐろ・かつお・ささみ等,A,量販店・ECでの初期マスタ優先度高,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0007,AllWell 吐き戻し軽減,brand_001,AllWell,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,チキン・フィッシュ等 / 年齢別,A,健康訴求フードとして登録推奨,https://jp.unicharmpet.com/ja/allwell/home.html,true
+product_0008,AllWell 室内猫用,brand_001,AllWell,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,室内猫向け,A,健康訴求フードとして登録推奨,https://jp.unicharmpet.com/ja/allwell/home.html,true
+product_0009,AllWell 避妊・去勢した猫の体重ケア,brand_001,AllWell,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,体重ケア,A,健康訴求フードとして登録推奨,https://jp.unicharmpet.com/ja/allwell/home.html,true
+product_0010,AllWell 腎臓の健康維持用,brand_001,AllWell,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,シニア/腎臓ケア系,A,健康訴求フードとして登録推奨,https://jp.unicharmpet.com/ja/allwell/home.html,true
+product_0011,Physicalife 室内猫用,brand_005,Physicalife,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,プレミアム寄りの健康配慮シリーズ,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0012,Physicalife 子ねこ用,brand_005,Physicalife,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,プレミアム寄りの健康配慮シリーズ,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0013,Physicalife 11歳頃から,brand_005,Physicalife,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,プレミアム寄りの健康配慮シリーズ,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0014,Physicalife 下部尿路の健康維持,brand_005,Physicalife,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,プレミアム寄りの健康配慮シリーズ,https://jp.unicharmpet.com/ja/brand/ginspoon.html,true
+product_0015,ねこ元気 ドライ,brand_007,ねこ元気,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,ドライ/パウチ、年齢別,A,大衆価格帯の定番ブランド,https://jp.unicharmpet.com/ja/brand/nekogenki.html,true
+product_0016,ねこ元気 パウチ,brand_007,ねこ元気,ユニ・チャーム,cat_food,フード,subcat_002,ウェットフード,シリーズ,ドライ/パウチ、年齢別,A,大衆価格帯の定番ブランド,https://jp.unicharmpet.com/ja/brand/nekogenki.html,true
+product_0017,ねこ元気 複数ねこ用,brand_007,ねこ元気,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,ドライ/パウチ、年齢別,A,大衆価格帯の定番ブランド,https://jp.unicharmpet.com/ja/brand/nekogenki.html,true
+product_0018,ねこ元気 健康に育つ子ねこ用,brand_007,ねこ元気,ユニ・チャーム,cat_food,フード,subcat_001,ドライフード,シリーズ,ドライ/パウチ、年齢別,A,大衆価格帯の定番ブランド,https://jp.unicharmpet.com/ja/brand/nekogenki.html,true
+product_0019,CIAO ちゅ～る,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,おやつ,まぐろ/かつお/とりささみ/魚介/贅沢素材/子ねこ/シニア/総合栄養食等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/name/cat/CIAO%2B%E3%81%A1%E3%82%85%EF%BD%9E%E3%82%8B,true
+product_0020,CIAO ちゅ～る バラエティ,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,おやつ,20本/40本/BOX等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/name/cat/CIAO%2B%E3%81%A1%E3%82%85%EF%BD%9E%E3%82%8B,true
+product_0021,CIAO ちゅ～る 総合栄養食,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_006,機能性おやつ,おやつ/補助,総合栄養食タイプ,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/name/cat/CIAO%2B%E3%81%A1%E3%82%85%EF%BD%9E%E3%82%8B,true
+product_0022,CIAO ちゅ～る 水分補給,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_006,機能性おやつ,おやつ/補助,水分補給系,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/name/cat/CIAO%2B%E3%81%A1%E3%82%85%EF%BD%9E%E3%82%8B,true
+product_0023,CIAO パウチ,brand_002,CIAO / いなば,いなばペットフード,cat_food,フード,subcat_002,ウェットフード,ウェット,だしスープ/毎日おさかな/とろみ/スープ等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0024,CIAO 缶,brand_002,CIAO / いなば,いなばペットフード,cat_food,フード,subcat_002,ウェットフード,ウェット,まぐろ/かつお/ささみ/血合肉シリーズ等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0025,CIAO 焼かつお,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,おやつ,本格だし味/ほたて味/高齢猫用等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0026,CIAO 焼ささみ,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,おやつ,チキンスープ味/ほたて味等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0027,金のだし カップ,brand_002,CIAO / いなば,いなばペットフード,cat_food,フード,subcat_002,ウェットフード,ウェット,まぐろ/かつお/ささみ等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0028,金のだし パウチ,brand_002,CIAO / いなば,いなばペットフード,cat_food,フード,subcat_002,ウェットフード,ウェット,まぐろ/かつお/ささみ等,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0029,金のだし クリーム,brand_002,CIAO / いなば,いなばペットフード,cat_food,フード,subcat_002,ウェットフード,ウェット/おやつ,クリーム系,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0030,すごい乳酸菌,brand_002,CIAO / いなば,いなばペットフード,cat_health,ヘルスケア・栄養補助,subcat_024,サプリメント,フード/おやつ,パウチ/ちゅ～る系,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0031,わがまま猫,brand_002,CIAO / いなば,いなばペットフード,cat_food,フード,subcat_002,ウェットフード,ウェット,缶/パウチ系,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0032,とびつく,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,おやつ,焼かつお/ささみ系スナック,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0033,いなば 焼本かつお,brand_002,CIAO / いなば,いなばペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,おやつ,かつお節/本格だし系,A,ちゅ～る・ウェット系は最優先,https://www.inaba-petfood.co.jp/product/cat/,true
+product_0034,メディファス 子ねこ,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0035,メディファス 1歳から,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0036,メディファス 避妊・去勢後のケア,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0037,メディファス 室内猫 毛玉ケア,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0038,メディファス 7歳から,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0039,メディファス 11歳から,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0040,メディファス アドバンス,brand_056,メディファス,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0041,キャラットミックス,brand_019,キャラット,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0042,キャラットミックス ネオ,brand_019,キャラット,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0043,キャラット 5つの味,brand_019,キャラット,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0044,キャラット パウチ,brand_019,キャラット,ペットライン,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0045,懐石 2dish,brand_062,懐石,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0046,懐石 zeppin,brand_062,懐石,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0047,懐石 レトルト,brand_062,懐石,ペットライン,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0048,懐石 缶,brand_062,懐石,ペットライン,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢/体質/味違いあり,A,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0049,プロステージ ル・シャット デトレ,brand_053,プロステージ,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,B,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0050,プロステージ ル・シャット ヌクレ,brand_053,プロステージ,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,B,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0051,プロステージ ル・シャット ファーレ,brand_053,プロステージ,ペットライン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/体質/味違いあり,B,国産フード系の主要ブランド,https://www.petline.co.jp/cat/,true
+product_0052,コンボ キャット ドライ,brand_023,コンボ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,A,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0053,コンボ キャット 毛玉対応,brand_023,コンボ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,A,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0054,コンボ キャット 下部尿路の健康維持,brand_023,コンボ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,A,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0055,コンボ キャット 連パック,brand_023,コンボ,日本ペットフード,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ別,A,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0056,コンボ プレゼント,brand_023,コンボ,日本ペットフード,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,年齢・健康ニーズ別,A,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0057,コンボ ピュア ドライ,brand_024,コンボ ピュア,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0058,コンボ ピュア 連パック,brand_024,コンボ ピュア,日本ペットフード,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0059,ミオ ドライミックス,brand_055,ミオ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0060,ミオ コンボ系ウェット,brand_055,ミオ,日本ペットフード,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0061,ミオ レトルト,brand_055,ミオ,日本ペットフード,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0062,ビューティープロ キャット 下部尿路の健康維持,brand_043,ビューティープロ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0063,ビューティープロ キャット 避妊・去勢後,brand_043,ビューティープロ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0064,ビューティープロ キャット 腎臓の健康維持,brand_043,ビューティープロ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0065,ラシーネ 日本猫,brand_059,ラシーネ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0066,ラシーネ スコティッシュ・フォールド等猫種別,brand_059,ラシーネ,日本ペットフード,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ別,B,日本ペットフードの猫用主要カテゴリ,https://www.npf.co.jp/cat-products,true
+product_0067,ロイヤルカナン FHN インドア,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0068,ロイヤルカナン FHN ヘアボールケア,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0069,ロイヤルカナン FHN ユリナリーケア,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0070,ロイヤルカナン FHN センシブル,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0071,ロイヤルカナン キトン,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0072,ロイヤルカナン マザー&ベビーキャット,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0073,ロイヤルカナン エイジング12+,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0074,ロイヤルカナン 猫種専用（アメリカンショートヘアー等）,brand_060,ロイヤルカナン,ロイヤルカナン,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/猫種/健康ニーズ別,A,総合栄養食の主要ライン,https://www.royalcanin.com/jp-shop/cats,true
+product_0075,ロイヤルカナン ユリナリーS/O,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0076,ロイヤルカナン 腎臓サポート,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0077,ロイヤルカナン 消化器サポート,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0078,ロイヤルカナン 低分子プロテイン,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0079,ロイヤルカナン 満腹感サポート,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0080,ロイヤルカナン 糖コントロール,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0081,ロイヤルカナン 肝臓サポート,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0082,ロイヤルカナン セレクトプロテイン,brand_061,ロイヤルカナン ベテリナリーダイエット,ロイヤルカナン,cat_food,フード,subcat_004,療法食,療法食シリーズ,疾患別。利用時は獣医師確認導線推奨,A,療法食は注意書き必須,https://vet.royalcanin.jp/static_page/cat,true
+product_0083,キトン 子猫用,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0084,アダルト 成猫用,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0085,インドアキャット,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0086,ヘアボールコントロール,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0087,ライト 肥満傾向,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0088,シニア 7歳以上,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0089,シニア 11歳以上,brand_040,ヒルズ サイエンス・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0090,c/d 尿ケア,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0091,k/d 腎臓ケア,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0092,i/d 消化ケア,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0093,z/d 食物アレルギーケア,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0094,r/d 体重管理,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0095,メタボリックス,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0096,y/d 甲状腺ケア,brand_041,ヒルズ プリスクリプション・ダイエット,日本ヒルズ・コルゲート,cat_food,フード,subcat_004,療法食,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0097,成猫用,brand_042,ヒルズ ベット・エッセンシャル,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0098,避妊・去勢後,brand_042,ヒルズ ベット・エッセンシャル,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0099,高齢猫用,brand_042,ヒルズ ベット・エッセンシャル,日本ヒルズ・コルゲート,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢/健康状態別,A,療法食は獣医師相談表示推奨,https://www.hills.co.jp/,true
+product_0100,グレインフリー,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0101,室内飼い猫用,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0102,避妊・去勢した猫の体重ケア,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0103,美味を求める成猫用,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0104,尿路の健康維持,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0105,健康マルチケア,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0106,子ねこ用,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0107,シニア猫用,brand_046,ピュリナ ワン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0108,プチリュクス パウチ,brand_058,モンプチ,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/our-brands/monpetit,true
+product_0109,プチリュクス カップ,brand_058,モンプチ,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/our-brands/monpetit,true
+product_0110,スープ,brand_058,モンプチ,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/our-brands/monpetit,true
+product_0111,クリスピーキッス,brand_058,モンプチ,ネスレ ピュリナ,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/our-brands/monpetit,true
+product_0112,バッグ ドライ,brand_058,モンプチ,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/our-brands/monpetit,true
+product_0113,缶,brand_058,モンプチ,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/our-brands/monpetit,true
+product_0114,やわらかグリル パウチ,brand_049,フィリックス,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0115,パウチ ゼリー仕立て,brand_049,フィリックス,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0116,スープ,brand_049,フィリックス,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0117,成猫/子ねこ/シニア,brand_049,フィリックス,ネスレ ピュリナ,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,年齢・健康ニーズ・味違いあり,A,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0118,ドライ ミックス,brand_051,フリスキー,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,B,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0119,ウェット パウチ,brand_051,フリスキー,ネスレ ピュリナ,cat_food,フード,subcat_002,ウェットフード,シリーズ,年齢・健康ニーズ・味違いあり,B,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0120,ベテリナリー ダイエット,brand_045,ピュリナ プロプラン,ネスレ ピュリナ,cat_food,フード,subcat_004,療法食,シリーズ,年齢・健康ニーズ・味違いあり,B,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0121,ライブクリア,brand_045,ピュリナ プロプラン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,B,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0122,成猫/子猫/シニア,brand_045,ピュリナ プロプラン,ネスレ ピュリナ,cat_food,フード,subcat_001,ドライフード,シリーズ,年齢・健康ニーズ・味違いあり,B,ピュリナ公式の猫用フードカテゴリ,https://purina.nestle.jp/food/cat,true
+product_0123,パウチ ゼリー仕立て,brand_016,カルカン,マース ジャパン,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0124,パウチ スープ仕立て,brand_016,カルカン,マース ジャパン,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0125,ドライ,brand_016,カルカン,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0126,子ねこ用,brand_016,カルカン,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0127,8歳/11歳/15歳/18歳以上,brand_016,カルカン,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0128,シーバ デュオ,brand_025,シーバ,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0129,シーバ リッチ,brand_025,シーバ,マース ジャパン,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0130,シーバ とろ～り メルティ,brand_025,シーバ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0131,シーバ アミューズ,brand_025,シーバ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0132,シーバ パウチ,brand_025,シーバ,マース ジャパン,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0133,成猫用 インドアキャット,brand_008,アイムス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0134,毛玉ケア,brand_008,アイムス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0135,体重管理,brand_008,アイムス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0136,子ねこ用,brand_008,アイムス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0137,シニア猫用,brand_008,アイムス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0138,室内猫用 アダルト チキン,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0139,穀物フリー,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0140,毛玉トータルケア,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0141,減量用,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0142,避妊・去勢猫用,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0143,キトン,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0144,シニア,brand_037,ニュートロ ナチュラルチョイス,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,A,マース系主要ブランド,https://store.nutro.jp/,true
+product_0145,アダルト チキン,brand_038,ニュートロ ワイルドレシピ,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://store.nutro.jp/,true
+product_0146,アダルト サーモン,brand_038,ニュートロ ワイルドレシピ,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://store.nutro.jp/,true
+product_0147,キトン,brand_038,ニュートロ ワイルドレシピ,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://store.nutro.jp/,true
+product_0148,シニア,brand_038,ニュートロ ワイルドレシピ,マース ジャパン,cat_food,フード,subcat_001,ドライフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://store.nutro.jp/,true
+product_0149,パウチ/トレイ チキン&ツナ等,brand_036,ニュートロ デイリーディッシュ,マース ジャパン,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://store.nutro.jp/,true
+product_0150,まぐろ味,brand_032,ドリーミーズ,マース ジャパン,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0151,チーズ味,brand_032,ドリーミーズ,マース ジャパン,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0152,シーフード味,brand_032,ドリーミーズ,マース ジャパン,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・年齢違いあり,B,マース系主要ブランド,https://www.mars.com/ja-jp/our-brands/petcare,true
+product_0153,ワイルドプレイリーキャット,brand_010,アカナ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0154,パシフィカキャット,brand_010,アカナ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0155,グラスランドキャット,brand_010,アカナ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0156,バウンティフルキャッチ,brand_010,アカナ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0157,キャット&キトゥン,brand_014,オリジン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0158,シックスフィッシュ,brand_014,オリジン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0159,レジオナルレッド,brand_014,オリジン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0160,フィット&トリム,brand_014,オリジン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0161,フレッシュミックス フィーライン,brand_013,アーテミス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0162,オソピュア グレインフリー,brand_013,アーテミス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0163,フォムファインステン,brand_011,アニモンダ,各社/輸入元,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0164,カーニー,brand_011,アニモンダ,各社/輸入元,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0165,インテグラ プロテクト,brand_011,アニモンダ,各社/輸入元,cat_food,フード,subcat_004,療法食,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0166,HFC ナチュラル,brand_012,アルモネイチャー,各社/輸入元,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0167,デイリーメニュー,brand_012,アルモネイチャー,各社/輸入元,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0168,オルタナティブ,brand_012,アルモネイチャー,各社/輸入元,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0169,エアドライ キャット,brand_026,ジウィ / ZIWI,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0170,ピーク ウェット缶,brand_026,ジウィ / ZIWI,各社/輸入元,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0171,ラム&レバー,brand_017,キアオラ / Kia Ora,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0172,ビーフ&レバー,brand_017,キアオラ / Kia Ora,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0173,カンガルー,brand_017,キアオラ / Kia Ora,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0174,キャット pHコントロール,brand_052,ブリスミックス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0175,グレインフリー,brand_052,ブリスミックス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0176,ホリスティックグレインフリー キャット,brand_020,クプレラ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0177,クラシック キャット,brand_020,クプレラ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0178,アクティブライン,brand_050,フォルツァ10,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0179,メンテナンス,brand_050,フォルツァ10,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0180,ミスターフルーツ,brand_050,フォルツァ10,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0181,インディゴムーン,brand_029,ソリッドゴールド,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0182,カッツフラッケン,brand_029,ソリッドゴールド,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0183,アダルト チキン,brand_028,セレクトバランス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0184,キトン チキン,brand_028,セレクトバランス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0185,スリム チキン,brand_028,セレクトバランス,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0186,グレインフリー アダルトキャット,brand_033,ナウフレッシュ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0187,キトン,brand_033,ナウフレッシュ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0188,シニア,brand_033,ナウフレッシュ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0189,チキンウィズブルーベリー,brand_047,ファーストメイト,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0190,フィッシュウィズブルーベリー,brand_047,ファーストメイト,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0191,センシティブ,brand_039,ハッピーキャット,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0192,カリナリー,brand_039,ハッピーキャット,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0193,ミートインソース,brand_039,ハッピーキャット,各社/輸入元,cat_food,フード,subcat_002,ウェットフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0194,キャット チキン&サーモン,brand_006,iti / イティ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0195,ラム&ベニソン,brand_006,iti / イティ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0196,カナガン キャットフード チキン,brand_015,カナガン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0197,カナガン キャットフード サーモン,brand_015,カナガン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0198,モグニャン キャットフード,brand_057,モグニャン,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0199,犬猫生活 キャットフード オールステージ,brand_064,犬猫生活,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0200,犬猫生活 キャットフード シニア,brand_064,犬猫生活,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0201,チキン&サーモン,brand_021,グランツ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0202,チキン,brand_021,グランツ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0203,サーモン,brand_021,グランツ,各社/輸入元,cat_food,フード,subcat_001,ドライフード,シリーズ,味・容量違いあり,B,プレミアム/通販系。日本流通は販売店確認推奨,https://www.min-petkenko.com/premiumFood.php?mode=cat,true
+product_0204,デオトイレ 消臭・抗菌サンド,brand_030,デオトイレ,ユニ・チャーム,cat_litter_toilet,猫砂・トイレ,subcat_013,システムトイレ用チップ/砂,システムトイレ用砂,鉱物系/紙系/ふんわり香る/複数ねこ用等,A,シート・サンドは消耗品の最優先カテゴリ,https://jp.unicharmpet.com/ja/deotoilet/lineup.html,true
+product_0205,デオトイレ 飛び散らない消臭・抗菌サンド,brand_030,デオトイレ,ユニ・チャーム,cat_litter_toilet,猫砂・トイレ,subcat_013,システムトイレ用チップ/砂,システムトイレ用砂,小粒/大粒系,A,シート・サンドは消耗品の最優先カテゴリ,https://jp.unicharmpet.com/ja/deotoilet/lineup.html,true
+product_0206,デオトイレ 消臭・抗菌シート,brand_030,デオトイレ,ユニ・チャーム,cat_litter_toilet,猫砂・トイレ,subcat_014,システムトイレ用シート/マット,システムトイレ用シート,10枚/20枚/複数ねこ用/香り付き等,A,シート・サンドは消耗品の最優先カテゴリ,https://jp.unicharmpet.com/ja/deotoilet/lineup.html,true
+product_0207,デオトイレ ふんわり香る消臭・抗菌シート,brand_030,デオトイレ,ユニ・チャーム,cat_litter_toilet,猫砂・トイレ,subcat_014,システムトイレ用シート/マット,システムトイレ用シート,ナチュラルガーデン等,A,シート・サンドは消耗品の最優先カテゴリ,https://jp.unicharmpet.com/ja/deotoilet/lineup.html,true
+product_0208,デオトイレ 本体セット,brand_030,デオトイレ,ユニ・チャーム,cat_litter_toilet,猫砂・トイレ,subcat_015,トイレ本体,トイレ本体,ハーフ/フード付き/子猫用等,A,シート・サンドは消耗品の最優先カテゴリ,https://jp.unicharmpet.com/ja/deotoilet/lineup.html,true
+product_0209,デオトイレ 脱臭ファン＋本体,brand_030,デオトイレ,ユニ・チャーム,cat_litter_toilet,猫砂・トイレ,subcat_015,トイレ本体,トイレ本体,本体・交換カートリッジ系,A,シート・サンドは消耗品の最優先カテゴリ,https://jp.unicharmpet.com/ja/deotoilet/lineup.html,true
+product_0210,ニャンとも清潔トイレ 脱臭・抗菌チップ,brand_035,ニャンとも清潔トイレ,エステー,cat_litter_toilet,猫砂・トイレ,subcat_013,システムトイレ用チップ/砂,システムトイレ用チップ,大きめ/小さめ/極小の粒,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0211,ニャンとも清潔トイレ 脱臭・抗菌シート,brand_035,ニャンとも清潔トイレ,エステー,cat_litter_toilet,猫砂・トイレ,subcat_014,システムトイレ用シート/マット,システムトイレ用シート,4枚/12枚/複数ねこ用等,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0212,ニャンとも清潔トイレ 脱臭・抗菌マット,brand_035,ニャンとも清潔トイレ,エステー,cat_litter_toilet,猫砂・トイレ,subcat_014,システムトイレ用シート/マット,システムトイレ用マット,マットタイプ,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0213,ニャンとも清潔トイレ 消臭プロフェッショナル チップ,brand_035,ニャンとも清潔トイレ,エステー,cat_litter_toilet,猫砂・トイレ,subcat_013,システムトイレ用チップ/砂,システムトイレ用チップ,大きめの粒等,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0214,ニャンとも清潔トイレ 消臭プロフェッショナル シート,brand_035,ニャンとも清潔トイレ,エステー,cat_litter_toilet,猫砂・トイレ,subcat_014,システムトイレ用シート/マット,システムトイレ用シート,12枚等,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0215,ニャンとも清潔トイレ 消臭プロフェッショナル スプレー,brand_035,ニャンとも清潔トイレ,エステー,cat_care_cleaning,ケア・掃除,subcat_016,消臭・掃除用品,消臭剤,本体/つめかえ,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0216,ニャンとも清潔トイレ 本体セット,brand_035,ニャンとも清潔トイレ,エステー,cat_litter_toilet,猫砂・トイレ,subcat_015,トイレ本体,トイレ本体,オープン/ドーム/シンプル等,A,チップ・シートは消耗品の最優先カテゴリ,https://products.st-c.co.jp/brand/nyantomo/,true
+product_0217,ニオイをとる砂 鉱物タイプ,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,鉱物/ベントナイト、香り付き等,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0218,ニオイをとる砂 フローラルソープの香り,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,香り付き,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0219,ニオイをとる砂 リラックスグリーンの香り,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,香り付き,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0220,ニオイをとる砂 おから砂,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_011,猫砂（おから）,猫砂,おから,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0221,ニオイをとる砂 紙砂,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_009,猫砂（紙）,猫砂,紙,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0222,ニオイをとる砂 軽量タイプ,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,軽量,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0223,獣医師開発猫トイレ,brand_034,ニオイをとる砂,ライオンペット,cat_litter_toilet,猫砂・トイレ,subcat_015,トイレ本体,猫砂,本体/専用砂系,A,固まる砂の定番,https://www.lion-pet.co.jp/catsuna/,true
+product_0224,クリーンサンド,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0225,ニオイをのこサンド,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0226,上から猫トイレ用猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0227,クリーン&フレッシュ Ag+,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0228,ガッチリ固まる猫砂Ag+,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0229,ウッディフレッシュ,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_010,猫砂（木・ひのき）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0230,ハイパーウッディ,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_010,猫砂（木・ひのき）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0231,炭の猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_010,猫砂（木・ひのき）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0232,pHチェック猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0233,ペーパーフレッシュ,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_009,猫砂（紙）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0234,紙の猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_009,猫砂（紙）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0235,脱臭ペーパーフレッシュ,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_009,猫砂（紙）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0236,お茶の猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_011,猫砂（おから）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0237,ひのきでつくった猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_010,猫砂（木・ひのき）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0238,消臭砂シリカゲルサンド,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_012,猫砂（シリカゲル）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0239,シリカゲルの猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_012,猫砂（シリカゲル）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0240,システムトイレ用 猫砂,brand_009,アイリスオーヤマ,アイリスオーヤマ,cat_litter_toilet,猫砂・トイレ,subcat_008,猫砂（鉱物）,猫砂,容量違いあり,A,素材別ラインナップが広い,https://www.irisohyama.co.jp/products/pet-supplies-pet-food/cat-sand/,true
+product_0241,PETKISS 歯みがきジェル,brand_004,PETKISS,ライオンペット,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,ケア/おやつ,リーフ/チキン/アップル等,A,猫の歯みがきカテゴリ用,https://www.lion-pet.co.jp/petkiss/cat/lineup.htm,true
+product_0242,PETKISS 指サック歯みがきシート,brand_004,PETKISS,ライオンペット,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,ケア/おやつ,指サックタイプ,A,猫の歯みがきカテゴリ用,https://www.lion-pet.co.jp/petkiss/cat/lineup.htm,true
+product_0243,PETKISS 歯みがきシート,brand_004,PETKISS,ライオンペット,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,ケア/おやつ,シートタイプ,A,猫の歯みがきカテゴリ用,https://www.lion-pet.co.jp/petkiss/cat/lineup.htm,true
+product_0244,PETKISS デンタルブラシコンパクト,brand_004,PETKISS,ライオンペット,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,ケア/おやつ,歯ブラシ,A,猫の歯みがきカテゴリ用,https://www.lion-pet.co.jp/petkiss/cat/lineup.htm,true
+product_0245,PETKISS ネコちゃんの歯みがきおやつ,brand_004,PETKISS,ライオンペット,cat_treat,おやつ・嗜好品,subcat_007,デンタルおやつ,ケア/おやつ,チキン/まぐろ等,A,猫の歯みがきカテゴリ用,https://www.lion-pet.co.jp/petkiss/cat/lineup.htm,true
+product_0246,グリニーズ 猫用 グリルチキン味,brand_022,グリニーズ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_007,デンタルおやつ,おやつ,容量違いあり,A,歯みがき専用スナック・機能性おやつ,https://m.greenies.jp/,true
+product_0247,グリニーズ 猫用 香味サーモン味,brand_022,グリニーズ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_007,デンタルおやつ,おやつ,容量違いあり,A,歯みがき専用スナック・機能性おやつ,https://m.greenies.jp/,true
+product_0248,グリニーズ 猫用 ローストチキン味,brand_022,グリニーズ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_007,デンタルおやつ,おやつ,容量違いあり,A,歯みがき専用スナック・機能性おやつ,https://m.greenies.jp/,true
+product_0249,グリニーズ 毛玉ケア,brand_022,グリニーズ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_006,機能性おやつ,おやつ,容量違いあり,A,歯みがき専用スナック・機能性おやつ,https://m.greenies.jp/,true
+product_0250,グリニーズ 皮膚・被毛ケア,brand_022,グリニーズ,マース ジャパン,cat_treat,おやつ・嗜好品,subcat_006,機能性おやつ,おやつ,容量違いあり,A,歯みがき専用スナック・機能性おやつ,https://m.greenies.jp/,true
+product_0251,けりぐるみ,brand_054,ペティオ,ペティオ,cat_semi_consumable,半消耗品,subcat_021,おもちゃ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0252,猫用おやつ 素材そのまま系,brand_054,ペティオ,ペティオ,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0253,デンタルケア用品,brand_054,ペティオ,ペティオ,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0254,爪とぎ,brand_054,ペティオ,ペティオ,cat_semi_consumable,半消耗品,subcat_020,爪とぎ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0255,猫じゃらし/おもちゃ,brand_054,ペティオ,ペティオ,cat_semi_consumable,半消耗品,subcat_021,おもちゃ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0256,ウェットティッシュ,brand_054,ペティオ,ペティオ,cat_care_cleaning,ケア・掃除,subcat_017,ウェットティッシュ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0257,ブラシ/コーム,brand_054,ペティオ,ペティオ,cat_care_cleaning,ケア・掃除,subcat_019,グルーミング用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0258,無添加良品 猫用おやつ,brand_018,キャティーマン,ドギーマンハヤシ,cat_treat,おやつ・嗜好品,subcat_005,おやつ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0259,じゃれ猫 シリーズ,brand_018,キャティーマン,ドギーマンハヤシ,cat_semi_consumable,半消耗品,subcat_021,おもちゃ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0260,猫用ブラシ/爪切り,brand_018,キャティーマン,ドギーマンハヤシ,cat_care_cleaning,ケア・掃除,subcat_019,グルーミング用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0261,またたび/猫草系,brand_018,キャティーマン,ドギーマンハヤシ,cat_treat,おやつ・嗜好品,subcat_022,猫草・またたび,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0262,ミルク/栄養補助,brand_018,キャティーマン,ドギーマンハヤシ,cat_health,ヘルスケア・栄養補助,subcat_023,ミルク・栄養補助,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0263,ウェットティッシュ,brand_018,キャティーマン,ドギーマンハヤシ,cat_care_cleaning,ケア・掃除,subcat_017,ウェットティッシュ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0264,らくらく歯みがきシート,brand_027,スーパーキャット,スーパーキャット,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0265,猫用おもちゃ,brand_027,スーパーキャット,スーパーキャット,cat_semi_consumable,半消耗品,subcat_021,おもちゃ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0266,爪とぎ,brand_027,スーパーキャット,スーパーキャット,cat_semi_consumable,半消耗品,subcat_020,爪とぎ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0267,消臭/掃除用品,brand_027,スーパーキャット,スーパーキャット,cat_care_cleaning,ケア・掃除,subcat_016,消臭・掃除用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.doggyman.com/,true
+product_0268,バリバリボウル,brand_065,猫壱,猫壱,cat_semi_consumable,半消耗品,subcat_020,爪とぎ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0269,バリバリベッド,brand_065,猫壱,猫壱,cat_semi_consumable,半消耗品,subcat_020,爪とぎ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0270,食器スポンジ/ケア小物,brand_065,猫壱,猫壱,cat_care_cleaning,ケア・掃除,subcat_016,消臭・掃除用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0271,爪切り,brand_065,猫壱,猫壱,cat_care_cleaning,ケア・掃除,subcat_019,グルーミング用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://www.petio.com/,true
+product_0272,ファーミネーター 小型猫 短毛種用,brand_048,ファーミネーター,スペクトラムブランズ等,cat_care_cleaning,ケア・掃除,subcat_019,グルーミング用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0273,ファーミネーター 小型猫 長毛種用,brand_048,ファーミネーター,スペクトラムブランズ等,cat_care_cleaning,ケア・掃除,subcat_019,グルーミング用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0274,大型猫 短毛/長毛,brand_048,ファーミネーター,スペクトラムブランズ等,cat_care_cleaning,ケア・掃除,subcat_019,グルーミング用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0275,歯みがきラクヤー,brand_031,トーラス,トーラス,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0276,歯みがきシート/ジェル,brand_031,トーラス,トーラス,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0277,乳酸菌/サプリ,brand_031,トーラス,トーラス,cat_health,ヘルスケア・栄養補助,subcat_024,サプリメント,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0278,耳・目・涙やけケア,brand_031,トーラス,トーラス,cat_care_cleaning,ケア・掃除,subcat_016,消臭・掃除用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0279,C.E.T. 歯みがきペースト,brand_044,ビルバック,ビルバック,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0280,C.E.T. 歯ブラシ,brand_044,ビルバック,ビルバック,cat_care_cleaning,ケア・掃除,subcat_018,デンタルケア用品,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0281,ベジデント系（犬中心）,brand_044,ビルバック,ビルバック,cat_food,フード,subcat_003,フード総合シリーズ,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0282,猫用サプリメント 腎臓健康維持,brand_003,DHC,DHC,cat_health,ヘルスケア・栄養補助,subcat_024,サプリメント,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0283,猫用サプリメント 乳酸菌,brand_003,DHC,DHC,cat_health,ヘルスケア・栄養補助,subcat_024,サプリメント,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0284,猫用サプリメント 負けないキャット,brand_003,DHC,DHC,cat_health,ヘルスケア・栄養補助,subcat_024,サプリメント,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0285,ワンラック キャットミルク,brand_063,森乳サンワールド,森乳サンワールド,cat_health,ヘルスケア・栄養補助,subcat_023,ミルク・栄養補助,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0286,プレミアムキャットミルク,brand_063,森乳サンワールド,森乳サンワールド,cat_health,ヘルスケア・栄養補助,subcat_023,ミルク・栄養補助,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true
+product_0287,子猫用ミルク,brand_063,森乳サンワールド,森乳サンワールド,cat_health,ヘルスケア・栄養補助,subcat_023,ミルク・栄養補助,シリーズ,詳細SKUはEC/公式で追加調査,B,前回リストブランドの代表商品シリーズ,https://shopping.geocities.jp/chanet/docs/catdrylist_yh.html,true

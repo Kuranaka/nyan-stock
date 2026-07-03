@@ -19,7 +19,7 @@ import {
 import { InventoryCategory, InventoryItem, InventoryUnit } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import {
-  findProductsByKeyword,
+  findProductsByKeywordAsync,
   productCategoryLabels,
   productCategoryToInventoryCategory,
   productPurchaseLinksToInventoryLinks,
@@ -71,6 +71,7 @@ export default function InventoryFormScreen() {
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<ProductCategoryFilter>('all');
   const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
+  const [masterSearchLoading, setMasterSearchLoading] = useState(false);
   const [productSearchKeyword, setProductSearchKeyword] = useState('');
   const [productSearchResults, setProductSearchResults] = useState<RakutenSearchResult[]>([]);
   const [productSearchLoading, setProductSearchLoading] = useState(false);
@@ -184,19 +185,24 @@ export default function InventoryFormScreen() {
     }
   };
 
-  const searchProductMasters = () => {
+  const searchProductMasters = async () => {
     const keyword = masterSearchKeyword.trim() || name.trim();
-    const results = findProductsByKeyword(keyword, {
-      category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
-      limit: masterResultLimit,
-    });
-    setMasterSearchKeyword(keyword);
-    setMasterSearchResults(results);
-    setMasterSearchMessage(
-      results.length === 0
-        ? '商品マスタに該当する商品が見つかりませんでした。'
-        : `${results.length}件を表示しています。`,
-    );
+    setMasterSearchLoading(true);
+    try {
+      const results = await findProductsByKeywordAsync(keyword, {
+        category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
+        limit: masterResultLimit,
+      });
+      setMasterSearchKeyword(keyword);
+      setMasterSearchResults(results);
+      setMasterSearchMessage(
+        results.length === 0
+          ? '商品マスタに該当する商品が見つかりませんでした。'
+          : `${results.length}件を表示しています。`,
+      );
+    } finally {
+      setMasterSearchLoading(false);
+    }
   };
 
   const applyProductMaster = (product: ProductMaster) => {
@@ -330,7 +336,12 @@ export default function InventoryFormScreen() {
                   />
                 ))}
               </View>
-              <AppButton title="商品名で検索" variant="secondary" onPress={searchProductMasters} />
+              <AppButton
+                title={masterSearchLoading ? '検索中...' : '商品名で検索'}
+                variant="secondary"
+                disabled={masterSearchLoading}
+                onPress={() => void searchProductMasters()}
+              />
               {masterSearchMessage ? <Text style={styles.resultSummary}>{masterSearchMessage}</Text> : null}
               {masterSearchResults.map((product) => (
                 <View key={product.id} style={styles.searchResult}>

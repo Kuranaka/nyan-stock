@@ -9,6 +9,16 @@ type ProductSearchOptions = {
   limit?: number;
 };
 
+type SupabaseProductMasterRow = {
+  data?: ProductMaster;
+};
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseProductMasterTable = process.env.EXPO_PUBLIC_SUPABASE_PRODUCT_MASTER_TABLE ?? 'product_masters';
+
+let cachedRemoteProductMasters: ProductMaster[] | undefined;
+
 export const productCategoryLabels: Record<ProductCategory, string> = {
   dry_food: 'ドライフード',
   wet_food: 'ウェットフード',
@@ -34,12 +44,73 @@ export function findProductByJanCode(janCode: string): ProductMaster | undefined
   return getProductMasters().find((product) => product.janCode === normalizedJanCode || product.gtin === normalizedJanCode);
 }
 
+export async function findProductByJanCodeAsync(janCode: string): Promise<ProductMaster | undefined> {
+  const normalizedJanCode = janCode.replace(/\D/g, '');
+  if (!normalizedJanCode) return undefined;
+  const products = await getProductMastersAsync();
+  return products.find((product) => product.janCode === normalizedJanCode || product.gtin === normalizedJanCode);
+}
+
 export function findProductsByKeyword(keyword: string, options: ProductSearchOptions = {}): ProductMaster[] {
+  return searchProductMasters(getProductMasters(), keyword, options);
+}
+
+export async function findProductsByKeywordAsync(
+  keyword: string,
+  options: ProductSearchOptions = {},
+): Promise<ProductMaster[]> {
+  const products = await getProductMastersAsync();
+  return searchProductMasters(products, keyword, options);
+}
+
+async function getProductMastersAsync(): Promise<ProductMaster[]> {
+  const remoteProducts = await loadSupabaseProductMasters();
+  if (remoteProducts.length > 0) {
+    return remoteProducts;
+  }
+  return getProductMasters();
+}
+
+async function loadSupabaseProductMasters(): Promise<ProductMaster[]> {
+  if (cachedRemoteProductMasters) return cachedRemoteProductMasters;
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+
+  const baseUrl = supabaseUrl.replace(/\/+$/, '');
+  const table = encodeURIComponent(supabaseProductMasterTable);
+  const endpoint = `${baseUrl}/rest/v1/${table}?select=data&limit=1000&order=updated_at.desc`;
+
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+    });
+    if (!response.ok) {
+      console.warn(`[productMaster] Supabase load failed ${response.status}. Falling back to local seed.`);
+      return [];
+    }
+    const rows = (await response.json()) as SupabaseProductMasterRow[];
+    cachedRemoteProductMasters = rows
+      .map((row) => row.data)
+      .filter((product): product is ProductMaster => Boolean(product?.id && product.name));
+    return cachedRemoteProductMasters;
+  } catch (error) {
+    console.warn('[productMaster] Supabase load failed. Falling back to local seed.', error);
+    return [];
+  }
+}
+
+function searchProductMasters(
+  products: ProductMaster[],
+  keyword: string,
+  options: ProductSearchOptions = {},
+): ProductMaster[] {
   const normalizedKeyword = normalizeProductName(keyword);
   const normalizedJanCode = keyword.replace(/\D/g, '');
   const limit = options.limit ?? 20;
 
-  return getProductMasters()
+  return products
     .filter((product) => !options.category || product.category === options.category)
     .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, normalizedJanCode) }))
     .filter(({ score }) => score > 0)

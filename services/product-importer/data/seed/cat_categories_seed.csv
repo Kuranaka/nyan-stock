@@ -1,0 +1,7 @@
+﻿category_id,category_name,description,display_order,is_consumable_core
+cat_food,フード,主食・療法食・フード総合シリーズ,1,true
+cat_treat,おやつ・嗜好品,おやつ、機能性おやつ、猫草、またたび,2,true
+cat_litter_toilet,猫砂・トイレ,猫砂、システムトイレ用チップ/砂、シート/マット、トイレ本体,3,true
+cat_care_cleaning,ケア・掃除,ウェットティッシュ、消臭・掃除、グルーミング、デンタルケア用品,4,false
+cat_health,ヘルスケア・栄養補助,サプリメント、ミルク・栄養補助,5,false
+cat_semi_consumable,半消耗品,爪とぎ、おもちゃなど交換・補充対象,6,false

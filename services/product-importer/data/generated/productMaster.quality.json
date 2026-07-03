@@ -1,0 +1,792 @@
+{
+  "sourcePath": "services/product-importer/data/generated/productMaster.generated.json",
+  "total": 445,
+  "byCategory": {
+    "dry_food": 68,
+    "wet_food": 60,
+    "treat": 82,
+    "cat_litter": 115,
+    "toilet_sheet": 27,
+    "supplement": 43,
+    "medicine": 0,
+    "care": 25,
+    "other": 25
+  },
+  "byProvider": {
+    "rakuten": 267,
+    "yahoo": 265
+  },
+  "confidence": {
+    "average": 49.7,
+    "min": 5,
+    "max": 100,
+    "verified": 157,
+    "buckets": {
+      "under40": 238,
+      "from40To59": 17,
+      "from60To79": 33,
+      "from80": 157
+    }
+  },
+  "missing": {
+    "brand": 144,
+    "amountOrUnit": 51,
+    "janOrGtin": 255,
+    "image": 226,
+    "purchaseLink": 0,
+    "searchKeywords": 0,
+    "sources": 0
+  },
+  "suspicious": {
+    "categoryOther": 25,
+    "longName": 115,
+    "longNormalizedName": 65,
+    "noiseWordInName": 11,
+    "invalidConfidence": 0
+  },
+  "duplicateCandidates": {
+    "byJanOrGtin": [],
+    "byIdentityKey": [],
+    "bySimilarName": []
+  },
+  "topBrands": [
+    {
+      "brand": "ちゅ〜る",
+      "count": 23
+    },
+    {
+      "brand": "アイリスオーヤマ",
+      "count": 23
+    },
+    {
+      "brand": "CIAO（いなばペットフード）",
+      "count": 19
+    },
+    {
+      "brand": "デオトイレ",
+      "count": 19
+    },
+    {
+      "brand": "IRIS OHYAMA",
+      "count": 18
+    },
+    {
+      "brand": "ニュートロ",
+      "count": 14
+    },
+    {
+      "brand": "ロイヤルカナン",
+      "count": 13
+    },
+    {
+      "brand": "シーバ",
+      "count": 11
+    },
+    {
+      "brand": "銀のスプーン",
+      "count": 10
+    },
+    {
+      "brand": "フィーライン ヘルス ニュートリション",
+      "count": 8
+    },
+    {
+      "brand": "カルカン",
+      "count": 7
+    },
+    {
+      "brand": "ママクック",
+      "count": 7
+    },
+    {
+      "brand": "ライオン",
+      "count": 6
+    },
+    {
+      "brand": "ニャンとも",
+      "count": 6
+    },
+    {
+      "brand": "モンプチ",
+      "count": 5
+    },
+    {
+      "brand": "ニャンとも清潔トイレ",
+      "count": 5
+    },
+    {
+      "brand": "ブランド登録なし",
+      "count": 5
+    },
+    {
+      "brand": "ピュリナワン",
+      "count": 4
+    },
+    {
+      "brand": "PETKISS",
+      "count": 4
+    },
+    {
+      "brand": "TAURUS",
+      "count": 4
+    }
+  ],
+  "samples": {
+    "categoryOther": [
+      {
+        "id": "pm-rakuten-chanet10347576",
+        "name": "ペットアイ いつものごちそう 複数 8kg 国産 お一人様2点限り 関東当日便",
+        "category": "other",
+        "amount": 8,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10396226",
+        "name": "ニュートロ 猫 ナチュラルチョイス 避妊・去勢 アダルト 白身魚 2kg  お一人様5点限り 関東当日便",
+        "brand": "ニュートロ",
+        "category": "other",
+        "amount": 2,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10870768",
+        "name": "ねこ元気 下部尿路の健康維持用 1歳〜10歳頃まで 2.8kg 関東当日便",
+        "category": "other",
+        "amount": 2.8,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10366943",
+        "name": "ねこ元気 複数ねこ用 お魚とお肉のスペシャルブランド 5kg 国産 お一人様4点限り 関東当日便",
+        "category": "other",
+        "amount": 5,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10396232",
+        "name": "ニュートロ 猫 ナチュラルチョイス 穀物フリー アダルト サーモン 2kg  お一人様5点限り 関東当日便",
+        "brand": "ニュートロ",
+        "category": "other",
+        "amount": 2,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10219920",
+        "name": "ホリスティックレセピー  7歳まで チキン&ライス 330g 【 フード 猫】 関東当日便",
+        "category": "other",
+        "amount": 330,
+        "unit": "g",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-hcvalor-eshop10546086",
+        "name": "ユニチャーム ねこ元気 下部尿路の健康維持用 1歳~10歳頃まで まぐろ・かつお・白身魚入り1.6kg",
+        "category": "other",
+        "amount": 1.6,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-rakuten2411152255",
+        "name": "いなば 焼かつお 成バラエティ(20本入*3袋)【焼かつお】",
+        "category": "other",
+        "amount": 20,
+        "unit": "piece",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-sizuka10000059",
+        "name": "レギュラーチョイス4◆北海道産 無添加 国産 グルテンフリー 選べる オヤツ ジャーキー シニア ドッグフード ペット 好き エゾ鹿 鹿肉 鮭 サーモン ささみ チキン 馬肉 カンガルー クッキー 硬い ギフト プレゼント 豚耳",
+        "category": "other",
+        "confidence": 5,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-nyanzaq10154057",
+        "name": "シーバ とろ〜り メルティ まぐろ&かつお味グルメセレクション 成(60本入×2(1本12g))【dl_2206sstwen】【シーバ(Sheba)】",
+        "brand": "シーバ",
+        "category": "other",
+        "amount": 60,
+        "unit": "piece",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      }
+    ],
+    "missingBrand": [
+      {
+        "id": "pm-rakuten-kohnan-eshop10160679",
+        "name": "4.95kg キャラットミックス まぐろ仕立て 下部尿路の健康維持 β‐グルカン 猫餌 フード 猫ごはん カリカリ ドライフード オールステージ フィッシュ 総合栄養食 多頭飼い 大容量 主食 常備 安い お得 嗜好性 コスパ LIFELEX×Petline コーナン",
+        "category": "dry_food",
+        "amount": 4.95,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10008179",
+        "name": "食べ比べ 猫 お試し サンプル トライアル ドライフード グレインフリー「初回」",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-potitama10000678",
+        "name": "【 ねこのまんま 】 国産 無添加 安心 安全  お試しサイズ 230g 1個 総合栄養食 高たんぱく 低脂肪 グルテンフリー ドライフード カリカリ 全年齢対応 猫の健康 腎臓 膀胱 尿道 毛玉 猫のエサ ごはん 仔猫 成猫 シニア 保護猫",
+        "category": "dry_food",
+        "amount": 230,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10347576",
+        "name": "ペットアイ いつものごちそう 複数 8kg 国産 お一人様2点限り 関東当日便",
+        "category": "other",
+        "amount": 8,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10006955",
+        "name": "ナウ フレッシュ(NOW FRESH) グレインフリー アダルトキャット 350g 猫  ドライフード 成猫 ターキー 小粒【公式販売店舗】",
+        "category": "dry_food",
+        "amount": 350,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10870768",
+        "name": "ねこ元気 下部尿路の健康維持用 1歳〜10歳頃まで 2.8kg 関東当日便",
+        "category": "other",
+        "amount": 2.8,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10005302",
+        "name": "【】J&C 限定 ジョンココ トライアル  お試し サンプル  ドライフード ウェットフード オヤツ 「おひとり様おひとつ」",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10008878",
+        "name": "tama ボナペティ サーモン&クリル 600g 猫  ドライフード グレインフリー ミールフリー 成猫 魚肉 MCTオイル クランベリー 低カロリー",
+        "category": "dry_food",
+        "amount": 600,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10366943",
+        "name": "ねこ元気 複数ねこ用 お魚とお肉のスペシャルブランド 5kg 国産 お一人様4点限り 関東当日便",
+        "category": "other",
+        "amount": 5,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10219920",
+        "name": "ホリスティックレセピー  7歳まで チキン&ライス 330g 【 フード 猫】 関東当日便",
+        "category": "other",
+        "amount": 330,
+        "unit": "g",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      }
+    ],
+    "missingAmount": [
+      {
+        "id": "pm-rakuten-mpcpets10008179",
+        "name": "食べ比べ 猫 お試し サンプル トライアル ドライフード グレインフリー「初回」",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-rakuten2411264794",
+        "name": "シーバ デュオ 5種 旅する (1)【シーバ(Sheba)】[ ドライフード おやつ]",
+        "brand": "シーバ",
+        "category": "dry_food",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10005302",
+        "name": "【】J&C 限定 ジョンココ トライアル  お試し サンプル  ドライフード ウェットフード オヤツ 「おひとり様おひとつ」",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-albiot10000444",
+        "name": "【7月5日限定 最大1,000円オフクーポン&1等最大100%バック!】ナチュラルバランス オリジナルウルトラ  チキン&サーモンレシピ [全年齢用]  ドライフード (旧ホールボディヘルス )",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-tamaone10000540",
+        "name": "tama楽天 トライアル  猫  お試し 豪華10点 サンプル ドライフード ウェットフード オヤツ たまのおねだり プレミアム ボナペティ",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-yahoo-nyanko_m108408",
+        "name": "ウェット 3P 猫餌 パウチ 猫 ご飯 腎臓 心臓 毛玉 腸 サポート 健康サポート まぐろ ささみ 美食メニュー アイリスオーヤマ P-60 *",
+        "brand": "IRIS OHYAMA",
+        "category": "wet_food",
+        "confidence": 70,
+        "providers": [
+          "yahoo"
+        ]
+      },
+      {
+        "id": "pm-rakuten-sizuka10000301",
+        "name": "にゃんにゃんチョイス4◆北海道産 猫 おやつ 無添加 国産  ペット 好き 手作り エゾ鹿 鮭 ふりかけ ささみ クマザサ 熊 笹 ねこ 犬 ギフト 詰め合わせ  シニア プレゼント お歳暮 クリスマス",
+        "category": "treat",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-sizuka10000059",
+        "name": "レギュラーチョイス4◆北海道産 無添加 国産 グルテンフリー 選べる オヤツ ジャーキー シニア ドッグフード ペット 好き エゾ鹿 鹿肉 鮭 サーモン ささみ チキン 馬肉 カンガルー クッキー 硬い ギフト プレゼント 豚耳",
+        "category": "other",
+        "confidence": 5,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-sizuka10000208",
+        "name": "にゃんにゃん◆ 北海道産 犬 猫 おやつ 無添加 国産  ペット 好き 手作り エゾ鹿 鮭 ささみ 硬い ふりかけ ギフト 詰め合わせ 誕生日 プレゼント  ギフト お歳暮 クリスマス",
+        "category": "treat",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-enelabojapan10000000",
+        "name": "猫砂 木質ペレット 33リットル〜 猫砂ペレット",
+        "category": "cat_litter",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      }
+    ],
+    "missingJanOrGtin": [
+      {
+        "id": "pm-rakuten-cat-land10000607",
+        "name": "【最大400円クーポン】【は更にお得!】ロイヤルカナン 猫 プレミアムフード ドライ ドライフード 猫 室内で生活する成 室内飼い 室内猫 インドアキャット  4kg FHN 3182550706933 ≪≫ 【rccf06】",
+        "brand": "ロイヤルカナン",
+        "category": "dry_food",
+        "amount": 4,
+        "unit": "kg",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-cat-land10000608",
+        "name": "【最大400円クーポン】ロイヤルカナン インドア プレミアムフード ドライ ドライフード 猫 室内で生活する成 室内飼い 室内猫 猫フード インドアキャット  10kg FHN 大容量 3182550706940 ≪≫ 【rccf06】",
+        "brand": "ロイヤルカナン",
+        "category": "dry_food",
+        "amount": 10,
+        "unit": "kg",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-nyanzaq10165798",
+        "name": "ニュートロ シュプレモ 成 チキン&サーモン (400g)【シュプレモ(Supremo)】[ ドライフード]",
+        "brand": "ニュートロ",
+        "category": "dry_food",
+        "amount": 400,
+        "unit": "g",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-kohnan-eshop10160679",
+        "name": "4.95kg キャラットミックス まぐろ仕立て 下部尿路の健康維持 β‐グルカン 猫餌 フード 猫ごはん カリカリ ドライフード オールステージ フィッシュ 総合栄養食 多頭飼い 大容量 主食 常備 安い お得 嗜好性 コスパ LIFELEX×Petline コーナン",
+        "category": "dry_food",
+        "amount": 4.95,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10008179",
+        "name": "食べ比べ 猫 お試し サンプル トライアル ドライフード グレインフリー「初回」",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-potitama10000678",
+        "name": "【 ねこのまんま 】 国産 無添加 安心 安全  お試しサイズ 230g 1個 総合栄養食 高たんぱく 低脂肪 グルテンフリー ドライフード カリカリ 全年齢対応 猫の健康 腎臓 膀胱 尿道 毛玉 猫のエサ ごはん 仔猫 成猫 シニア 保護猫",
+        "category": "dry_food",
+        "amount": 230,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10347576",
+        "name": "ペットアイ いつものごちそう 複数 8kg 国産 お一人様2点限り 関東当日便",
+        "category": "other",
+        "amount": 8,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-rakuten2411264794",
+        "name": "シーバ デュオ 5種 旅する (1)【シーバ(Sheba)】[ ドライフード おやつ]",
+        "brand": "シーバ",
+        "category": "dry_food",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10396226",
+        "name": "ニュートロ 猫 ナチュラルチョイス 避妊・去勢 アダルト 白身魚 2kg  お一人様5点限り 関東当日便",
+        "brand": "ニュートロ",
+        "category": "other",
+        "amount": 2,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10006955",
+        "name": "ナウ フレッシュ(NOW FRESH) グレインフリー アダルトキャット 350g 猫  ドライフード 成猫 ターキー 小粒【公式販売店舗】",
+        "category": "dry_food",
+        "amount": 350,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      }
+    ],
+    "noisyName": [
+      {
+        "id": "pm-rakuten-cat-land10000607",
+        "name": "【最大400円クーポン】【は更にお得!】ロイヤルカナン 猫 プレミアムフード ドライ ドライフード 猫 室内で生活する成 室内飼い 室内猫 インドアキャット  4kg FHN 3182550706933 ≪≫ 【rccf06】",
+        "brand": "ロイヤルカナン",
+        "category": "dry_food",
+        "amount": 4,
+        "unit": "kg",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-cat-land10000608",
+        "name": "【最大400円クーポン】ロイヤルカナン インドア プレミアムフード ドライ ドライフード 猫 室内で生活する成 室内飼い 室内猫 猫フード インドアキャット  10kg FHN 大容量 3182550706940 ≪≫ 【rccf06】",
+        "brand": "ロイヤルカナン",
+        "category": "dry_food",
+        "amount": 10,
+        "unit": "kg",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-albiot10000444",
+        "name": "【7月5日限定 最大1,000円オフクーポン&1等最大100%バック!】ナチュラルバランス オリジナルウルトラ  チキン&サーモンレシピ [全年齢用]  ドライフード (旧ホールボディヘルス )",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-cocodecow10396282",
+        "name": "【レビュー投稿で100円OFFクーポン】 いつものごちそう乳酸菌 複数 7kg 4522620105133 ドライフード 猫 ペット",
+        "category": "dry_food",
+        "amount": 7,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-koji10018428",
+        "name": "【7/5限定!2000円OFFクーポン&抽選で1万バック】ロイヤルカナン 猫  フィーラインヘルスニュートリション ウェットフード インスティンクティブ グレービー 85g×48個  猫専用ウェットフード 成",
+        "brand": "ロイヤルカナン",
+        "category": "wet_food",
+        "amount": 85,
+        "unit": "g",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-auc-sakurasow10002640",
+        "name": "【5日限定エントリー&抽選でP100%+クーポン有】グリニーズ グリルチキン・西洋股旅風味(キャットニップ) 130g",
+        "category": "other",
+        "amount": 130,
+        "unit": "g",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-petworldone10133113",
+        "name": "[激アツ価格&5%OFFクーポン★4日20時〜]猫砂 紙 ペーパーフレッシュ アイリスオーヤマ 軽い 流せる 燃やせる 紙の猫砂 ねこ砂 ネコ砂 消臭 軽量 猫 トイレ 砂 固まる 抗菌 脱臭 PFC-7L PFC-18L PFC-14L",
+        "brand": "アイリスオーヤマ",
+        "category": "cat_litter",
+        "amount": 7,
+        "unit": "L",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mitsuyoshi10007681",
+        "name": "【枚数限定20%OFFクーポン】猫砂 としても! 木質ペレット 20kg 1袋 ペレット ストーブ 燃料 ネコ砂 システムトイレ ねこ砂 ペット トイレ 木質 代用品 代替品 木 崩れるタイプ",
+        "category": "cat_litter",
+        "amount": 20,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-yahoo-irisplaza_p523454x",
+        "name": "\\初回半額クーポン/ 猫砂 シリカゲル 6L ラクリーン 脱臭 抗菌剤 脱臭 猫 砂 アイリスオーヤマ 活性炭 システムトイレ用猫砂 消臭サンド S-SSG6",
+        "brand": "IRIS OHYAMA",
+        "category": "cat_litter",
+        "amount": 6,
+        "unit": "L",
+        "confidence": 80,
+        "providers": [
+          "yahoo"
+        ]
+      },
+      {
+        "id": "pm-rakuten-lloyds-inc10001126",
+        "name": "【1日P12倍以上最大100%Pバック】クーポン付要エントリー グリニーズ  グリルツナ味 130g",
+        "category": "other",
+        "amount": 130,
+        "unit": "g",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      }
+    ],
+    "lowConfidence": [
+      {
+        "id": "pm-rakuten-cat-land10000607",
+        "name": "【最大400円クーポン】【は更にお得!】ロイヤルカナン 猫 プレミアムフード ドライ ドライフード 猫 室内で生活する成 室内飼い 室内猫 インドアキャット  4kg FHN 3182550706933 ≪≫ 【rccf06】",
+        "brand": "ロイヤルカナン",
+        "category": "dry_food",
+        "amount": 4,
+        "unit": "kg",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-cat-land10000608",
+        "name": "【最大400円クーポン】ロイヤルカナン インドア プレミアムフード ドライ ドライフード 猫 室内で生活する成 室内飼い 室内猫 猫フード インドアキャット  10kg FHN 大容量 3182550706940 ≪≫ 【rccf06】",
+        "brand": "ロイヤルカナン",
+        "category": "dry_food",
+        "amount": 10,
+        "unit": "kg",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-nyanzaq10165798",
+        "name": "ニュートロ シュプレモ 成 チキン&サーモン (400g)【シュプレモ(Supremo)】[ ドライフード]",
+        "brand": "ニュートロ",
+        "category": "dry_food",
+        "amount": 400,
+        "unit": "g",
+        "confidence": 35,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-kohnan-eshop10160679",
+        "name": "4.95kg キャラットミックス まぐろ仕立て 下部尿路の健康維持 β‐グルカン 猫餌 フード 猫ごはん カリカリ ドライフード オールステージ フィッシュ 総合栄養食 多頭飼い 大容量 主食 常備 安い お得 嗜好性 コスパ LIFELEX×Petline コーナン",
+        "category": "dry_food",
+        "amount": 4.95,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10008179",
+        "name": "食べ比べ 猫 お試し サンプル トライアル ドライフード グレインフリー「初回」",
+        "category": "dry_food",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-potitama10000678",
+        "name": "【 ねこのまんま 】 国産 無添加 安心 安全  お試しサイズ 230g 1個 総合栄養食 高たんぱく 低脂肪 グルテンフリー ドライフード カリカリ 全年齢対応 猫の健康 腎臓 膀胱 尿道 毛玉 猫のエサ ごはん 仔猫 成猫 シニア 保護猫",
+        "category": "dry_food",
+        "amount": 230,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10347576",
+        "name": "ペットアイ いつものごちそう 複数 8kg 国産 お一人様2点限り 関東当日便",
+        "category": "other",
+        "amount": 8,
+        "unit": "kg",
+        "confidence": 15,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-rakuten2411264794",
+        "name": "シーバ デュオ 5種 旅する (1)【シーバ(Sheba)】[ ドライフード おやつ]",
+        "brand": "シーバ",
+        "category": "dry_food",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-chanet10396226",
+        "name": "ニュートロ 猫 ナチュラルチョイス 避妊・去勢 アダルト 白身魚 2kg  お一人様5点限り 関東当日便",
+        "brand": "ニュートロ",
+        "category": "other",
+        "amount": 2,
+        "unit": "kg",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      },
+      {
+        "id": "pm-rakuten-mpcpets10006955",
+        "name": "ナウ フレッシュ(NOW FRESH) グレインフリー アダルトキャット 350g 猫  ドライフード 成猫 ターキー 小粒【公式販売店舗】",
+        "category": "dry_food",
+        "amount": 350,
+        "unit": "g",
+        "confidence": 25,
+        "providers": [
+          "rakuten"
+        ]
+      }
+    ]
+  }
+}

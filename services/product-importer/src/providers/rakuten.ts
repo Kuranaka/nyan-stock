@@ -6,8 +6,8 @@ type RakutenItem = {
   itemName?: string;
   itemPrice?: number;
   itemUrl?: string;
-  mediumImageUrls?: Array<{ imageUrl?: string }>;
-  smallImageUrls?: Array<{ imageUrl?: string }>;
+  mediumImageUrls?: Array<string | { imageUrl?: string }>;
+  smallImageUrls?: Array<string | { imageUrl?: string }>;
   shopName?: string;
   genreId?: string;
 };
@@ -86,7 +86,12 @@ export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawP
 }
 
 function pickRakutenImage(item: RakutenItem): string | undefined {
-  return item.mediumImageUrls?.[0]?.imageUrl ?? item.smallImageUrls?.[0]?.imageUrl;
+  return readRakutenImage(item.mediumImageUrls?.[0]) ?? readRakutenImage(item.smallImageUrls?.[0]);
+}
+
+function readRakutenImage(image: string | { imageUrl?: string } | undefined): string | undefined {
+  if (!image) return undefined;
+  return typeof image === 'string' ? image : image.imageUrl;
 }
 
 function normalizeRakutenItems(body: RakutenResponse): RakutenItem[] {
