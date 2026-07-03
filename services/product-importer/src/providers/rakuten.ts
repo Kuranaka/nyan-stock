@@ -13,8 +13,15 @@ type RakutenItem = {
 };
 
 type RakutenResponse = {
-  Items?: Array<{ Item?: RakutenItem }>;
+  count?: number;
+  items?: RakutenItem[];
+  Items?: Array<RakutenItem | { Item?: RakutenItem }>;
+  error?: string;
+  error_description?: string;
 };
+
+const RAKUTEN_ITEM_SEARCH_ENDPOINT =
+  'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701';
 
 export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawProduct[]> {
   const missing = [
@@ -32,11 +39,14 @@ export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawP
   const params = new URLSearchParams({
     applicationId,
     keyword,
+    format: 'json',
+    formatVersion: '2',
     hits: '30',
     sort: 'standard',
+    elements: 'itemCode,itemName,itemPrice,itemUrl,mediumImageUrls,smallImageUrls,shopName,genreId',
   });
   const headers = buildRakutenAuthHeaders();
-  const url = `https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601?${params.toString()}`;
+  const url = `${RAKUTEN_ITEM_SEARCH_ENDPOINT}?${params.toString()}`;
 
   try {
     await delay();
@@ -46,9 +56,16 @@ export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawP
       return [];
     }
     const body = (await response.json()) as RakutenResponse;
+    if (body.error) {
+      console.warn(`[rakuten] API error: ${body.error_description ?? body.error}`);
+      return [];
+    }
     const fetchedAt = new Date().toISOString();
-    return (body.Items ?? [])
-      .map((entry) => entry.Item)
+    const items = normalizeRakutenItems(body);
+    if (items.length === 0) {
+      console.warn(`[rakuten] 0 items for keyword "${keyword}". response keys: ${Object.keys(body).join(', ')}`);
+    }
+    return items
       .filter((item): item is RakutenItem => Boolean(item?.itemCode && item.itemName))
       .map((item) => ({
         provider: 'rakuten',
@@ -70,6 +87,13 @@ export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawP
 
 function pickRakutenImage(item: RakutenItem): string | undefined {
   return item.mediumImageUrls?.[0]?.imageUrl ?? item.smallImageUrls?.[0]?.imageUrl;
+}
+
+function normalizeRakutenItems(body: RakutenResponse): RakutenItem[] {
+  if (body.items) return body.items;
+  return (body.Items ?? [])
+    .map((entry) => ('Item' in entry ? entry.Item : entry))
+    .filter((item): item is RakutenItem => Boolean(item));
 }
 
 function buildRakutenAuthHeaders(): Record<string, string> {

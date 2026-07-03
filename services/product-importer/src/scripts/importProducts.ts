@@ -24,6 +24,7 @@ export async function importProducts(targetKeywords = keywords): Promise<void> {
       searchRakutenItemsByKeyword(keyword),
       searchYahooItemsByKeyword(keyword),
     ]);
+    console.log(`[import] fetched rakuten=${rakuten.length} yahoo=${yahoo.length}`);
     rawProducts.push(...rakuten, ...yahoo);
   }
 

@@ -24,6 +24,10 @@ type YahooItem = {
 
 type YahooResponse = {
   hits?: YahooItem[];
+  totalResultsAvailable?: number;
+  error?: {
+    message?: string;
+  };
 };
 
 export async function searchYahooItemsByKeyword(keyword: string): Promise<RawProduct[]> {
@@ -58,8 +62,16 @@ async function searchYahooItems(params: { query?: string; janCode?: string }): P
       return [];
     }
     const body = (await response.json()) as YahooResponse;
+    if (body.error) {
+      console.warn(`[yahoo] API error: ${body.error.message ?? 'unknown error'}`);
+      return [];
+    }
     const fetchedAt = new Date().toISOString();
-    return (body.hits ?? [])
+    const hits = body.hits ?? [];
+    if (hits.length === 0) {
+      console.warn(`[yahoo] 0 items. response keys: ${Object.keys(body).join(', ')}`);
+    }
+    return hits
       .filter((item) => Boolean(item.code && item.name))
       .map((item) => ({
         provider: 'yahoo',

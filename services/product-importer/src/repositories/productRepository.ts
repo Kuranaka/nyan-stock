@@ -23,6 +23,7 @@ export async function saveProductMasters(products: ProductMaster[]): Promise<voi
   }
   await mkdir(path.dirname(config.outputJsonPath), { recursive: true });
   await writeFile(config.outputJsonPath, `${JSON.stringify(products, null, 2)}\n`, 'utf8');
+  console.log(`[repository] saved product masters: ${config.outputJsonPath}`);
 }
 
 export async function upsertProductMasters(incoming: ProductMaster[]): Promise<ProductMaster[]> {
