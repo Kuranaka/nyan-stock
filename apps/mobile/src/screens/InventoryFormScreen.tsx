@@ -9,7 +9,7 @@ import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
 import { DatePickerField } from '@/components/DatePickerField';
-import { categories, defaultUnitByCategory, units } from '@/constants/categories';
+import { categories, defaultUnitByCategory, unitLabels, units } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCats, saveCat } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
@@ -35,6 +35,7 @@ import { scheduleInventoryNotifications } from '@/features/notifications/notific
 import {
   findProductByJanCodeAsync,
   findProductsByKeywordAsync,
+  getProductMasterImageUrl,
   getProductMasterBrands,
   productCategoryLabels,
   productCategoryToInventoryCategory,
@@ -66,17 +67,20 @@ export default function InventoryFormScreen() {
   const { id, barcode, scannedAt } = useLocalSearchParams<{ id?: string; barcode?: string; scannedAt?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const nameFieldYRef = useRef(0);
+  const purchaseDateFieldYRef = useRef(0);
   const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [current, setCurrent] = useState<InventoryItem | undefined>();
-  const [addMethod, setAddMethod] = useState<AddMethod>();
+  const [addMethod, setAddMethod] = useState<AddMethod>('master');
   const [productMasterId, setProductMasterId] = useState<string | undefined>();
+  const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<InventoryCategory>('dry_food');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<InventoryUnit>('g');
   const [purchaseDate, setPurchaseDate] = useState(todayIso());
+  const [purchaseDatePickerOpenSignal, setPurchaseDatePickerOpenSignal] = useState(0);
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
   const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
@@ -119,6 +123,16 @@ export default function InventoryFormScreen() {
     }, 100);
   }, []);
 
+  const scrollToPurchaseDateField = useCallback(() => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(purchaseDateFieldYRef.current - 12, 0),
+        animated: true,
+      });
+      setPurchaseDatePickerOpenSignal((currentSignal) => currentSignal + 1);
+    }, 250);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       async function load() {
@@ -154,6 +168,7 @@ export default function InventoryFormScreen() {
         setCurrent(item);
         setAddMethod('manual');
         setProductMasterId(item.productMasterId);
+        setImageUrl(item.imageUrl);
         setSelectedCatId(item.catId);
         setName(item.name);
         setMasterSearchKeyword(item.name);
@@ -163,6 +178,7 @@ export default function InventoryFormScreen() {
         setUnit(item.unit);
         setPurchaseDate(item.purchaseDate);
         setDailyUsage(item.dailyUsage?.toString() ?? '');
+        setLastingDays(item.lastingDays?.toString() ?? '');
         setEstimationMode(item.estimationMode ?? (item.estimatedEndDate && !item.dailyUsage ? 'lasting_days' : 'usage'));
         setNotifyBeforeDays(item.notifyBeforeDays);
         setAmazon(item.purchaseLinks.amazon ?? '');
@@ -268,7 +284,7 @@ export default function InventoryFormScreen() {
       }
     }
     if (estimationMode === 'lasting_days' && (!lastingDaysNumber || lastingDaysNumber <= 0)) {
-      nextErrors.lastingDays = '買い替えまでの日数は0より大きくしてください。';
+      nextErrors.lastingDays = '使い切る日数は0より大きくしてください。';
     }
     if (![amazon, rakuten, yahoo, other].every(isValidOptionalUrl)) {
       nextErrors.url = 'URLは http:// または https:// で始めてください。';
@@ -369,29 +385,33 @@ export default function InventoryFormScreen() {
   const applyProductMaster = useCallback((product: ProductMaster) => {
     const nextCategory = productCategoryToInventoryCategory(product.category);
     const nextLinks = productPurchaseLinksToInventoryLinks(product);
+    const nextImageUrl = getProductMasterImageUrl(product);
     const shouldCopyAmount = Boolean(product.amount !== undefined && product.unit && (product.janCode || product.gtin));
     setProductMasterId(product.id);
+    setImageUrl(nextImageUrl);
     setName(product.name);
     setCategory(nextCategory);
     setAmount(shouldCopyAmount ? String(product.amount) : '');
-    setEstimationMode('usage');
+    setEstimationMode('lasting_days');
     setUnit(shouldCopyAmount && product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
     setAmazon(nextLinks.amazon ?? '');
     setRakuten(nextLinks.rakuten ?? '');
     setYahoo(nextLinks.yahoo ?? '');
     setOther(nextLinks.other ?? '');
     setProductSearchKeyword(product.name);
+    setAddMethod(undefined);
+    setMasterSearchResults([]);
+    setMasterSearchMessage('');
+    setShowMasterCategoryOptions(false);
+    setShowMasterBrandOptions(false);
     setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
-    scrollToNameField();
-    Alert.alert(
-      '商品マスタから反映しました',
-      shouldCopyAmount ? '内容は保存前に自由に編集できます。' : '内容量は今回登録する商品の容量を入力してください。',
-    );
-  }, [scrollToNameField]);
+    scrollToPurchaseDateField();
+  }, [scrollToPurchaseDateField]);
 
   const applyYahooBarcodeResult = useCallback(
     (result: RakutenSearchResult, options: { showAlert: boolean } = { showAlert: true }) => {
       setProductMasterId(undefined);
+      setImageUrl(undefined);
       setName(result.name);
       setYahoo(result.url);
       setProductSearchKeyword(result.name);
@@ -430,6 +450,7 @@ export default function InventoryFormScreen() {
 
       if (!hasPurchaseLinkSearchApi()) {
         setProductMasterId(undefined);
+        setImageUrl(undefined);
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
         setBarcodeSearchMessage(
@@ -452,6 +473,7 @@ export default function InventoryFormScreen() {
           return;
         }
         setProductMasterId(undefined);
+        setImageUrl(undefined);
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
         setBarcodeSearchMessage(
@@ -460,6 +482,7 @@ export default function InventoryFormScreen() {
       } catch (error) {
         if (!isActive) return;
         setProductMasterId(undefined);
+        setImageUrl(undefined);
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
         setBarcodeSearchMessage(
@@ -517,11 +540,13 @@ export default function InventoryFormScreen() {
       id: current?.id ?? createId('item'),
       catId: selectedCatId,
       productMasterId,
+      imageUrl,
       name: name.trim(),
       category,
       amount: estimationMode === 'usage' ? amountNumber ?? 0 : 0,
       unit,
       dailyUsage: dailyUsageNumber,
+      lastingDays: estimationMode === 'lasting_days' ? lastingDaysNumber : undefined,
       purchaseDate,
       openedDate: current?.openedDate,
       estimatedEndDate,
@@ -572,7 +597,7 @@ export default function InventoryFormScreen() {
           <Text style={styles.sectionTitle}>追加方法</Text>
           <View style={styles.wrapRow}>
             <AppButton
-              title="よくある商品から選ぶ"
+              title="アプリに登録済みの商品から選択する"
               variant={addMethod === 'master' ? 'primary' : 'secondary'}
               onPress={() => void openProductMasterPicker()}
             />
@@ -590,6 +615,7 @@ export default function InventoryFormScreen() {
               onPress={() => {
                 setAddMethod('manual');
                 setProductMasterId(undefined);
+                setImageUrl(undefined);
               }}
             />
           </View>
@@ -674,11 +700,11 @@ export default function InventoryFormScreen() {
               {masterSearchResults.map((product) => (
                 <View key={product.id} style={styles.searchResult}>
                   {(() => {
-                    const imageUrl = getProductImageUrl(product);
+                    const productImageUrl = getProductMasterImageUrl(product);
                     return (
                       <View style={styles.productResultBody}>
-                        {imageUrl ? (
-                          <Image source={{ uri: imageUrl }} style={styles.productThumbnail} resizeMode="contain" />
+                        {productImageUrl ? (
+                          <Image source={{ uri: productImageUrl }} style={styles.productThumbnail} resizeMode="contain" />
                         ) : null}
                         <View style={styles.productResultText}>
                           <Text style={styles.resultName}>{product.name}</Text>
@@ -686,7 +712,6 @@ export default function InventoryFormScreen() {
                             {[
                               product.brand,
                               productCategoryLabels[product.category],
-                              product.janCode ? `JAN ${product.janCode}` : undefined,
                             ]
                               .filter(Boolean)
                               .join(' ・ ')}
@@ -776,25 +801,30 @@ export default function InventoryFormScreen() {
         ))}
       </View>
 
-      <DatePickerField
-        label="購入日"
-        value={purchaseDate}
-        onChange={setPurchaseDate}
-        requirement="required"
-      />
+      <View onLayout={(event) => {
+        purchaseDateFieldYRef.current = event.nativeEvent.layout.y;
+      }}>
+        <DatePickerField
+          label="購入日"
+          value={purchaseDate}
+          onChange={setPurchaseDate}
+          requirement="required"
+          openSignal={purchaseDatePickerOpenSignal}
+        />
+      </View>
 
       <AppCard style={styles.searchCard}>
-        <FieldLabel label="次回購入日の計算方法" requirement="required" />
+        <FieldLabel label="残り日数の計算方法" requirement="required" />
         <View style={styles.wrapRow}>
           <AppButton
-            title="内容量と消費量から計算"
-            variant={estimationMode === 'usage' ? 'primary' : 'secondary'}
-            onPress={() => changeEstimationMode('usage')}
-          />
-          <AppButton
-            title="買い替えまでの日数を入力"
+            title="使い切る日数"
             variant={estimationMode === 'lasting_days' ? 'primary' : 'secondary'}
             onPress={() => changeEstimationMode('lasting_days')}
+          />
+          <AppButton
+            title="内容量と1日の使用量"
+            variant={estimationMode === 'usage' ? 'primary' : 'secondary'}
+            onPress={() => changeEstimationMode('usage')}
           />
           <AppButton
             title="購入頻度から自動計算"
@@ -820,7 +850,7 @@ export default function InventoryFormScreen() {
                   {units.map((option) => (
                     <AppButton
                       key={option}
-                      title={option}
+                      title={unitLabels[option]}
                       variant={unit === option ? 'primary' : 'secondary'}
                       onPress={() => setUnit(option)}
                     />
@@ -841,7 +871,7 @@ export default function InventoryFormScreen() {
 
         {estimationMode === 'lasting_days' ? (
           <AppTextInput
-            label="買い替えまでの日数"
+            label="使い切る日数"
             value={lastingDays}
             onChangeText={setLastingDays}
             keyboardType="numeric"
@@ -851,7 +881,7 @@ export default function InventoryFormScreen() {
         ) : null}
 
         {estimationMode === 'purchase_frequency' ? (
-          <Text style={styles.hint}>購入履歴が増えるまでは残り日数は未計算として表示します。</Text>
+          <Text style={styles.hint}>補充を記録すると、購入日どうしの間隔から次回購入日を自動推定します。</Text>
         ) : null}
       </AppCard>
 
@@ -995,11 +1025,6 @@ function getProductSourceLabels(product: ProductMaster): string[] {
   };
   const providers = product.sources.map((source) => labels[source.provider] ?? source.provider);
   return Array.from(new Set(providers)).slice(0, 3);
-}
-
-function getProductImageUrl(product: ProductMaster): string | undefined {
-  const candidates = [product.imageUrl, ...(product.packageImageUrls ?? [])];
-  return candidates.find((url) => url && /^https?:\/\//i.test(url));
 }
 
 function getProductCategoryFilterLabel(category: ProductCategoryFilter): string {

@@ -12,6 +12,7 @@
     "prune:seed-csv": "tsx src/scripts/pruneProductMastersToSeedCsv.ts",
     "dedupe": "tsx src/scripts/dedupeProducts.ts",
     "export:mobile-seed": "tsx src/scripts/exportMobileSeed.ts",
+    "export:csv": "tsx src/scripts/exportProductMasterCsv.ts",
     "quality:products": "tsx src/scripts/checkProductMasterQuality.ts",
     "review:products": "tsx src/scripts/exportReviewPage.ts"
   },

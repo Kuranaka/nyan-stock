@@ -7,6 +7,9 @@ function baseDateOf(item: InventoryItem) {
 }
 
 export function calculateEstimatedEndDate(item: InventoryItem): string | undefined {
+  if (item.estimationMode === 'lasting_days' && item.lastingDays && item.lastingDays > 0) {
+    return addDays(parseISO(item.purchaseDate), item.lastingDays).toISOString().slice(0, 10);
+  }
   if (!item.dailyUsage || item.dailyUsage <= 0 || item.amount <= 0) return undefined;
   const totalDays = Math.ceil(item.amount / item.dailyUsage);
   return addDays(parseISO(baseDateOf(item)), totalDays).toISOString().slice(0, 10);
@@ -25,12 +28,32 @@ export function calculateRemainingPercent(
   item: InventoryItem,
   today: Date = new Date(),
 ): number | undefined {
+  if (item.estimationMode === 'lasting_days' && item.lastingDays && item.lastingDays > 0) {
+    const remainingDays = calculateRemainingDays(item, today);
+    if (remainingDays === undefined) return undefined;
+    return Math.max(0, Math.round((remainingDays / item.lastingDays) * 100));
+  }
+
+  if (item.estimationMode === 'purchase_frequency' && item.estimatedEndDate) {
+    const totalDays = calculatePurchaseFrequencyDays(item);
+    if (totalDays === undefined) return undefined;
+    const remainingDays = calculateRemainingDays(item, today);
+    if (remainingDays === undefined) return undefined;
+    return Math.max(0, Math.round((remainingDays / totalDays) * 100));
+  }
+
   if (!item.dailyUsage || item.dailyUsage <= 0 || item.amount <= 0) return undefined;
   const totalDays = Math.ceil(item.amount / item.dailyUsage);
   if (totalDays <= 0) return undefined;
   const remainingDays = calculateRemainingDays(item, today);
   if (remainingDays === undefined) return undefined;
-  return Math.max(0, Math.min(100, Math.round((remainingDays / totalDays) * 100)));
+  return Math.max(0, Math.round((remainingDays / totalDays) * 100));
+}
+
+export function calculatePurchaseFrequencyDays(item: InventoryItem): number | undefined {
+  if (item.estimationMode !== 'purchase_frequency' || !item.estimatedEndDate) return undefined;
+  const days = differenceInCalendarDays(parseISO(item.estimatedEndDate), parseISO(item.purchaseDate));
+  return days > 0 ? days : undefined;
 }
 
 export function getInventoryStatus(item: InventoryItem): InventoryStatus {

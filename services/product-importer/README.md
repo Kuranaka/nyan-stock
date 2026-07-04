@@ -9,6 +9,9 @@ RAKUTEN_APPLICATION_ID=
 RAKUTEN_ACCESS_KEY=
 RAKUTEN_AFFILIATE_ID=
 YAHOO_CLIENT_ID=
+YAHOO_REQUEST_INTERVAL_MS=2200
+YAHOO_RATE_LIMIT_RETRY_DELAY_MS=60000
+YAHOO_MAX_RETRIES=3
 YAHOO_VALUECOMMERCE_SID=
 YAHOO_VALUECOMMERCE_PID=
 AMAZON_ASSOCIATE_TAG=
@@ -65,7 +68,35 @@ npm run import:seed-csv -- --batch-size=10
 npm run import:seed-csv
 ```
 
-楽天/YahooそれぞれのProvider内でリクエスト前に `PRODUCT_IMPORT_REQUEST_DELAY_MS` の待機を入れています。未指定時は1000msです。
+楽天Provider内ではリクエスト前に `PRODUCT_IMPORT_REQUEST_DELAY_MS` の待機を入れています。未指定時は1000msです。
+
+YahooショッピングAPI v3は、アプリケーションIDごとに1分間30リクエストを上限として扱います。Yahoo Providerでは `YAHOO_REQUEST_INTERVAL_MS` の間隔で直列実行し、未指定時は2200msです。429、403、rate limit系エラーが返った場合は `YAHOO_RATE_LIMIT_RETRY_DELAY_MS`、未指定時60000ms待って最大 `YAHOO_MAX_RETRIES`、未指定時3回リトライします。失敗したキーワード/JANはスキップしてログに残し、バッチ全体は継続します。
+
+## 商品マスタをCSV出力する
+
+現在のProductMasterをCSVとして書き出せます。Supabase接続情報または `DATABASE_URL` がある場合は保存先DBから読み込み、未設定の場合はローカルの `data/generated/productMaster.generated.json` から読み込みます。
+
+```bash
+npm run export:csv
+```
+
+出力先:
+
+```text
+services/product-importer/data/generated/productMaster.generated.csv
+```
+
+出力先を変える場合:
+
+```bash
+npm run export:csv -- --out=/tmp/productMaster.csv
+```
+
+Supabase/DBではなくローカルJSONを強制的に使う場合:
+
+```bash
+npm run export:csv -- --local-json
+```
 
 ## 本番運用方針
 

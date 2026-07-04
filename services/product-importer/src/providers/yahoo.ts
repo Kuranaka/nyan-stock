@@ -31,6 +31,15 @@ type YahooResponse = {
   };
 };
 
+export const YAHOO_REQUEST_INTERVAL_MS = config.yahooRequestIntervalMs;
+
+const yahooResponseCacheTtlMs = 5 * 60 * 1000;
+const yahooResponseCache = new Map<string, { cachedAt: number; products: RawProduct[] }>();
+
+let yahooRequestQueue = Promise.resolve();
+let lastYahooRequestStartedAt = 0;
+let yahooBlockedUntil = 0;
+
 export async function searchYahooItemsByKeyword(keyword: string): Promise<RawProduct[]> {
   return searchYahooItems({ query: keyword });
 }
@@ -59,42 +68,128 @@ async function searchYahooItems(params: { query?: string; janCode?: string }): P
   if (params.janCode) searchParams.set('jan_code', params.janCode);
 
   const url = `https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?${searchParams.toString()}`;
-
-  try {
-    await delay();
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn(`[yahoo] API error ${response.status}: ${await response.text()}`);
-      return [];
-    }
-    const body = (await response.json()) as YahooResponse;
-    if (body.error) {
-      console.warn(`[yahoo] API error: ${body.error.message ?? 'unknown error'}`);
-      return [];
-    }
-    const fetchedAt = new Date().toISOString();
-    const hits = body.hits ?? [];
-    if (hits.length === 0) {
-      console.warn(`[yahoo] 0 items. response keys: ${Object.keys(body).join(', ')}`);
-    }
-    return hits
-      .filter((item) => Boolean(item.code && item.name))
-      .map((item) => ({
-        provider: 'yahoo',
-        externalId: item.code ?? '',
-        rawName: item.name ?? '',
-        brand: item.brand?.name,
-        categoryText: item.genreCategory?.name,
-        price: item.price,
-        imageUrl: item.image?.medium ?? item.image?.small,
-        url: item.url,
-        janCode: normalizeJanCode(item.janCode),
-        shopName: item.seller?.name,
-        fetchedAt,
-        raw: item,
-      }));
-  } catch (error) {
-    console.warn('[yahoo] Failed to search items:', error);
-    return [];
+  const cacheKey = url;
+  const cached = yahooResponseCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < yahooResponseCacheTtlMs) {
+    console.log(`[yahoo] cache hit: ${describeYahooSearchParams(params)}`);
+    return cached.products;
   }
+
+  const body = await fetchYahooResponse(url, describeYahooSearchParams(params));
+  if (!body) return [];
+
+  const fetchedAt = new Date().toISOString();
+  const hits = body.hits ?? [];
+  if (hits.length === 0) {
+    console.warn(`[yahoo] 0 items. response keys: ${Object.keys(body).join(', ')}`);
+  }
+  const products = hits
+    .filter((item) => Boolean(item.code && item.name))
+    .map((item) => ({
+      provider: 'yahoo' as const,
+      externalId: item.code ?? '',
+      rawName: item.name ?? '',
+      brand: item.brand?.name,
+      categoryText: item.genreCategory?.name,
+      price: item.price,
+      imageUrl: item.image?.medium ?? item.image?.small,
+      url: item.url,
+      janCode: normalizeJanCode(item.janCode),
+      shopName: item.seller?.name,
+      fetchedAt,
+      raw: item,
+    }));
+  yahooResponseCache.set(cacheKey, { cachedAt: Date.now(), products });
+  return products;
+}
+
+async function fetchYahooResponse(url: string, searchLabel: string): Promise<YahooResponse | undefined> {
+  const totalAttempts = config.yahooMaxRetries + 1;
+
+  for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
+    try {
+      await waitForYahooRequestSlot();
+      const response = await fetch(url);
+      const text = await response.text();
+      const body = parseYahooResponse(text);
+      const errorMessage = body?.error?.message ?? text;
+
+      if (!response.ok || body?.error) {
+        if (isYahooRateLimitError(response.status, errorMessage) && attempt < totalAttempts) {
+          yahooBlockedUntil = Math.max(yahooBlockedUntil, Date.now() + config.yahooRateLimitRetryDelayMs);
+          console.warn(
+            `[yahoo] Rate limit response for ${searchLabel}. status=${response.status} retry=${attempt}/${config.yahooMaxRetries}. waiting ${config.yahooRateLimitRetryDelayMs}ms.`,
+          );
+          await delay(config.yahooRateLimitRetryDelayMs);
+          continue;
+        }
+        console.warn(
+          `[yahoo] API error for ${searchLabel}. status=${response.status} message=${formatYahooErrorMessage(
+            errorMessage,
+          )}`,
+        );
+        return undefined;
+      }
+
+      if (!body) {
+        console.warn(`[yahoo] Invalid JSON response for ${searchLabel}: ${formatYahooErrorMessage(text)}`);
+        return undefined;
+      }
+
+      return body;
+    } catch (error) {
+      console.warn(`[yahoo] Failed to search items for ${searchLabel}:`, error);
+      return undefined;
+    }
+  }
+
+  console.warn(`[yahoo] Skipped ${searchLabel} after ${config.yahooMaxRetries} retries.`);
+  return undefined;
+}
+
+async function waitForYahooRequestSlot(): Promise<void> {
+  const previous = yahooRequestQueue;
+  let releaseQueue: () => void = () => {};
+  yahooRequestQueue = new Promise((resolve) => {
+    releaseQueue = resolve;
+  });
+
+  await previous;
+  try {
+    const elapsed = Date.now() - lastYahooRequestStartedAt;
+    const waitMs = Math.max(YAHOO_REQUEST_INTERVAL_MS - elapsed, 0);
+    if (waitMs > 0) {
+      await delay(waitMs);
+    }
+    const blockedWaitMs = Math.max(yahooBlockedUntil - Date.now(), 0);
+    if (blockedWaitMs > 0) {
+      await delay(blockedWaitMs);
+    }
+    lastYahooRequestStartedAt = Date.now();
+  } finally {
+    releaseQueue();
+  }
+}
+
+function parseYahooResponse(text: string): YahooResponse | undefined {
+  try {
+    return JSON.parse(text) as YahooResponse;
+  } catch {
+    return undefined;
+  }
+}
+
+function isYahooRateLimitError(status: number, message: string): boolean {
+  if (status === 429 || status === 403) return true;
+  return /rate|limit|too many|quota|throttle|制限|上限|過多/i.test(message);
+}
+
+function formatYahooErrorMessage(message: string): string {
+  return message.length > 500 ? `${message.slice(0, 500)}...` : message;
+}
+
+function describeYahooSearchParams(params: { query?: string; janCode?: string }): string {
+  if (params.janCode) return `janCode=${params.janCode}`;
+  if (params.query) return `keyword="${params.query}"`;
+  return 'empty search';
 }

@@ -33,10 +33,10 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
     const keyword = buildSeedSearchKeyword(seed);
     console.log(`[import:seed] ${index + 1}/${targets.length} ${seed.productId}: ${keyword}`);
 
-    const [rakuten, yahoo] = await Promise.all([
-      options.provider === 'both' || options.provider === 'rakuten' ? searchRakutenItemsByKeyword(keyword) : [],
-      options.provider === 'both' || options.provider === 'yahoo' ? searchYahooItemsByKeyword(keyword) : [],
-    ]);
+    const rakuten =
+      options.provider === 'both' || options.provider === 'rakuten' ? await searchRakutenItemsByKeyword(keyword) : [];
+    const yahoo =
+      options.provider === 'both' || options.provider === 'yahoo' ? await searchYahooItemsByKeyword(keyword) : [];
     const rawCandidates = [...rakuten, ...yahoo];
     const enrichmentCandidates: EnrichmentCandidate[] = rawCandidates.map((raw) => {
       const product = convertRawProductToProductMaster(raw);

@@ -5,6 +5,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { AppCard } from '@/components/AppCard';
 import { EmptyState } from '@/components/EmptyState';
+import { unitLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
@@ -66,7 +67,7 @@ export default function PurchaseHistoryScreen() {
               </Text>
               <Text style={styles.detail}>
                 {entry.amount}
-                {entry.unit}
+                {unitLabels[entry.unit]}
                 {entry.price ? ` ・ ${entry.price.toLocaleString()}円` : ''}
               </Text>
               {entry.shopName ? <Text style={styles.detail}>購入先：{entry.shopName}</Text> : null}

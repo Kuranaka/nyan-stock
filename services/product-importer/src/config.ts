@@ -18,6 +18,9 @@ export const config = {
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   supabaseProductMasterTable: process.env.SUPABASE_PRODUCT_MASTER_TABLE ?? 'product_masters',
   requestDelayMs: Number(process.env.PRODUCT_IMPORT_REQUEST_DELAY_MS ?? 1000),
+  yahooRequestIntervalMs: Number(process.env.YAHOO_REQUEST_INTERVAL_MS ?? 2200),
+  yahooRateLimitRetryDelayMs: Number(process.env.YAHOO_RATE_LIMIT_RETRY_DELAY_MS ?? 60_000),
+  yahooMaxRetries: Number(process.env.YAHOO_MAX_RETRIES ?? 3),
   outputJsonPath:
     process.env.PRODUCT_MASTER_OUTPUT_PATH ??
     path.join(serviceDir, 'data', 'generated', 'productMaster.generated.json'),

@@ -15,7 +15,7 @@ import {
   sortInventoryItems,
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, replenishInventoryItem } from '@/features/inventory/inventoryStorage';
-import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { getPurchasePriceComparison, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
@@ -93,23 +93,31 @@ export default function HomeScreen() {
   };
 
   const replenishQuick = (item: InventoryItem) => {
+    const saveReplenish = async (mode: LastingDaysReplenishMode = 'add_remaining') => {
+      const history: PurchaseHistory = {
+        id: createId('history'),
+        inventoryItemId: item.id,
+        purchasedAt: todayIso(),
+        amount: item.amount,
+        unit: item.unit,
+        createdAt: nowIso(),
+      };
+      await replenishInventoryItem(item, history, true, mode);
+      await load();
+    };
+
+    if (item.estimationMode === 'lasting_days') {
+      Alert.alert('補充後の残り日数', `${item.name}を今日の日付で補充します。残っている日数をどう扱いますか？`, [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '残りに足す', onPress: () => void saveReplenish('add_remaining') },
+        { text: '周期に戻す', onPress: () => void saveReplenish('reset_cycle') },
+      ]);
+      return;
+    }
+
     Alert.alert('在庫を補充しましたか？', `${item.name}を今日の日付で補充します。`, [
       { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '補充する',
-        onPress: async () => {
-          const history: PurchaseHistory = {
-            id: createId('history'),
-            inventoryItemId: item.id,
-            purchasedAt: todayIso(),
-            amount: item.amount,
-            unit: item.unit,
-            createdAt: nowIso(),
-          };
-          await replenishInventoryItem(item, history, true);
-          await load();
-        },
-      },
+      { text: '補充する', onPress: () => void saveReplenish() },
     ]);
   };
 

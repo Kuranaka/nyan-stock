@@ -18,16 +18,19 @@ export type PurchaseLinks = {
 };
 
 export type InventoryEstimationMode = 'usage' | 'lasting_days' | 'purchase_frequency';
+export type LastingDaysReplenishMode = 'add_remaining' | 'reset_cycle';
 
 export type InventoryItem = {
   id: string;
   catId: string;
   productMasterId?: string;
+  imageUrl?: string;
   name: string;
   category: InventoryCategory;
   amount: number;
   unit: InventoryUnit;
   dailyUsage?: number;
+  lastingDays?: number;
   purchaseDate: string;
   openedDate?: string;
   estimatedEndDate?: string;

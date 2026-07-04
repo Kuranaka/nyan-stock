@@ -14,6 +14,18 @@ type SupabaseProductMasterRow = {
   data?: ProductMaster;
 };
 
+const productCategorySortOrder: ProductCategory[] = [
+  'dry_food',
+  'wet_food',
+  'treat',
+  'cat_litter',
+  'toilet_sheet',
+  'supplement',
+  'medicine',
+  'care',
+  'other',
+];
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseProductMasterTable = process.env.EXPO_PUBLIC_SUPABASE_PRODUCT_MASTER_TABLE ?? 'product_masters';
@@ -50,6 +62,11 @@ export async function findProductByJanCodeAsync(janCode: string): Promise<Produc
   if (!normalizedJanCode) return undefined;
   const products = await getProductMastersAsync();
   return products.find((product) => product.janCode === normalizedJanCode || product.gtin === normalizedJanCode);
+}
+
+export async function findProductByIdAsync(id: string): Promise<ProductMaster | undefined> {
+  const products = await getProductMastersAsync();
+  return products.find((product) => product.id === id);
 }
 
 export function findProductsByKeyword(keyword: string, options: ProductSearchOptions = {}): ProductMaster[] {
@@ -128,7 +145,7 @@ function searchProductMasters(
     .filter((product) => !options.brand || product.brand === options.brand)
     .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, normalizedJanCode) }))
     .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score || b.product.confidence - a.product.confidence)
+    .sort((a, b) => b.score - a.score || compareProductsByCategoryAndMaker(a.product, b.product))
     .slice(0, limit)
     .map(({ product }) => product);
 }
@@ -155,6 +172,11 @@ export function productPurchaseLinksToInventoryLinks(product: ProductMaster): Pu
   };
 }
 
+export function getProductMasterImageUrl(product: ProductMaster): string | undefined {
+  const candidates = [product.imageUrl, ...(product.packageImageUrls ?? [])];
+  return candidates.find((url) => url && /^https?:\/\//i.test(url));
+}
+
 function scoreProduct(product: ProductMaster, normalizedKeyword: string, normalizedJanCode: string): number {
   if (!normalizedKeyword) return Math.max(product.confidence, 1);
   if (normalizedJanCode && (product.janCode === normalizedJanCode || product.gtin === normalizedJanCode)) {
@@ -175,4 +197,21 @@ function scoreProduct(product: ProductMaster, normalizedKeyword: string, normali
     if (normalizedKeyword.includes(field)) return score + 3;
     return score;
   }, 0);
+}
+
+function compareProductsByCategoryAndMaker(a: ProductMaster, b: ProductMaster): number {
+  return (
+    categorySortIndex(a.category) - categorySortIndex(b.category) ||
+    productMakerLabel(a).localeCompare(productMakerLabel(b), 'ja') ||
+    a.name.localeCompare(b.name, 'ja')
+  );
+}
+
+function categorySortIndex(category: ProductCategory): number {
+  const index = productCategorySortOrder.indexOf(category);
+  return index === -1 ? productCategorySortOrder.length : index;
+}
+
+function productMakerLabel(product: ProductMaster): string {
+  return product.maker ?? product.brand ?? '';
 }

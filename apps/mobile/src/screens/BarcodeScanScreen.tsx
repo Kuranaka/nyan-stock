@@ -100,6 +100,7 @@ export default function BarcodeScanScreen() {
           <Text style={styles.scannerBody}>
             {cameraReady ? scanMessage : 'カメラを起動しています。'}
           </Text>
+          <Text style={styles.scannerHint}>暗い場所や読み取りづらい時はライトをつけてください。</Text>
         </View>
         <View pointerEvents="none" style={styles.scanFrame}>
           <View style={[styles.corner, styles.cornerTopLeft]} />
@@ -171,6 +172,11 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 14,
     lineHeight: 21,
+  },
+  scannerHint: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
   },
   scanFrame: {
     alignSelf: 'center',

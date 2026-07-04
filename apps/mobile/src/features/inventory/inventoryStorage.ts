@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 
 import { storageKeys } from '@/features/storageKeys';
 import { nowIso } from '@/utils/date';
 
-import { calculateEstimatedEndDate } from './inventoryLogic';
-import { InventoryItem, PurchaseHistory } from './inventoryTypes';
+import { calculateEstimatedEndDate, calculateRemainingDays } from './inventoryLogic';
+import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from './inventoryTypes';
 
 export async function getInventoryItems(): Promise<InventoryItem[]> {
   const raw = await AsyncStorage.getItem(storageKeys.inventoryItems);
@@ -18,7 +19,7 @@ export async function getInventoryItem(id: string): Promise<InventoryItem | unde
 
 export async function saveInventoryItem(item: InventoryItem): Promise<void> {
   const items = await getInventoryItems();
-  const estimatedEndDate = calculateEstimatedEndDate(item) ?? item.estimatedEndDate;
+  const estimatedEndDate = item.estimatedEndDate ?? calculateEstimatedEndDate(item);
   const normalized = {
     ...item,
     estimatedEndDate,
@@ -69,16 +70,25 @@ export async function replenishInventoryItem(
   item: InventoryItem,
   history: PurchaseHistory,
   resetOpenedDate: boolean,
+  lastingDaysReplenishMode: LastingDaysReplenishMode = 'add_remaining',
 ): Promise<InventoryItem> {
+  const allHistory = await getPurchaseHistory();
+  const itemHistory = allHistory.filter((entry) => entry.inventoryItemId === item.id);
+  const estimatedEndDate = calculateReplenishedEstimatedEndDate(
+    item,
+    history,
+    lastingDaysReplenishMode,
+    itemHistory,
+  );
   const nextItem: InventoryItem = {
     ...item,
     amount: history.amount,
     unit: history.unit,
     purchaseDate: history.purchasedAt,
     openedDate: resetOpenedDate ? history.purchasedAt : item.openedDate,
+    estimatedEndDate,
     updatedAt: nowIso(),
   };
-  nextItem.estimatedEndDate = calculateEstimatedEndDate(nextItem);
   await saveInventoryItem(nextItem);
   await addPurchaseHistory(history);
   return nextItem;
@@ -89,4 +99,60 @@ export async function clearInventoryData(): Promise<void> {
     AsyncStorage.removeItem(storageKeys.inventoryItems),
     AsyncStorage.removeItem(storageKeys.purchaseHistory),
   ]);
+}
+
+function calculateReplenishedEstimatedEndDate(
+  item: InventoryItem,
+  history: PurchaseHistory,
+  lastingDaysReplenishMode: LastingDaysReplenishMode,
+  itemHistory: PurchaseHistory[],
+): string | undefined {
+  const replenishedAt = parseISO(history.purchasedAt);
+  const remainingDays = Math.max(0, calculateRemainingDays(item, replenishedAt) ?? 0);
+
+  if (item.estimationMode === 'lasting_days' && item.lastingDays && item.lastingDays > 0) {
+    const nextDays =
+      lastingDaysReplenishMode === 'add_remaining'
+        ? remainingDays + item.lastingDays
+        : item.lastingDays;
+    return addDays(replenishedAt, nextDays).toISOString().slice(0, 10);
+  }
+
+  if ((!item.estimationMode || item.estimationMode === 'usage') && item.dailyUsage && item.dailyUsage > 0) {
+    const addedDays = Math.ceil(history.amount / item.dailyUsage);
+    return addDays(replenishedAt, remainingDays + addedDays).toISOString().slice(0, 10);
+  }
+
+  if (item.estimationMode === 'purchase_frequency') {
+    return calculatePurchaseFrequencyEstimatedEndDate(item, history, itemHistory);
+  }
+
+  return undefined;
+}
+
+function calculatePurchaseFrequencyEstimatedEndDate(
+  item: InventoryItem,
+  newHistory: PurchaseHistory,
+  itemHistory: PurchaseHistory[],
+): string | undefined {
+  const purchaseDates = [item.purchaseDate, ...itemHistory.map((entry) => entry.purchasedAt), newHistory.purchasedAt]
+    .map((date) => parseISO(date))
+    .filter(isValid)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (purchaseDates.length < 2) return undefined;
+
+  const intervals = purchaseDates
+    .slice(1)
+    .map((date, index) => differenceInCalendarDays(date, purchaseDates[index]))
+    .filter((days) => days > 0);
+
+  if (intervals.length === 0) return undefined;
+
+  const averageIntervalDays = Math.max(
+    1,
+    Math.round(intervals.reduce((total, days) => total + days, 0) / intervals.length),
+  );
+  const latestPurchaseDate = purchaseDates[purchaseDates.length - 1];
+  return addDays(latestPurchaseDate, averageIntervalDays).toISOString().slice(0, 10);
 }

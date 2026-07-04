@@ -20,10 +20,8 @@ export async function importProducts(targetKeywords = keywords): Promise<void> {
   const rawProducts: RawProduct[] = [];
   for (const keyword of targetKeywords) {
     console.log(`[import] keyword: ${keyword}`);
-    const [rakuten, yahoo] = await Promise.all([
-      searchRakutenItemsByKeyword(keyword),
-      searchYahooItemsByKeyword(keyword),
-    ]);
+    const rakuten = await searchRakutenItemsByKeyword(keyword);
+    const yahoo = await searchYahooItemsByKeyword(keyword);
     console.log(`[import] fetched rakuten=${rakuten.length} yahoo=${yahoo.length}`);
     rawProducts.push(...rakuten, ...yahoo);
   }

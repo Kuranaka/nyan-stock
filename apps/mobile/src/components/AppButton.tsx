@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 
 import { colors } from '@/constants/colors';
 
@@ -9,7 +9,7 @@ type Props = {
   onPress: () => void;
   variant?: Variant;
   disabled?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function AppButton({ title, onPress, variant = 'primary', disabled, style }: Props) {

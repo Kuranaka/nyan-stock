@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { categoryLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
@@ -24,10 +24,14 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail }: Props
   const remainingDays = calculateRemainingDays(item);
   const percent = calculateRemainingPercent(item);
   const status = getInventoryStatus(item);
+  const progressPercent = Math.max(0, Math.min(100, percent ?? 0));
 
   return (
     <AppCard style={styles.card}>
       <View style={styles.header}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} resizeMode="contain" />
+        ) : null}
         <View style={styles.titleWrap}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.category}>{categoryLabels[item.category]}</Text>
@@ -49,7 +53,7 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail }: Props
       </View>
 
       <View style={styles.progressTrack}>
-        <View style={[styles.progressBar, { width: `${percent ?? 0}%` }]} />
+        <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
       </View>
 
       <Text style={styles.affiliate}>商品リンクにはアフィリエイトリンクが含まれる場合があります。</Text>
@@ -57,7 +61,7 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail }: Props
       <View style={styles.actions}>
         <AppButton title="購入する" onPress={onPurchase} style={styles.action} />
         <AppButton title="補充した" variant="secondary" onPress={onReplenish} style={styles.action} />
-        <AppButton title="詳細" variant="ghost" onPress={onDetail} style={styles.action} />
+        <AppButton title="詳細" variant="ghost" onPress={onDetail} style={[styles.action, styles.detailAction]} />
       </View>
     </AppCard>
   );
@@ -72,6 +76,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
+  },
+  thumbnail: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 64,
+    width: 64,
   },
   titleWrap: {
     flex: 1,
@@ -122,5 +134,9 @@ const styles = StyleSheet.create({
   action: {
     flexGrow: 1,
     minWidth: 96,
+  },
+  detailAction: {
+    borderColor: colors.text,
+    borderWidth: 1,
   },
 });

@@ -18,6 +18,15 @@ export const categories = Object.entries(categoryLabels).map(([value, label]) =>
 
 export const units: InventoryUnit[] = ['g', 'kg', 'ml', 'L', 'piece', 'bag'];
 
+export const unitLabels: Record<InventoryUnit, string> = {
+  g: 'g',
+  kg: 'kg',
+  ml: 'ml',
+  L: 'L',
+  piece: '個',
+  bag: '袋',
+};
+
 export const defaultUnitByCategory: Record<InventoryCategory, InventoryUnit> = {
   dry_food: 'g',
   wet_food: 'piece',

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   addMonths,
@@ -24,6 +24,7 @@ type Props = {
   onChange: (value: string) => void;
   requirement?: 'required' | 'optional';
   placeholder?: string;
+  openSignal?: number;
 };
 
 export function DatePickerField({
@@ -32,6 +33,7 @@ export function DatePickerField({
   onChange,
   requirement,
   placeholder = '日付を選択',
+  openSignal,
 }: Props) {
   const [shownMonth, setShownMonth] = useState(() => parseDateOrToday(value));
   const [open, setOpen] = useState(false);
@@ -43,6 +45,12 @@ export function DatePickerField({
       end: endOfWeek(endOfMonth(monthStart)),
     });
   }, [shownMonth]);
+
+  useEffect(() => {
+    if (!openSignal) return;
+    setShownMonth(parseDateOrToday(value));
+    setOpen(true);
+  }, [openSignal, value]);
 
   return (
     <View style={styles.wrap}>
