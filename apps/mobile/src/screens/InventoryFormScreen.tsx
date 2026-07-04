@@ -258,18 +258,22 @@ export default function InventoryFormScreen() {
   const applyProductMaster = (product: ProductMaster) => {
     const nextCategory = productCategoryToInventoryCategory(product.category);
     const nextLinks = productPurchaseLinksToInventoryLinks(product);
+    const shouldCopyAmount = Boolean(product.amount !== undefined && product.unit && (product.janCode || product.gtin));
     setProductMasterId(product.id);
     setName(product.name);
     setCategory(nextCategory);
-    setAmount(product.amount !== undefined ? String(product.amount) : '');
-    setUnit(product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
+    setAmount(shouldCopyAmount ? String(product.amount) : '');
+    setUnit(shouldCopyAmount && product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
     setAmazon(nextLinks.amazon ?? '');
     setRakuten(nextLinks.rakuten ?? '');
     setYahoo(nextLinks.yahoo ?? '');
     setOther(nextLinks.other ?? '');
     setProductSearchKeyword(product.name);
     setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
-    Alert.alert('商品マスタから反映しました', '内容は保存前に自由に編集できます。');
+    Alert.alert(
+      '商品マスタから反映しました',
+      shouldCopyAmount ? '内容は保存前に自由に編集できます。' : '内容量は今回登録する商品の容量を入力してください。',
+    );
   };
 
   const applyRakutenResult = (result: RakutenSearchResult) => {
@@ -461,7 +465,6 @@ export default function InventoryFormScreen() {
                             {[
                               product.brand,
                               productCategoryLabels[product.category],
-                              product.amount !== undefined && product.unit ? `${product.amount}${product.unit}` : undefined,
                               product.janCode ? `JAN ${product.janCode}` : undefined,
                             ]
                               .filter(Boolean)
