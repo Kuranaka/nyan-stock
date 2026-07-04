@@ -876,7 +876,7 @@ export default function InventoryFormScreen() {
                   />
                   <AppButton
                     title="商品名も反映"
-                    variant="ghost"
+                    variant="secondary"
                     onPress={() => applyRakutenResult(result, { includeName: true })}
                     style={styles.resultAction}
                   />
