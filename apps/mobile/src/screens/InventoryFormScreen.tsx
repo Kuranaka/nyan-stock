@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Href } from 'expo-router';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -20,6 +20,7 @@ import { InventoryCategory, InventoryItem, InventoryUnit } from '@/features/inve
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import {
   findProductsByKeywordAsync,
+  getProductMasterBrands,
   productCategoryLabels,
   productCategoryToInventoryCategory,
   productPurchaseLinksToInventoryLinks,
@@ -36,6 +37,7 @@ type AddMethod = 'master' | 'barcode' | 'manual';
 type ProductCategoryFilter = ProductCategory | 'all';
 
 const masterResultLimit = 20;
+const visibleBrandLimit = 8;
 const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] = [
   { value: 'all', label: 'すべて' },
   ...Object.entries(productCategoryLabels).map(([value, label]) => ({
@@ -69,6 +71,10 @@ export default function InventoryFormScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [masterSearchKeyword, setMasterSearchKeyword] = useState('');
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<ProductCategoryFilter>('all');
+  const [masterBrandFilter, setMasterBrandFilter] = useState<string>('all');
+  const [masterBrandOptions, setMasterBrandOptions] = useState<string[]>([]);
+  const [masterBrandKeyword, setMasterBrandKeyword] = useState('');
+  const [masterBrandExpanded, setMasterBrandExpanded] = useState(false);
   const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [masterSearchLoading, setMasterSearchLoading] = useState(false);
@@ -101,6 +107,13 @@ export default function InventoryFormScreen() {
           : nextCats[0]?.id;
         setSelectedCatId(fallbackCatId);
         if (!id) {
+          const [brands, products] = await Promise.all([
+            getProductMasterBrands(),
+            findProductsByKeywordAsync('', { limit: masterResultLimit }),
+          ]);
+          setMasterBrandOptions(brands);
+          setMasterSearchResults(products);
+          setMasterSearchMessage(products.length === 0 ? '' : `${products.length}件を表示しています。`);
           return;
         }
         const item = await getInventoryItem(id);
@@ -135,6 +148,15 @@ export default function InventoryFormScreen() {
     if (!amountNumber || !daysNumber || daysNumber <= 0) return undefined;
     return Math.round((amountNumber / daysNumber) * 100) / 100;
   }, [amount, lastingDays]);
+
+  const visibleBrandOptions = useMemo(() => {
+    const normalizedKeyword = masterBrandKeyword.trim().normalize('NFKC').toLowerCase();
+    const filteredBrands = normalizedKeyword
+      ? masterBrandOptions.filter((brand) => brand.normalize('NFKC').toLowerCase().includes(normalizedKeyword))
+      : masterBrandOptions;
+    if (normalizedKeyword || masterBrandExpanded) return filteredBrands;
+    return filteredBrands.slice(0, visibleBrandLimit);
+  }, [masterBrandExpanded, masterBrandKeyword, masterBrandOptions]);
 
   const selectCategory = (next: InventoryCategory) => {
     setCategory(next);
@@ -185,15 +207,43 @@ export default function InventoryFormScreen() {
     }
   };
 
-  const searchProductMasters = async () => {
+  const refreshProductMasterBrands = async (categoryFilter: ProductCategoryFilter) => {
+    const brands = await getProductMasterBrands({
+      category: categoryFilter === 'all' ? undefined : categoryFilter,
+    });
+    setMasterBrandOptions(brands);
+  };
+
+  const changeMasterCategoryFilter = async (nextCategory: ProductCategoryFilter) => {
+    setMasterCategoryFilter(nextCategory);
+    setMasterBrandFilter('all');
+    setMasterBrandKeyword('');
+    setMasterBrandExpanded(false);
+    await refreshProductMasterBrands(nextCategory);
+    await searchProductMasters({ category: nextCategory, brand: 'all' });
+  };
+
+  const changeMasterBrandFilter = async (nextBrand: string) => {
+    setMasterBrandFilter(nextBrand);
+    setMasterBrandKeyword('');
+    setMasterBrandExpanded(false);
+    await searchProductMasters({ brand: nextBrand });
+  };
+
+  const searchProductMasters = async (
+    overrides: { category?: ProductCategoryFilter; brand?: string; keyword?: string } = {},
+  ) => {
     const keyword = masterSearchKeyword.trim() || name.trim();
+    const nextCategory = overrides.category ?? masterCategoryFilter;
+    const nextBrand = overrides.brand ?? masterBrandFilter;
     setMasterSearchLoading(true);
     try {
-      const results = await findProductsByKeywordAsync(keyword, {
-        category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
+      const results = await findProductsByKeywordAsync(overrides.keyword ?? keyword, {
+        brand: nextBrand === 'all' ? undefined : nextBrand,
+        category: nextCategory === 'all' ? undefined : nextCategory,
         limit: masterResultLimit,
       });
-      setMasterSearchKeyword(keyword);
+      setMasterSearchKeyword(overrides.keyword ?? keyword);
       setMasterSearchResults(results);
       setMasterSearchMessage(
         results.length === 0
@@ -296,7 +346,7 @@ export default function InventoryFormScreen() {
           <Text style={styles.sectionTitle}>追加方法</Text>
           <View style={styles.wrapRow}>
             <AppButton
-              title="商品名で検索"
+              title="よくある商品から選ぶ"
               variant={addMethod === 'master' ? 'primary' : 'secondary'}
               onPress={() => setAddMethod('master')}
             />
@@ -320,22 +370,75 @@ export default function InventoryFormScreen() {
           {addMethod === 'master' ? (
             <>
               <AppTextInput
-                label="商品マスタを検索"
+                label="商品名・ブランド名で検索"
                 value={masterSearchKeyword}
                 onChangeText={setMasterSearchKeyword}
-                placeholder="商品名・ブランド・JAN"
+                placeholder="例：銀のスプーン、デオトイレ"
               />
-              <Text style={styles.label}>カテゴリで絞り込み</Text>
+              <Text style={styles.label}>カテゴリを選ぶ</Text>
               <View style={styles.wrapRow}>
                 {productCategoryOptions.map((option) => (
                   <AppButton
                     key={option.value}
                     title={option.label}
                     variant={masterCategoryFilter === option.value ? 'primary' : 'secondary'}
-                    onPress={() => setMasterCategoryFilter(option.value)}
+                    onPress={() => void changeMasterCategoryFilter(option.value)}
                   />
                 ))}
               </View>
+              {masterBrandOptions.length > 0 ? (
+                <>
+                  <Text style={styles.label}>ブランドで絞り込み</Text>
+                  <View style={styles.filterSummaryRow}>
+                    <AppButton
+                      title={masterBrandFilter === 'all' ? 'ブランドすべて' : masterBrandFilter}
+                      variant="primary"
+                      onPress={() => void changeMasterBrandFilter('all')}
+                    />
+                    {masterBrandFilter !== 'all' ? (
+                      <AppButton
+                        title="解除"
+                        variant="secondary"
+                        onPress={() => void changeMasterBrandFilter('all')}
+                      />
+                    ) : null}
+                  </View>
+                  <AppTextInput
+                    label="ブランドを検索"
+                    value={masterBrandKeyword}
+                    onChangeText={(value) => {
+                      setMasterBrandKeyword(value);
+                      setMasterBrandExpanded(false);
+                    }}
+                    placeholder="例：銀のスプーン"
+                  />
+                  <View style={styles.wrapRow}>
+                    <AppButton
+                      title="すべて"
+                      variant={masterBrandFilter === 'all' ? 'primary' : 'secondary'}
+                      onPress={() => void changeMasterBrandFilter('all')}
+                    />
+                    {visibleBrandOptions.map((brand) => (
+                      <AppButton
+                        key={brand}
+                        title={brand}
+                        variant={masterBrandFilter === brand ? 'primary' : 'secondary'}
+                        onPress={() => void changeMasterBrandFilter(brand)}
+                      />
+                    ))}
+                  </View>
+                  {!masterBrandKeyword.trim() && masterBrandOptions.length > visibleBrandLimit ? (
+                    <AppButton
+                      title={masterBrandExpanded ? 'ブランドを少なく表示' : `ブランドをもっと表示（${masterBrandOptions.length}件）`}
+                      variant="secondary"
+                      onPress={() => setMasterBrandExpanded((current) => !current)}
+                    />
+                  ) : null}
+                  {masterBrandKeyword.trim() && visibleBrandOptions.length === 0 ? (
+                    <Text style={styles.resultSummary}>該当するブランドがありません。</Text>
+                  ) : null}
+                </>
+              ) : null}
               <AppButton
                 title={masterSearchLoading ? '検索中...' : '商品名で検索'}
                 variant="secondary"
@@ -345,25 +448,34 @@ export default function InventoryFormScreen() {
               {masterSearchMessage ? <Text style={styles.resultSummary}>{masterSearchMessage}</Text> : null}
               {masterSearchResults.map((product) => (
                 <View key={product.id} style={styles.searchResult}>
-                  <View style={styles.resultHeader}>
-                    <Text style={styles.resultName}>{product.name}</Text>
-                    <Text style={styles.confidenceBadge}>信頼度 {product.confidence}</Text>
-                  </View>
-                  <Text style={styles.resultMeta}>
-                    {[
-                      product.brand,
-                      productCategoryLabels[product.category],
-                      product.amount !== undefined && product.unit ? `${product.amount}${product.unit}` : undefined,
-                      product.janCode ? `JAN ${product.janCode}` : undefined,
-                    ]
-                      .filter(Boolean)
-                      .join(' ・ ')}
-                  </Text>
-                  <View style={styles.badgeRow}>
-                    {getProductSourceLabels(product).map((label) => (
-                      <Text key={label} style={styles.sourceBadge}>{label}</Text>
-                    ))}
-                  </View>
+                  {(() => {
+                    const imageUrl = getProductImageUrl(product);
+                    return (
+                      <View style={styles.productResultBody}>
+                        {imageUrl ? (
+                          <Image source={{ uri: imageUrl }} style={styles.productThumbnail} resizeMode="contain" />
+                        ) : null}
+                        <View style={styles.productResultText}>
+                          <Text style={styles.resultName}>{product.name}</Text>
+                          <Text style={styles.resultMeta}>
+                            {[
+                              product.brand,
+                              productCategoryLabels[product.category],
+                              product.amount !== undefined && product.unit ? `${product.amount}${product.unit}` : undefined,
+                              product.janCode ? `JAN ${product.janCode}` : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(' ・ ')}
+                          </Text>
+                          <View style={styles.badgeRow}>
+                            {getProductSourceLabels(product).map((label) => (
+                              <Text key={label} style={styles.sourceBadge}>{label}</Text>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })()}
                   <AppButton
                     title="この商品を登録する"
                     variant="secondary"
@@ -508,6 +620,11 @@ function getProductSourceLabels(product: ProductMaster): string[] {
   return Array.from(new Set(providers)).slice(0, 3);
 }
 
+function getProductImageUrl(product: ProductMaster): string | undefined {
+  const candidates = [product.imageUrl, ...(product.packageImageUrls ?? [])];
+  return candidates.find((url) => url && /^https?:\/\//i.test(url));
+}
+
 const styles = StyleSheet.create({
   container: {
     gap: 16,
@@ -549,8 +666,23 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 12,
   },
-  resultHeader: {
-    gap: 8,
+  productResultBody: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  productResultText: {
+    flex: 1,
+    gap: 6,
+    minWidth: 0,
+  },
+  productThumbnail: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 72,
+    width: 72,
   },
   resultName: {
     color: colors.text,
@@ -568,25 +700,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
+  filterSummaryRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   sourceBadge: {
     backgroundColor: colors.primaryLight,
     borderColor: colors.border,
     borderRadius: 10,
     borderWidth: 1,
     color: colors.text,
-    fontSize: 11,
-    fontWeight: '700',
-    overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  confidenceBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: colors.subText,
     fontSize: 11,
     fontWeight: '700',
     overflow: 'hidden',

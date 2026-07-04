@@ -9,6 +9,7 @@
     "import:seed-csv": "tsx src/scripts/importFromSeedCsv.ts",
     "import:keyword": "tsx src/scripts/importByKeyword.ts",
     "import:jan": "tsx src/scripts/importByJanCode.ts",
+    "prune:seed-csv": "tsx src/scripts/pruneProductMastersToSeedCsv.ts",
     "dedupe": "tsx src/scripts/dedupeProducts.ts",
     "export:mobile-seed": "tsx src/scripts/exportMobileSeed.ts",
     "quality:products": "tsx src/scripts/checkProductMasterQuality.ts",

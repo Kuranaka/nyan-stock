@@ -34,6 +34,21 @@ export async function saveProductMasters(products: ProductMaster[]): Promise<voi
   console.log(`[repository] saved product masters: ${config.outputJsonPath}`);
 }
 
+export async function deleteProductMastersByIds(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  if (config.databaseUrl) {
+    await deleteFromPostgres(ids);
+    return;
+  }
+  if (hasSupabaseConfig()) {
+    await deleteFromSupabase(ids);
+    return;
+  }
+
+  const existing = await loadProductMasters();
+  await saveProductMasters(existing.filter((product) => !ids.includes(product.id)));
+}
+
 export async function upsertProductMasters(incoming: ProductMaster[]): Promise<ProductMaster[]> {
   const existing = await loadProductMasters();
   const next = dedupeProducts([...existing, ...incoming]);
@@ -91,6 +106,19 @@ async function ensurePostgresSchema(client: PostgresClient): Promise<void> {
   `);
 }
 
+async function deleteFromPostgres(ids: string[]): Promise<void> {
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString: config.databaseUrl });
+  await client.connect();
+  try {
+    await ensurePostgresSchema(client);
+    await client.query('delete from product_masters where id = any($1)', [ids]);
+    console.log(`[repository] deleted product masters from PostgreSQL: ${ids.length}`);
+  } finally {
+    await client.end();
+  }
+}
+
 async function loadFromSupabase(): Promise<ProductMaster[]> {
   const response = await fetch(supabaseEndpoint('select=data&order=updated_at.desc'), {
     headers: supabaseHeaders(),
@@ -120,6 +148,21 @@ async function saveToSupabase(products: ProductMaster[]): Promise<void> {
     throw new Error(`[repository] Supabase save failed ${response.status}: ${await response.text()}`);
   }
   console.log(`[repository] saved product masters to Supabase: ${products.length}`);
+}
+
+async function deleteFromSupabase(ids: string[]): Promise<void> {
+  const chunkSize = 100;
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    const chunk = ids.slice(index, index + chunkSize);
+    const response = await fetch(supabaseEndpoint(`id=in.(${chunk.map(encodeURIComponent).join(',')})`), {
+      method: 'DELETE',
+      headers: supabaseHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`[repository] Supabase delete failed ${response.status}: ${await response.text()}`);
+    }
+  }
+  console.log(`[repository] deleted product masters from Supabase: ${ids.length}`);
 }
 
 function hasSupabaseConfig(): boolean {

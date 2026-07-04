@@ -5,6 +5,7 @@ import { InventoryCategory, InventoryUnit, PurchaseLinks } from '@/features/inve
 import { ProductCategory, ProductMaster, ProductUnit } from './productTypes';
 
 type ProductSearchOptions = {
+  brand?: string;
   category?: ProductCategory;
   limit?: number;
 };
@@ -63,6 +64,18 @@ export async function findProductsByKeywordAsync(
   return searchProductMasters(products, keyword, options);
 }
 
+export async function getProductMasterBrands(options: Pick<ProductSearchOptions, 'category'> = {}): Promise<string[]> {
+  const products = await getProductMastersAsync();
+  return Array.from(
+    new Set(
+      products
+        .filter((product) => !options.category || product.category === options.category)
+        .map((product) => product.brand)
+        .filter((brand): brand is string => Boolean(brand)),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'ja'));
+}
+
 async function getProductMastersAsync(): Promise<ProductMaster[]> {
   const remoteProducts = await loadSupabaseProductMasters();
   if (remoteProducts.length > 0) {
@@ -112,6 +125,7 @@ function searchProductMasters(
 
   return products
     .filter((product) => !options.category || product.category === options.category)
+    .filter((product) => !options.brand || product.brand === options.brand)
     .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, normalizedJanCode) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || b.product.confidence - a.product.confidence)
