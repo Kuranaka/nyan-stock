@@ -49,6 +49,12 @@ type YahooItem = {
 };
 
 type YahooResponse = {
+  totalResultsAvailable?: number;
+  totalResultsReturned?: number;
+  request?: {
+    query?: string;
+    janCode?: string;
+  };
   hits?: YahooItem[];
   error?: {
     message?: string;
@@ -223,7 +229,19 @@ async function searchYahoo(keyword: string): Promise<PurchaseLinkSearchResult[]>
 }
 
 async function searchYahooByJanCode(janCode: string): Promise<PurchaseLinkSearchResult[]> {
-  return searchYahooItems({ janCode });
+  const candidates = buildJanSearchCandidates(janCode);
+  const results: PurchaseLinkSearchResult[] = [];
+
+  for (const candidate of candidates) {
+    const searchResults =
+      candidate.kind === 'jan_code'
+        ? await searchYahooItems({ janCode: candidate.value })
+        : await searchYahooItems({ query: candidate.value });
+    results.push(...searchResults);
+    if (dedupePurchaseLinkResults(results).length >= 10) break;
+  }
+
+  return dedupePurchaseLinkResults(results);
 }
 
 async function searchYahooItems(searchOptions: { query?: string; janCode?: string }): Promise<PurchaseLinkSearchResult[]> {
@@ -247,6 +265,18 @@ async function searchYahooItems(searchOptions: { query?: string; janCode?: strin
       console.warn(`[purchase-link-search] Yahoo error: ${body.error?.message ?? response.status}`);
       return [];
     }
+    if ((body.totalResultsAvailable ?? 0) > 0 && (body.hits?.length ?? 0) === 0) {
+      console.warn(
+        `[purchase-link-search] Yahoo returned totalResultsAvailable=${body.totalResultsAvailable} but no hits. search=${describeYahooSearchOptions(
+          searchOptions,
+        )}`,
+      );
+    }
+    if ((body.totalResultsAvailable ?? 0) === 0) {
+      console.warn(
+        `[purchase-link-search] Yahoo returned 0 results. search=${describeYahooSearchOptions(searchOptions)}`,
+      );
+    }
 
     return (body.hits ?? [])
       .filter((item) => Boolean(item.code && item.name && item.url))
@@ -262,6 +292,40 @@ async function searchYahooItems(searchOptions: { query?: string; janCode?: strin
     console.warn('[purchase-link-search] Yahoo request failed:', error);
     return [];
   }
+}
+
+function describeYahooSearchOptions(searchOptions: { query?: string; janCode?: string }): string {
+  if (searchOptions.janCode) return `jan_code:${searchOptions.janCode}`;
+  if (searchOptions.query) return `query:${searchOptions.query}`;
+  return 'empty';
+}
+
+function buildJanSearchCandidates(janCode: string): Array<{ kind: 'jan_code' | 'query'; value: string }> {
+  const normalizedJanCode = janCode.replace(/\D/g, '');
+  const candidates: Array<{ kind: 'jan_code' | 'query'; value: string }> = [];
+  if (!normalizedJanCode) return candidates;
+
+  candidates.push({ kind: 'jan_code', value: normalizedJanCode });
+  candidates.push({ kind: 'query', value: normalizedJanCode });
+
+  // UPC-A may be reported by some scanners as EAN-13 with a leading zero.
+  if (normalizedJanCode.length === 13 && normalizedJanCode.startsWith('0')) {
+    candidates.push({ kind: 'query', value: normalizedJanCode.slice(1) });
+  }
+
+  return candidates.filter((candidate, index, list) => {
+    return list.findIndex((entry) => entry.kind === candidate.kind && entry.value === candidate.value) === index;
+  });
+}
+
+function dedupePurchaseLinkResults(results: PurchaseLinkSearchResult[]): PurchaseLinkSearchResult[] {
+  const seen = new Set<string>();
+  return results.filter((result) => {
+    const key = result.id || normalizeUrl(result.url);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function buildRakutenAffiliateUrl(purchaseUrl: string): string | undefined {

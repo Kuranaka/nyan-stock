@@ -110,6 +110,15 @@ export default function InventoryFormScreen() {
   const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [productSearchError, setProductSearchError] = useState('');
 
+  const scrollToNameField = useCallback(() => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(nameFieldYRef.current - 12, 0),
+        animated: true,
+      });
+    }, 100);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       async function load() {
@@ -373,17 +382,12 @@ export default function InventoryFormScreen() {
     setOther(nextLinks.other ?? '');
     setProductSearchKeyword(product.name);
     setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(nameFieldYRef.current - 12, 0),
-        animated: true,
-      });
-    }, 100);
+    scrollToNameField();
     Alert.alert(
       '商品マスタから反映しました',
       shouldCopyAmount ? '内容は保存前に自由に編集できます。' : '内容量は今回登録する商品の容量を入力してください。',
     );
-  }, []);
+  }, [scrollToNameField]);
 
   const applyYahooBarcodeResult = useCallback(
     (result: RakutenSearchResult, options: { showAlert: boolean } = { showAlert: true }) => {
@@ -392,11 +396,12 @@ export default function InventoryFormScreen() {
       setYahoo(result.url);
       setProductSearchKeyword(result.name);
       setErrors((currentErrors) => ({ ...currentErrors, name: undefined, url: undefined }));
+      scrollToNameField();
       if (options.showAlert) {
         Alert.alert('Yahoo検索結果を反映しました', '商品名とYahoo URLを入力欄に反映しました。');
       }
     },
-    [],
+    [scrollToNameField],
   );
 
   useEffect(() => {
@@ -428,14 +433,14 @@ export default function InventoryFormScreen() {
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
         setBarcodeSearchMessage(
-          `JAN ${normalizedBarcode} は商品マスタに見つかりませんでした。Yahoo API設定がないため、手入力で登録してください。`,
+          `JAN ${normalizedBarcode} は商品マスタに見つかりませんでした。Yahooショッピング検索の設定がないため、手入力で登録してください。`,
         );
         setBarcodeSearchLoading(false);
         return;
       }
 
       try {
-        setBarcodeSearchMessage(`JAN ${normalizedBarcode} は商品マスタにないため、Yahooショッピングを検索しています。`);
+        setBarcodeSearchMessage(`JAN ${normalizedBarcode} は商品マスタにないため、YahooショッピングをJANで検索しています。`);
         const yahooResults = await searchYahooItemsByJanCode(normalizedBarcode);
         if (!isActive) return;
         setBarcodeYahooResults(yahooResults);
@@ -726,7 +731,7 @@ export default function InventoryFormScreen() {
                           .join(' ・ ')}
                       </Text>
                       <AppButton
-                        title="このYahoo候補を反映する"
+                        title="反映する"
                         variant="secondary"
                         onPress={() => applyYahooBarcodeResult(result)}
                       />
