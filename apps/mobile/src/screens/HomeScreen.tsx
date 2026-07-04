@@ -16,7 +16,7 @@ import {
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, replenishInventoryItem } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
-import { openPurchaseUrl } from '@/features/inventory/purchaseLink';
+import { getPurchasePriceComparison, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
@@ -127,6 +127,21 @@ export default function HomeScreen() {
       Alert.alert('購入URLが未登録です', '商品詳細または編集画面からURLを登録できます。');
       return;
     }
+    if (item.purchaseLinks.rakuten || item.purchaseLinks.yahoo) {
+      const prices = await getPurchasePriceComparison(item);
+      const message = buildPurchasePriceMessage(prices);
+      const buttons = buildPurchasePageButtons(item);
+      if (buttons.length === 1) {
+        Alert.alert('購入URLが未登録です', '楽天またはYahooのURLを登録すると価格比較できます。');
+        return;
+      }
+      Alert.alert(
+        hasAnyPrice(prices) ? '現在価格を確認しました' : '価格を確認できませんでした',
+        `${message}\nどの購入ページを開きますか？`,
+        buttons,
+      );
+      return;
+    }
     await openPurchaseUrl(item, shop);
   };
 
@@ -208,6 +223,32 @@ function Summary({ value, label, tone }: { value: number; label: string; tone: s
       <Text style={styles.summaryLabel}>{label}</Text>
     </View>
   );
+}
+
+function buildPurchasePriceMessage(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): string {
+  const rakuten = prices.rakuten?.price !== undefined ? `${prices.rakuten.price.toLocaleString()}円` : '取得できませんでした';
+  const yahoo = prices.yahoo?.price !== undefined ? `${prices.yahoo.price.toLocaleString()}円` : '取得できませんでした';
+  return `楽天: ${rakuten}\nYahoo: ${yahoo}`;
+}
+
+function hasAnyPrice(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): boolean {
+  return prices.rakuten?.price !== undefined || prices.yahoo?.price !== undefined;
+}
+
+function buildPurchasePageButtons(item: InventoryItem) {
+  const buttons: { text: string; style?: 'cancel'; onPress?: () => void }[] = [
+    { text: 'キャンセル', style: 'cancel' },
+  ];
+  const shops: { shop: ShopType; label: string }[] = [
+    { shop: 'rakuten', label: '楽天を開く' },
+    { shop: 'yahoo', label: 'Yahooを開く' },
+  ];
+  shops.forEach(({ shop, label }) => {
+    if (item.purchaseLinks[shop]) {
+      buttons.push({ text: label, onPress: () => void openPurchaseUrl(item, shop) });
+    }
+  });
+  return buttons;
 }
 
 const styles = StyleSheet.create({
