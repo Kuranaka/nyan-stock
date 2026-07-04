@@ -26,6 +26,7 @@ import { getCats, saveCat } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import {
   hasPurchaseLinkSearchApi,
+  PurchaseLinkProvider,
   RakutenSearchResult,
   searchRakutenItems,
 } from '@/features/ec/rakutenSearch';
@@ -108,6 +109,7 @@ export default function InventoryFormScreen() {
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [masterSearchLoading, setMasterSearchLoading] = useState(false);
   const [showPurchaseLinkSearch, setShowPurchaseLinkSearch] = useState(false);
+  const [purchaseLinkProvider, setPurchaseLinkProvider] = useState<PurchaseLinkProvider>('rakuten');
   const [productSearchKeyword, setProductSearchKeyword] = useState('');
   const [productSearchResults, setProductSearchResults] = useState<RakutenSearchResult[]>([]);
   const [productSearchMessage, setProductSearchMessage] = useState('');
@@ -290,12 +292,17 @@ export default function InventoryFormScreen() {
     try {
       setProductSearchKeyword(keyword);
       if (!hasPurchaseLinkSearchApi()) {
-        const url = `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(keyword)}/`;
+        const url =
+          purchaseLinkProvider === 'rakuten'
+            ? `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(keyword)}/`
+            : `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(keyword)}`;
         await WebBrowser.openBrowserAsync(url);
-        setProductSearchMessage('楽天市場の検索ページを開きました。購入URLは必要に応じて楽天URL欄へ貼り付けてください。');
+        setProductSearchMessage(
+          `${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}の検索ページを開きました。購入URLは必要に応じてURL欄へ貼り付けてください。`,
+        );
         return;
       }
-      const results = await searchRakutenItems(keyword);
+      const results = await searchRakutenItems(keyword, purchaseLinkProvider);
       setProductSearchResults(results);
       if (results.length === 0) {
         setProductSearchError('該当する商品が見つかりませんでした。');
@@ -393,11 +400,24 @@ export default function InventoryFormScreen() {
     );
   };
 
-  const applyRakutenResult = (result: RakutenSearchResult) => {
-    setName(result.name);
-    setRakuten(result.url);
-    setErrors((currentErrors) => ({ ...currentErrors, url: undefined }));
-    Alert.alert('反映しました', '商品名と楽天URLを入力欄に反映しました。');
+  const applyRakutenResult = (result: RakutenSearchResult, options: { includeName: boolean }) => {
+    if (options.includeName) {
+      setName(result.name);
+    }
+    if ((result.provider ?? purchaseLinkProvider) === 'yahoo') {
+      setYahoo(result.url);
+    } else {
+      setRakuten(result.url);
+    }
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      name: options.includeName ? undefined : currentErrors.name,
+      url: undefined,
+    }));
+    Alert.alert(
+      '反映しました',
+      options.includeName ? '商品名と購入URLを入力欄に反映しました。' : '購入URLを入力欄に反映しました。',
+    );
   };
 
   const save = async () => {
@@ -798,14 +818,37 @@ export default function InventoryFormScreen() {
         </View>
         {showPurchaseLinkSearch ? (
           <>
+            <FieldLabel label="検索先" requirement="required" />
+            <View style={styles.wrapRow}>
+              <AppButton
+                title="楽天市場"
+                variant={purchaseLinkProvider === 'rakuten' ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setPurchaseLinkProvider('rakuten');
+                  setProductSearchResults([]);
+                  setProductSearchMessage('');
+                  setProductSearchError('');
+                }}
+              />
+              <AppButton
+                title="Yahooショッピング"
+                variant={purchaseLinkProvider === 'yahoo' ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setPurchaseLinkProvider('yahoo');
+                  setProductSearchResults([]);
+                  setProductSearchMessage('');
+                  setProductSearchError('');
+                }}
+              />
+            </View>
             <AppTextInput
-              label="楽天市場で検索"
+              label={`${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}で検索`}
               value={productSearchKeyword}
               onChangeText={setProductSearchKeyword}
               placeholder={name || '例：キャットフード'}
             />
             <AppButton
-              title={productSearchLoading ? '検索中...' : '楽天市場で探す'}
+              title={productSearchLoading ? '検索中...' : `${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}で探す`}
               variant="secondary"
               disabled={productSearchLoading}
               onPress={() => void searchProducts()}
@@ -816,11 +859,28 @@ export default function InventoryFormScreen() {
               <View key={result.id} style={styles.searchResult}>
                 <Text style={styles.resultName}>{result.name}</Text>
                 <Text style={styles.resultMeta}>
-                  {[result.shopName, result.price ? `${result.price.toLocaleString()}円` : undefined]
+                  {[
+                    result.provider === 'yahoo' ? 'Yahooショッピング' : '楽天市場',
+                    result.shopName,
+                    result.price ? `${result.price.toLocaleString()}円` : undefined,
+                  ]
                     .filter(Boolean)
                     .join(' ・ ')}
                 </Text>
-                <AppButton title="この商品を反映" variant="secondary" onPress={() => applyRakutenResult(result)} />
+                <View style={styles.resultActions}>
+                  <AppButton
+                    title="URLだけ反映"
+                    variant="secondary"
+                    onPress={() => applyRakutenResult(result, { includeName: false })}
+                    style={styles.resultAction}
+                  />
+                  <AppButton
+                    title="商品名も反映"
+                    variant="ghost"
+                    onPress={() => applyRakutenResult(result, { includeName: true })}
+                    style={styles.resultAction}
+                  />
+                </View>
               </View>
             ))}
           </>
@@ -1013,6 +1073,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: 8,
     paddingTop: 12,
+  },
+  resultActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  resultAction: {
+    flexGrow: 1,
   },
   productResultBody: {
     alignItems: 'flex-start',

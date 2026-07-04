@@ -60,11 +60,18 @@ Deno.serve(async (request) => {
 
   const url = new URL(request.url);
   const keyword = url.searchParams.get('keyword')?.trim() ?? '';
+  const provider = url.searchParams.get('provider') ?? 'all';
   if (!keyword) {
     return json({ error: 'missing_keyword', message: 'keyword is required.' }, 400);
   }
+  if (!['all', 'rakuten', 'yahoo'].includes(provider)) {
+    return json({ error: 'invalid_provider', message: 'provider must be all, rakuten, or yahoo.' }, 400);
+  }
 
-  const [rakuten, yahoo] = await Promise.all([searchRakuten(keyword), searchYahoo(keyword)]);
+  const [rakuten, yahoo] = await Promise.all([
+    provider === 'all' || provider === 'rakuten' ? searchRakuten(keyword) : [],
+    provider === 'all' || provider === 'yahoo' ? searchYahoo(keyword) : [],
+  ]);
   return json({
     items: [...rakuten, ...yahoo].slice(0, 20),
   });

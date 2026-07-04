@@ -8,7 +8,10 @@ export type RakutenSearchResult = {
   price?: number;
   shopName?: string;
   url: string;
+  provider?: PurchaseLinkProvider;
 };
+
+export type PurchaseLinkProvider = 'rakuten' | 'yahoo';
 
 type PurchaseLinkSearchApiResponse = {
   items?: {
@@ -17,6 +20,7 @@ type PurchaseLinkSearchApiResponse = {
     price?: number;
     shopName?: string;
     url?: string;
+    provider?: PurchaseLinkProvider;
   }[];
   error?: string;
   message?: string;
@@ -26,7 +30,10 @@ export function hasPurchaseLinkSearchApi(): boolean {
   return Boolean(getPurchaseLinkSearchEndpoint() && supabaseAnonKey);
 }
 
-export async function searchRakutenItems(keyword: string): Promise<RakutenSearchResult[]> {
+export async function searchRakutenItems(
+  keyword: string,
+  provider: PurchaseLinkProvider = 'rakuten',
+): Promise<RakutenSearchResult[]> {
   const query = keyword.trim();
 
   if (!query) {
@@ -34,16 +41,19 @@ export async function searchRakutenItems(keyword: string): Promise<RakutenSearch
   }
 
   if (hasPurchaseLinkSearchApi()) {
-    return searchPurchaseLinksFromEdgeFunction(query);
+    return searchPurchaseLinksFromEdgeFunction(query, provider);
   }
 
   throw new Error('Supabase Edge FunctionのURLとAnon Keyを設定してください。');
 }
 
-async function searchPurchaseLinksFromEdgeFunction(keyword: string): Promise<RakutenSearchResult[]> {
+async function searchPurchaseLinksFromEdgeFunction(
+  keyword: string,
+  provider: PurchaseLinkProvider,
+): Promise<RakutenSearchResult[]> {
   const baseUrl = getPurchaseLinkSearchEndpoint();
   if (!baseUrl || !supabaseAnonKey) return [];
-  const endpoint = `${baseUrl}?keyword=${encodeURIComponent(keyword)}`;
+  const endpoint = `${baseUrl}?keyword=${encodeURIComponent(keyword)}&provider=${provider}`;
   const response = await fetch(endpoint, {
     headers: {
       apikey: supabaseAnonKey,
@@ -63,6 +73,7 @@ async function searchPurchaseLinksFromEdgeFunction(keyword: string): Promise<Rak
       price: item.price,
       shopName: item.shopName,
       url: item.url,
+      provider: item.provider ?? provider,
     });
     return results;
   }, []);
