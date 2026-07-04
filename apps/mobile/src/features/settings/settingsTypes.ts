@@ -4,9 +4,6 @@ export type AppSettings = {
   notificationHour: number;
   notificationMinute: number;
   selectedCatId?: string;
-  rakutenApplicationId?: string;
-  rakutenAccessKey?: string;
-  rakutenAffiliateId?: string;
 };
 
 export const defaultSettings: AppSettings = {

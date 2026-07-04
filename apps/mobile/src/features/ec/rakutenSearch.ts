@@ -1,7 +1,6 @@
-import { AppSettings } from '@/features/settings/settingsTypes';
-
-const RAKUTEN_ITEM_SEARCH_ENDPOINT =
-  'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const purchaseLinkSearchFunctionUrl = process.env.EXPO_PUBLIC_PURCHASE_LINK_SEARCH_FUNCTION_URL;
 
 export type RakutenSearchResult = {
   id: string;
@@ -11,75 +10,66 @@ export type RakutenSearchResult = {
   url: string;
 };
 
-type RakutenItem = {
-  itemCode?: string;
-  itemName?: string;
-  itemPrice?: number;
-  itemUrl?: string;
-  affiliateUrl?: string;
-  shopName?: string;
-};
-
-type RakutenResponse = {
-  items?: RakutenItem[];
+type PurchaseLinkSearchApiResponse = {
+  items?: {
+    id?: string;
+    name?: string;
+    price?: number;
+    shopName?: string;
+    url?: string;
+  }[];
   error?: string;
-  error_description?: string;
+  message?: string;
 };
 
-export function hasRakutenApiSettings(settings: AppSettings): boolean {
-  return Boolean(settings.rakutenApplicationId?.trim() && settings.rakutenAccessKey?.trim());
+export function hasPurchaseLinkSearchApi(): boolean {
+  return Boolean(getPurchaseLinkSearchEndpoint() && supabaseAnonKey);
 }
 
-export async function searchRakutenItems(
-  keyword: string,
-  settings: AppSettings,
-): Promise<RakutenSearchResult[]> {
+export async function searchRakutenItems(keyword: string): Promise<RakutenSearchResult[]> {
   const query = keyword.trim();
-  const applicationId = settings.rakutenApplicationId?.trim();
-  const accessKey = settings.rakutenAccessKey?.trim();
-  const affiliateId = settings.rakutenAffiliateId?.trim();
 
   if (!query) {
     throw new Error('検索キーワードを入力してください。');
   }
-  if (!applicationId || !accessKey) {
-    throw new Error('設定画面で楽天APIのApplication IDとAccess Keyを保存してください。');
+
+  if (hasPurchaseLinkSearchApi()) {
+    return searchPurchaseLinksFromEdgeFunction(query);
   }
 
-  const params = new URLSearchParams({
-    applicationId,
-    keyword: query,
-    format: 'json',
-    formatVersion: '2',
-    hits: '10',
-    availability: '1',
-    imageFlag: '1',
-    elements: 'itemCode,itemName,itemPrice,itemUrl,affiliateUrl,shopName',
-  });
-  if (affiliateId) {
-    params.set('affiliateId', affiliateId);
-  }
+  throw new Error('Supabase Edge FunctionのURLとAnon Keyを設定してください。');
+}
 
-  const response = await fetch(`${RAKUTEN_ITEM_SEARCH_ENDPOINT}?${params.toString()}`, {
+async function searchPurchaseLinksFromEdgeFunction(keyword: string): Promise<RakutenSearchResult[]> {
+  const baseUrl = getPurchaseLinkSearchEndpoint();
+  if (!baseUrl || !supabaseAnonKey) return [];
+  const endpoint = `${baseUrl}?keyword=${encodeURIComponent(keyword)}`;
+  const response = await fetch(endpoint, {
     headers: {
-      accessKey,
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
     },
   });
-  const body = (await response.json()) as RakutenResponse;
+  const body = (await response.json()) as PurchaseLinkSearchApiResponse;
   if (!response.ok || body.error) {
-    throw new Error(body.error_description || body.error || '楽天市場の商品検索に失敗しました。');
+    throw new Error(body.message || body.error || '購入リンク検索に失敗しました。');
   }
 
   return (body.items ?? []).reduce<RakutenSearchResult[]>((results, item, index) => {
-    const url = item.affiliateUrl || item.itemUrl;
-    if (!item.itemName || !url) return results;
+    if (!item.name || !item.url) return results;
     results.push({
-        id: item.itemCode || `${item.itemName}-${index}`,
-        name: item.itemName,
-        price: item.itemPrice,
-        shopName: item.shopName,
-        url,
+      id: item.id || `${item.name}-${index}`,
+      name: item.name,
+      price: item.price,
+      shopName: item.shopName,
+      url: item.url,
     });
     return results;
   }, []);
+}
+
+function getPurchaseLinkSearchEndpoint(): string | undefined {
+  if (purchaseLinkSearchFunctionUrl) return purchaseLinkSearchFunctionUrl.replace(/\/+$/, '');
+  if (!supabaseUrl) return undefined;
+  return `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/purchase-link-search`;
 }

@@ -1,8 +1,21 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDays, parseISO } from 'date-fns';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  addDays,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import { Href } from 'expo-router';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -11,13 +24,22 @@ import { categories, defaultUnitByCategory, units } from '@/constants/categories
 import { colors } from '@/constants/colors';
 import { getCats, saveCat } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
-import { RakutenSearchResult, searchRakutenItems } from '@/features/ec/rakutenSearch';
+import {
+  hasPurchaseLinkSearchApi,
+  RakutenSearchResult,
+  searchRakutenItems,
+} from '@/features/ec/rakutenSearch';
 import {
   getInventoryItem,
   getInventoryItems,
   saveInventoryItem,
 } from '@/features/inventory/inventoryStorage';
-import { InventoryCategory, InventoryItem, InventoryUnit } from '@/features/inventory/inventoryTypes';
+import {
+  InventoryCategory,
+  InventoryEstimationMode,
+  InventoryItem,
+  InventoryUnit,
+} from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import {
   findProductsByKeywordAsync,
@@ -30,11 +52,11 @@ import {
 import { ProductCategory, ProductMaster } from '@/features/products/productTypes';
 import { saveUserProductSuggestion } from '@/features/products/userProductSuggestionStorage';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
-import { nowIso, todayIso } from '@/utils/date';
+import { formatDisplayDate, nowIso, todayIso } from '@/utils/date';
 import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
 type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'url', string>>;
-type AddMethod = 'master' | 'barcode' | 'manual';
+type AddMethod = 'master' | 'barcode' | 'manual' | undefined;
 type ProductCategoryFilter = ProductCategory | 'all';
 
 const masterResultLimit = 20;
@@ -50,20 +72,23 @@ const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] 
 export default function InventoryFormScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const nameFieldYRef = useRef(0);
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [current, setCurrent] = useState<InventoryItem | undefined>();
-  const [addMethod, setAddMethod] = useState<AddMethod>('master');
+  const [addMethod, setAddMethod] = useState<AddMethod>();
   const [productMasterId, setProductMasterId] = useState<string | undefined>();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<InventoryCategory>('dry_food');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<InventoryUnit>('g');
   const [purchaseDate, setPurchaseDate] = useState(todayIso());
-  const [openedDate, setOpenedDate] = useState('');
+  const [purchaseCalendarMonth, setPurchaseCalendarMonth] = useState(() => new Date());
+  const [showPurchaseCalendar, setShowPurchaseCalendar] = useState(false);
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
-  const [usePurchaseFrequencyEstimate, setUsePurchaseFrequencyEstimate] = useState(false);
+  const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
   const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>([7, 3, 1]);
   const [amazon, setAmazon] = useState('');
   const [rakuten, setRakuten] = useState('');
@@ -73,15 +98,19 @@ export default function InventoryFormScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [masterSearchKeyword, setMasterSearchKeyword] = useState('');
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<ProductCategoryFilter>('all');
+  const [showMasterCategoryOptions, setShowMasterCategoryOptions] = useState(false);
   const [masterBrandFilter, setMasterBrandFilter] = useState<string>('all');
+  const [showMasterBrandOptions, setShowMasterBrandOptions] = useState(false);
   const [masterBrandOptions, setMasterBrandOptions] = useState<string[]>([]);
   const [masterBrandKeyword, setMasterBrandKeyword] = useState('');
   const [masterBrandExpanded, setMasterBrandExpanded] = useState(false);
   const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [masterSearchLoading, setMasterSearchLoading] = useState(false);
+  const [showPurchaseLinkSearch, setShowPurchaseLinkSearch] = useState(false);
   const [productSearchKeyword, setProductSearchKeyword] = useState('');
   const [productSearchResults, setProductSearchResults] = useState<RakutenSearchResult[]>([]);
+  const [productSearchMessage, setProductSearchMessage] = useState('');
   const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [productSearchError, setProductSearchError] = useState('');
 
@@ -109,13 +138,10 @@ export default function InventoryFormScreen() {
           : nextCats[0]?.id;
         setSelectedCatId(fallbackCatId);
         if (!id) {
-          const [brands, products] = await Promise.all([
-            getProductMasterBrands(),
-            findProductsByKeywordAsync('', { limit: masterResultLimit }),
-          ]);
+          const brands = await getProductMasterBrands();
           setMasterBrandOptions(brands);
-          setMasterSearchResults(products);
-          setMasterSearchMessage(products.length === 0 ? '' : `${products.length}件を表示しています。`);
+          setMasterSearchResults([]);
+          setMasterSearchMessage('');
           return;
         }
         const item = await getInventoryItem(id);
@@ -131,9 +157,9 @@ export default function InventoryFormScreen() {
         setAmount(String(item.amount));
         setUnit(item.unit);
         setPurchaseDate(item.purchaseDate);
-        setOpenedDate(item.openedDate ?? '');
+        setPurchaseCalendarMonth(parseISO(item.purchaseDate));
         setDailyUsage(item.dailyUsage?.toString() ?? '');
-        setUsePurchaseFrequencyEstimate(item.estimationMode === 'purchase_frequency');
+        setEstimationMode(item.estimationMode ?? (item.estimatedEndDate && !item.dailyUsage ? 'lasting_days' : 'usage'));
         setNotifyBeforeDays(item.notifyBeforeDays);
         setAmazon(item.purchaseLinks.amazon ?? '');
         setRakuten(item.purchaseLinks.rakuten ?? '');
@@ -145,12 +171,37 @@ export default function InventoryFormScreen() {
     }, [id]),
   );
 
-  const calculatedDailyUsage = useMemo(() => {
-    const amountNumber = parseOptionalNumber(amount);
-    const daysNumber = parseOptionalNumber(lastingDays);
-    if (!amountNumber || !daysNumber || daysNumber <= 0) return undefined;
-    return Math.round((amountNumber / daysNumber) * 100) / 100;
-  }, [amount, lastingDays]);
+  useEffect(() => {
+    if (addMethod !== 'master') return;
+    let isActive = true;
+    const timeout = setTimeout(() => {
+      async function run() {
+        const keyword = masterSearchKeyword.trim() || name.trim();
+        setMasterSearchLoading(true);
+        try {
+          const results = await findProductsByKeywordAsync(keyword, {
+            brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
+            category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
+            limit: masterResultLimit,
+          });
+          if (!isActive) return;
+          setMasterSearchResults(results);
+          setMasterSearchMessage(
+            results.length === 0
+              ? '商品マスタに該当する商品が見つかりませんでした。'
+              : `${results.length}件を表示しています。`,
+          );
+        } finally {
+          if (isActive) setMasterSearchLoading(false);
+        }
+      }
+      void run();
+    }, 250);
+    return () => {
+      isActive = false;
+      clearTimeout(timeout);
+    };
+  }, [addMethod, masterBrandFilter, masterCategoryFilter, masterSearchKeyword, name]);
 
   const visibleBrandOptions = useMemo(() => {
     const normalizedKeyword = masterBrandKeyword.trim().normalize('NFKC').toLowerCase();
@@ -160,6 +211,14 @@ export default function InventoryFormScreen() {
     if (normalizedKeyword || masterBrandExpanded) return filteredBrands;
     return filteredBrands.slice(0, visibleBrandLimit);
   }, [masterBrandExpanded, masterBrandKeyword, masterBrandOptions]);
+
+  const purchaseCalendarDays = useMemo(() => {
+    const monthStart = startOfMonth(purchaseCalendarMonth);
+    return eachDayOfInterval({
+      start: startOfWeek(monthStart),
+      end: endOfWeek(endOfMonth(monthStart)),
+    });
+  }, [purchaseCalendarMonth]);
 
   const selectCategory = (next: InventoryCategory) => {
     setCategory(next);
@@ -174,28 +233,46 @@ export default function InventoryFormScreen() {
     );
   };
 
+  const changeEstimationMode = (nextMode: InventoryEstimationMode) => {
+    setEstimationMode(nextMode);
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      amount: undefined,
+      dailyUsage: undefined,
+      lastingDays: undefined,
+    }));
+  };
+
+  const openProductMasterPicker = async () => {
+    setAddMethod('master');
+    setMasterSearchLoading(true);
+    try {
+      const results = await findProductsByKeywordAsync('', {
+        category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
+        brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
+        limit: masterResultLimit,
+      });
+      setMasterSearchResults(results);
+      setMasterSearchMessage(results.length === 0 ? '' : `${results.length}件を表示しています。`);
+    } finally {
+      setMasterSearchLoading(false);
+    }
+  };
+
   const validate = () => {
     const nextErrors: FormErrors = {};
     const amountNumber = parseOptionalNumber(amount);
     const dailyUsageNumber = parseOptionalNumber(dailyUsage);
     const lastingDaysNumber = parseOptionalNumber(lastingDays);
-    const hasUsagePair = Boolean(amountNumber && amountNumber > 0 && dailyUsageNumber && dailyUsageNumber > 0);
-    const hasLastingDays = Boolean(lastingDaysNumber && lastingDaysNumber > 0);
-    const hasPurchaseFrequencyEstimate = usePurchaseFrequencyEstimate;
     if (!name.trim()) nextErrors.name = '商品名は必須です。';
-    if (dailyUsageNumber !== undefined && dailyUsageNumber <= 0) {
-      nextErrors.dailyUsage = '1日あたりの消費量は0より大きくしてください。';
+    if (estimationMode === 'usage') {
+      if (!amountNumber || amountNumber <= 0) nextErrors.amount = '内容量は0より大きくしてください。';
+      if (!dailyUsageNumber || dailyUsageNumber <= 0) {
+        nextErrors.dailyUsage = '1日あたりの消費量は0より大きくしてください。';
+      }
     }
-    if (amountNumber !== undefined && amountNumber <= 0) {
-      nextErrors.amount = '内容量は0より大きくしてください。';
-    }
-    if (lastingDaysNumber !== undefined && lastingDaysNumber <= 0) {
+    if (estimationMode === 'lasting_days' && (!lastingDaysNumber || lastingDaysNumber <= 0)) {
       nextErrors.lastingDays = '買い替えまでの日数は0より大きくしてください。';
-    }
-    if (!hasUsagePair && !hasLastingDays && !hasPurchaseFrequencyEstimate) {
-      nextErrors.amount = '内容量と1日あたりの消費量、買い替えまでの日数、または購入頻度から自動計算を選んでください。';
-      nextErrors.dailyUsage = '内容量とセットで入力するか、別の推定方法を選んでください。';
-      nextErrors.lastingDays = 'この日数だけでも登録できます。一旦保留にする場合は購入頻度から自動計算を選んでください。';
     }
     if (![amazon, rakuten, yahoo, other].every(isValidOptionalUrl)) {
       nextErrors.url = 'URLは http:// または https:// で始めてください。';
@@ -207,12 +284,18 @@ export default function InventoryFormScreen() {
   const searchProducts = async () => {
     const keyword = productSearchKeyword.trim() || name.trim();
     setProductSearchError('');
+    setProductSearchMessage('');
     setProductSearchResults([]);
     setProductSearchLoading(true);
     try {
-      const settings = await getSettings();
-      const results = await searchRakutenItems(keyword, settings);
       setProductSearchKeyword(keyword);
+      if (!hasPurchaseLinkSearchApi()) {
+        const url = `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(keyword)}/`;
+        await WebBrowser.openBrowserAsync(url);
+        setProductSearchMessage('楽天市場の検索ページを開きました。購入URLは必要に応じて楽天URL欄へ貼り付けてください。');
+        return;
+      }
+      const results = await searchRakutenItems(keyword);
       setProductSearchResults(results);
       if (results.length === 0) {
         setProductSearchError('該当する商品が見つかりませんでした。');
@@ -233,18 +316,28 @@ export default function InventoryFormScreen() {
 
   const changeMasterCategoryFilter = async (nextCategory: ProductCategoryFilter) => {
     setMasterCategoryFilter(nextCategory);
+    setShowMasterCategoryOptions(false);
     setMasterBrandFilter('all');
     setMasterBrandKeyword('');
     setMasterBrandExpanded(false);
+    setShowMasterBrandOptions(false);
     await refreshProductMasterBrands(nextCategory);
-    await searchProductMasters({ category: nextCategory, brand: 'all' });
+    if (addMethod === 'master') {
+      await searchProductMasters({ category: nextCategory, brand: 'all' });
+    } else {
+      setMasterSearchResults([]);
+      setMasterSearchMessage('');
+    }
   };
 
   const changeMasterBrandFilter = async (nextBrand: string) => {
     setMasterBrandFilter(nextBrand);
     setMasterBrandKeyword('');
     setMasterBrandExpanded(false);
-    await searchProductMasters({ brand: nextBrand });
+    setShowMasterBrandOptions(false);
+    if (addMethod === 'master') {
+      await searchProductMasters({ brand: nextBrand });
+    }
   };
 
   const searchProductMasters = async (
@@ -280,7 +373,7 @@ export default function InventoryFormScreen() {
     setName(product.name);
     setCategory(nextCategory);
     setAmount(shouldCopyAmount ? String(product.amount) : '');
-    setUsePurchaseFrequencyEstimate(false);
+    setEstimationMode('usage');
     setUnit(shouldCopyAmount && product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
     setAmazon(nextLinks.amazon ?? '');
     setRakuten(nextLinks.rakuten ?? '');
@@ -288,6 +381,12 @@ export default function InventoryFormScreen() {
     setOther(nextLinks.other ?? '');
     setProductSearchKeyword(product.name);
     setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(nameFieldYRef.current - 12, 0),
+        animated: true,
+      });
+    }, 100);
     Alert.alert(
       '商品マスタから反映しました',
       shouldCopyAmount ? '内容は保存前に自由に編集できます。' : '内容量は今回登録する商品の容量を入力してください。',
@@ -305,19 +404,10 @@ export default function InventoryFormScreen() {
     if (!validate() || !selectedCatId) return;
     const now = nowIso();
     const amountNumber = parseOptionalNumber(amount);
-    const dailyUsageNumber = usePurchaseFrequencyEstimate
-      ? undefined
-      : parseOptionalNumber(dailyUsage) ?? calculatedDailyUsage;
+    const dailyUsageNumber = estimationMode === 'usage' ? parseOptionalNumber(dailyUsage) : undefined;
     const lastingDaysNumber = parseOptionalNumber(lastingDays);
-    const estimationMode = usePurchaseFrequencyEstimate
-      ? 'purchase_frequency'
-      : dailyUsageNumber && amountNumber
-      ? 'usage'
-      : lastingDaysNumber
-        ? 'lasting_days'
-        : 'purchase_frequency';
-    const estimatedEndDate = !usePurchaseFrequencyEstimate && lastingDaysNumber
-      ? addDays(parseISO(openedDate.trim() || purchaseDate), lastingDaysNumber).toISOString().slice(0, 10)
+    const estimatedEndDate = estimationMode === 'lasting_days' && lastingDaysNumber
+      ? addDays(parseISO(purchaseDate), lastingDaysNumber).toISOString().slice(0, 10)
       : undefined;
     const purchaseLinks = {
       amazon: amazon.trim() || undefined,
@@ -331,11 +421,11 @@ export default function InventoryFormScreen() {
       productMasterId,
       name: name.trim(),
       category,
-      amount: amountNumber ?? 0,
+      amount: estimationMode === 'usage' ? amountNumber ?? 0 : 0,
       unit,
       dailyUsage: dailyUsageNumber,
       purchaseDate,
-      openedDate: openedDate.trim() || undefined,
+      openedDate: current?.openedDate,
       estimatedEndDate,
       estimationMode,
       notifyBeforeDays,
@@ -362,7 +452,7 @@ export default function InventoryFormScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
       {cats.length > 1 ? (
         <>
           <FieldLabel label="対象の猫" requirement="required" />
@@ -386,7 +476,7 @@ export default function InventoryFormScreen() {
             <AppButton
               title="よくある商品から選ぶ"
               variant={addMethod === 'master' ? 'primary' : 'secondary'}
-              onPress={() => setAddMethod('master')}
+              onPress={() => void openProductMasterPicker()}
             />
             <AppButton
               title="バーコードで読み取る"
@@ -413,76 +503,75 @@ export default function InventoryFormScreen() {
                 onChangeText={setMasterSearchKeyword}
                 placeholder="例：銀のスプーン、デオトイレ"
               />
-              <Text style={styles.label}>カテゴリを選ぶ</Text>
-              <View style={styles.wrapRow}>
-                {productCategoryOptions.map((option) => (
+              <View style={styles.filterControls}>
+                <AppButton
+                  title={`カテゴリで選ぶ：${getProductCategoryFilterLabel(masterCategoryFilter)}`}
+                  variant={showMasterCategoryOptions ? 'primary' : 'secondary'}
+                  onPress={() => setShowMasterCategoryOptions((current) => !current)}
+                />
+                {masterBrandOptions.length > 0 ? (
                   <AppButton
-                    key={option.value}
-                    title={option.label}
-                    variant={masterCategoryFilter === option.value ? 'primary' : 'secondary'}
-                    onPress={() => void changeMasterCategoryFilter(option.value)}
+                    title={`ブランドで絞る：${masterBrandFilter === 'all' ? 'すべて' : masterBrandFilter}`}
+                    variant={showMasterBrandOptions ? 'primary' : 'secondary'}
+                    onPress={() => setShowMasterBrandOptions((current) => !current)}
                   />
-                ))}
+                ) : null}
               </View>
+              {showMasterCategoryOptions ? (
+                <View style={styles.wrapRow}>
+                  {productCategoryOptions.map((option) => (
+                    <AppButton
+                      key={option.value}
+                      title={option.label}
+                      variant={masterCategoryFilter === option.value ? 'primary' : 'secondary'}
+                      onPress={() => void changeMasterCategoryFilter(option.value)}
+                    />
+                  ))}
+                </View>
+              ) : null}
               {masterBrandOptions.length > 0 ? (
                 <>
-                  <Text style={styles.label}>ブランドで絞り込み</Text>
-                  <View style={styles.filterSummaryRow}>
-                    <AppButton
-                      title={masterBrandFilter === 'all' ? 'ブランドすべて' : masterBrandFilter}
-                      variant="primary"
-                      onPress={() => void changeMasterBrandFilter('all')}
-                    />
-                    {masterBrandFilter !== 'all' ? (
-                      <AppButton
-                        title="解除"
-                        variant="secondary"
-                        onPress={() => void changeMasterBrandFilter('all')}
+                  {showMasterBrandOptions ? (
+                    <>
+                      <AppTextInput
+                        label="ブランドを検索"
+                        value={masterBrandKeyword}
+                        onChangeText={(value) => {
+                          setMasterBrandKeyword(value);
+                          setMasterBrandExpanded(false);
+                        }}
+                        placeholder="例：銀のスプーン"
                       />
-                    ) : null}
-                  </View>
-                  <AppTextInput
-                    label="ブランドを検索"
-                    value={masterBrandKeyword}
-                    onChangeText={(value) => {
-                      setMasterBrandKeyword(value);
-                      setMasterBrandExpanded(false);
-                    }}
-                    placeholder="例：銀のスプーン"
-                  />
-                  <View style={styles.wrapRow}>
-                    <AppButton
-                      title="すべて"
-                      variant={masterBrandFilter === 'all' ? 'primary' : 'secondary'}
-                      onPress={() => void changeMasterBrandFilter('all')}
-                    />
-                    {visibleBrandOptions.map((brand) => (
-                      <AppButton
-                        key={brand}
-                        title={brand}
-                        variant={masterBrandFilter === brand ? 'primary' : 'secondary'}
-                        onPress={() => void changeMasterBrandFilter(brand)}
-                      />
-                    ))}
-                  </View>
-                  {!masterBrandKeyword.trim() && masterBrandOptions.length > visibleBrandLimit ? (
-                    <AppButton
-                      title={masterBrandExpanded ? 'ブランドを少なく表示' : `ブランドをもっと表示（${masterBrandOptions.length}件）`}
-                      variant="secondary"
-                      onPress={() => setMasterBrandExpanded((current) => !current)}
-                    />
-                  ) : null}
-                  {masterBrandKeyword.trim() && visibleBrandOptions.length === 0 ? (
-                    <Text style={styles.resultSummary}>該当するブランドがありません。</Text>
+                      <View style={styles.wrapRow}>
+                        <AppButton
+                          title="すべて"
+                          variant={masterBrandFilter === 'all' ? 'primary' : 'secondary'}
+                          onPress={() => void changeMasterBrandFilter('all')}
+                        />
+                        {visibleBrandOptions.map((brand) => (
+                          <AppButton
+                            key={brand}
+                            title={brand}
+                            variant={masterBrandFilter === brand ? 'primary' : 'secondary'}
+                            onPress={() => void changeMasterBrandFilter(brand)}
+                          />
+                        ))}
+                      </View>
+                      {!masterBrandKeyword.trim() && masterBrandOptions.length > visibleBrandLimit ? (
+                        <AppButton
+                          title={masterBrandExpanded ? 'ブランドを少なく表示' : `ブランドをもっと表示（${masterBrandOptions.length}件）`}
+                          variant="secondary"
+                          onPress={() => setMasterBrandExpanded((current) => !current)}
+                        />
+                      ) : null}
+                      {masterBrandKeyword.trim() && visibleBrandOptions.length === 0 ? (
+                        <Text style={styles.resultSummary}>該当するブランドがありません。</Text>
+                      ) : null}
+                    </>
                   ) : null}
                 </>
               ) : null}
-              <AppButton
-                title={masterSearchLoading ? '検索中...' : '商品名で検索'}
-                variant="secondary"
-                disabled={masterSearchLoading}
-                onPress={() => void searchProductMasters()}
-              />
+              {masterSearchLoading ? <Text style={styles.resultSummary}>検索中...</Text> : null}
               {masterSearchMessage ? <Text style={styles.resultSummary}>{masterSearchMessage}</Text> : null}
               {masterSearchResults.map((product) => (
                 <View key={product.id} style={styles.searchResult}>
@@ -525,36 +614,11 @@ export default function InventoryFormScreen() {
         </AppCard>
       ) : null}
 
-      <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} requirement="required" />
-
-      <AppCard style={styles.searchCard}>
-        <Text style={styles.sectionTitle}>EC商品検索</Text>
-        <Text style={styles.affiliate}>検索結果のリンクにはアフィリエイトが含まれる場合があります。</Text>
-        <AppTextInput
-          label="楽天市場で検索"
-          value={productSearchKeyword}
-          onChangeText={setProductSearchKeyword}
-          placeholder={name || '例：キャットフード'}
-        />
-        <AppButton
-          title={productSearchLoading ? '検索中...' : '商品を検索'}
-          variant="secondary"
-          disabled={productSearchLoading}
-          onPress={() => void searchProducts()}
-        />
-        {productSearchError ? <Text style={styles.errorText}>{productSearchError}</Text> : null}
-        {productSearchResults.map((result) => (
-          <View key={result.id} style={styles.searchResult}>
-            <Text style={styles.resultName}>{result.name}</Text>
-            <Text style={styles.resultMeta}>
-              {[result.shopName, result.price ? `${result.price.toLocaleString()}円` : undefined]
-                .filter(Boolean)
-                .join(' ・ ')}
-            </Text>
-            <AppButton title="この商品を反映" variant="secondary" onPress={() => applyRakutenResult(result)} />
-          </View>
-        ))}
-      </AppCard>
+      <View onLayout={(event) => {
+        nameFieldYRef.current = event.nativeEvent.layout.y;
+      }}>
+        <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} requirement="required" />
+      </View>
 
       <FieldLabel label="カテゴリ" requirement="required" />
       <View style={styles.wrapRow}>
@@ -568,79 +632,140 @@ export default function InventoryFormScreen() {
         ))}
       </View>
 
-      <View style={styles.twoColumns}>
-        <AppTextInput
-          label="内容量"
-          value={amount}
-          onChangeText={(value) => {
-            setAmount(value);
-            if (value.trim()) setUsePurchaseFrequencyEstimate(false);
-          }}
-          keyboardType="decimal-pad"
-          error={errors.amount}
-          requirement="conditional"
+      <View style={styles.datePickerBox}>
+        <FieldLabel label="購入日" requirement="required" />
+        <AppButton
+          title={formatDisplayDate(purchaseDate)}
+          variant="secondary"
+          onPress={() => setShowPurchaseCalendar((current) => !current)}
         />
-        <View style={styles.unitBox}>
-          <FieldLabel label="単位" requirement="required" />
-          <View style={styles.wrapRow}>
-            {units.map((option) => (
+        {showPurchaseCalendar ? (
+          <View style={styles.calendarBox}>
+            <View style={styles.calendarHeader}>
               <AppButton
-                key={option}
-                title={option}
-                variant={unit === option ? 'primary' : 'secondary'}
-                onPress={() => setUnit(option)}
+                title="前月"
+                variant="secondary"
+                onPress={() => setPurchaseCalendarMonth((current) => addMonths(current, -1))}
               />
-            ))}
+              <Text style={styles.calendarTitle}>{format(purchaseCalendarMonth, 'yyyy年M月')}</Text>
+              <AppButton
+                title="翌月"
+                variant="secondary"
+                onPress={() => setPurchaseCalendarMonth((current) => addMonths(current, 1))}
+              />
+            </View>
+            <View style={styles.calendarGrid}>
+              {['日', '月', '火', '水', '木', '金', '土'].map((dayLabel) => (
+                <Text key={dayLabel} style={styles.calendarWeekday}>{dayLabel}</Text>
+              ))}
+              {purchaseCalendarDays.map((day) => {
+                const dayIso = format(day, 'yyyy-MM-dd');
+                const selected = isSameDay(day, parseISO(purchaseDate));
+                const inMonth = isSameMonth(day, purchaseCalendarMonth);
+                return (
+                  <Pressable
+                    key={dayIso}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setPurchaseDate(dayIso);
+                      setPurchaseCalendarMonth(day);
+                      setShowPurchaseCalendar(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.calendarDay,
+                      !inMonth && styles.calendarDayOutside,
+                      selected && styles.calendarDaySelected,
+                      pressed && styles.calendarDayPressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.calendarDayText,
+                        !inMonth && styles.calendarDayTextOutside,
+                        selected && styles.calendarDayTextSelected,
+                      ]}
+                    >
+                      {format(day, 'd')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        ) : null}
       </View>
 
-      <AppTextInput label="購入日" value={purchaseDate} onChangeText={setPurchaseDate} requirement="required" />
-      <AppTextInput label="開封日" value={openedDate} onChangeText={setOpenedDate} requirement="optional" />
-      <AppTextInput
-        label="1日あたりの消費量"
-        value={dailyUsage}
-        onChangeText={(value) => {
-          setDailyUsage(value);
-          if (value.trim()) setUsePurchaseFrequencyEstimate(false);
-        }}
-        keyboardType="decimal-pad"
-        error={errors.dailyUsage}
-        requirement="conditional"
-      />
-      <AppTextInput
-        label="買い替えまでの日数"
-        value={lastingDays}
-        onChangeText={(value) => {
-          setLastingDays(value);
-          if (value.trim()) setUsePurchaseFrequencyEstimate(false);
-        }}
-        keyboardType="numeric"
-        error={errors.lastingDays}
-        requirement="conditional"
-      />
-      <AppButton
-        title={usePurchaseFrequencyEstimate ? '購入頻度から自動計算：選択中' : '一旦保留して購入頻度から自動計算'}
-        variant={usePurchaseFrequencyEstimate ? 'primary' : 'secondary'}
-        onPress={() => {
-          setUsePurchaseFrequencyEstimate((current) => !current);
-          setErrors((currentErrors) => ({
-            ...currentErrors,
-            amount: undefined,
-            dailyUsage: undefined,
-            lastingDays: undefined,
-          }));
-        }}
-      />
-      <Text style={styles.hint}>
-        内容量と1日あたりの消費量、買い替えまでの日数、または購入頻度から自動計算のどれかを選んでください。
-      </Text>
-      {usePurchaseFrequencyEstimate ? (
-        <Text style={styles.hint}>購入履歴が増えるまでは残り日数は未計算として表示します。</Text>
-      ) : null}
-      {calculatedDailyUsage ? (
-        <Text style={styles.hint}>簡単入力から {calculatedDailyUsage}{unit}/日 として保存できます。</Text>
-      ) : null}
+      <AppCard style={styles.searchCard}>
+        <FieldLabel label="次回購入日の計算方法" requirement="required" />
+        <View style={styles.wrapRow}>
+          <AppButton
+            title="内容量と消費量から計算"
+            variant={estimationMode === 'usage' ? 'primary' : 'secondary'}
+            onPress={() => changeEstimationMode('usage')}
+          />
+          <AppButton
+            title="買い替えまでの日数を入力"
+            variant={estimationMode === 'lasting_days' ? 'primary' : 'secondary'}
+            onPress={() => changeEstimationMode('lasting_days')}
+          />
+          <AppButton
+            title="購入頻度から自動計算"
+            variant={estimationMode === 'purchase_frequency' ? 'primary' : 'secondary'}
+            onPress={() => changeEstimationMode('purchase_frequency')}
+          />
+        </View>
+
+        {estimationMode === 'usage' ? (
+          <>
+            <View style={styles.twoColumns}>
+              <AppTextInput
+                label="内容量"
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="decimal-pad"
+                error={errors.amount}
+                requirement="required"
+              />
+              <View style={styles.unitBox}>
+                <FieldLabel label="単位" requirement="required" />
+                <View style={styles.wrapRow}>
+                  {units.map((option) => (
+                    <AppButton
+                      key={option}
+                      title={option}
+                      variant={unit === option ? 'primary' : 'secondary'}
+                      onPress={() => setUnit(option)}
+                    />
+                  ))}
+                </View>
+              </View>
+            </View>
+            <AppTextInput
+              label="1日あたりの消費量"
+              value={dailyUsage}
+              onChangeText={setDailyUsage}
+              keyboardType="decimal-pad"
+              error={errors.dailyUsage}
+              requirement="required"
+            />
+          </>
+        ) : null}
+
+        {estimationMode === 'lasting_days' ? (
+          <AppTextInput
+            label="買い替えまでの日数"
+            value={lastingDays}
+            onChangeText={setLastingDays}
+            keyboardType="numeric"
+            error={errors.lastingDays}
+            requirement="required"
+          />
+        ) : null}
+
+        {estimationMode === 'purchase_frequency' ? (
+          <Text style={styles.hint}>購入履歴が増えるまでは残り日数は未計算として表示します。</Text>
+        ) : null}
+      </AppCard>
 
       <FieldLabel label="通知タイミング" requirement="optional" />
       <View style={styles.wrapRow}>
@@ -658,6 +783,50 @@ export default function InventoryFormScreen() {
       <AppTextInput label="楽天 URL" value={rakuten} onChangeText={setRakuten} requirement="optional" />
       <AppTextInput label="Yahoo URL" value={yahoo} onChangeText={setYahoo} requirement="optional" />
       <AppTextInput label="その他URL" value={other} onChangeText={setOther} requirement="optional" />
+
+      <AppCard style={styles.searchCard}>
+        <View style={styles.collapsibleHeader}>
+          <View style={styles.collapsibleTitleWrap}>
+            <Text style={styles.sectionTitle}>購入リンクを探す</Text>
+            <Text style={styles.affiliate}>検索結果のリンクにはアフィリエイトが含まれる場合があります。</Text>
+          </View>
+          <AppButton
+            title={showPurchaseLinkSearch ? '閉じる' : '開く'}
+            variant="secondary"
+            onPress={() => setShowPurchaseLinkSearch((current) => !current)}
+          />
+        </View>
+        {showPurchaseLinkSearch ? (
+          <>
+            <AppTextInput
+              label="楽天市場で検索"
+              value={productSearchKeyword}
+              onChangeText={setProductSearchKeyword}
+              placeholder={name || '例：キャットフード'}
+            />
+            <AppButton
+              title={productSearchLoading ? '検索中...' : '楽天市場で探す'}
+              variant="secondary"
+              disabled={productSearchLoading}
+              onPress={() => void searchProducts()}
+            />
+            {productSearchMessage ? <Text style={styles.resultSummary}>{productSearchMessage}</Text> : null}
+            {productSearchError ? <Text style={styles.errorText}>{productSearchError}</Text> : null}
+            {productSearchResults.map((result) => (
+              <View key={result.id} style={styles.searchResult}>
+                <Text style={styles.resultName}>{result.name}</Text>
+                <Text style={styles.resultMeta}>
+                  {[result.shopName, result.price ? `${result.price.toLocaleString()}円` : undefined]
+                    .filter(Boolean)
+                    .join(' ・ ')}
+                </Text>
+                <AppButton title="この商品を反映" variant="secondary" onPress={() => applyRakutenResult(result)} />
+              </View>
+            ))}
+          </>
+        ) : null}
+      </AppCard>
+
       <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} requirement="optional" />
 
       <AppButton title="保存する" onPress={() => void save()} />
@@ -705,6 +874,10 @@ function getProductImageUrl(product: ProductMaster): string | undefined {
   return candidates.find((url) => url && /^https?:\/\//i.test(url));
 }
 
+function getProductCategoryFilterLabel(category: ProductCategoryFilter): string {
+  return category === 'all' ? 'すべて' : productCategoryLabels[category];
+}
+
 const styles = StyleSheet.create({
   container: {
     gap: 16,
@@ -745,6 +918,79 @@ const styles = StyleSheet.create({
   },
   searchCard: {
     gap: 12,
+  },
+  datePickerBox: {
+    gap: 8,
+  },
+  calendarBox: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
+  },
+  calendarHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  calendarTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarWeekday: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 28,
+    textAlign: 'center',
+    width: `${100 / 7}%`,
+  },
+  calendarDay: {
+    alignItems: 'center',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    width: `${100 / 7}%`,
+  },
+  calendarDayOutside: {
+    opacity: 0.45,
+  },
+  calendarDaySelected: {
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+  },
+  calendarDayPressed: {
+    opacity: 0.75,
+  },
+  calendarDayText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  calendarDayTextOutside: {
+    color: colors.subText,
+  },
+  calendarDayTextSelected: {
+    color: colors.card,
+  },
+  collapsibleHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  collapsibleTitleWrap: {
+    flex: 1,
+    gap: 4,
   },
   affiliate: {
     color: colors.subText,
@@ -802,10 +1048,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
-  filterSummaryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  filterControls: {
     gap: 8,
   },
   sourceBadge: {

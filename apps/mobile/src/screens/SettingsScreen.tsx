@@ -19,18 +19,12 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | undefined>();
   const [hour, setHour] = useState('9');
   const [minute, setMinute] = useState('0');
-  const [rakutenApplicationId, setRakutenApplicationId] = useState('');
-  const [rakutenAccessKey, setRakutenAccessKey] = useState('');
-  const [rakutenAffiliateId, setRakutenAffiliateId] = useState('');
 
   const load = useCallback(async () => {
     const next = await getSettings();
     setSettings(next);
     setHour(String(next.notificationHour));
     setMinute(String(next.notificationMinute));
-    setRakutenApplicationId(next.rakutenApplicationId ?? '');
-    setRakutenAccessKey(next.rakutenAccessKey ?? '');
-    setRakutenAffiliateId(next.rakutenAffiliateId ?? '');
   }, []);
 
   useFocusEffect(
@@ -54,19 +48,6 @@ export default function SettingsScreen() {
     await persist({ notificationHour, notificationMinute });
     setHour(String(notificationHour));
     setMinute(String(notificationMinute));
-  };
-
-  const saveEcSettings = async () => {
-    if (!settings) return;
-    const next = {
-      ...settings,
-      rakutenApplicationId: rakutenApplicationId.trim() || undefined,
-      rakutenAccessKey: rakutenAccessKey.trim() || undefined,
-      rakutenAffiliateId: rakutenAffiliateId.trim() || undefined,
-    };
-    setSettings(next);
-    await saveSettings(next);
-    Alert.alert('保存しました', '楽天市場の商品検索設定を保存しました。');
   };
 
   const resetData = () => {
@@ -129,31 +110,6 @@ export default function SettingsScreen() {
         <AppButton title="プライバシーポリシー" variant="secondary" onPress={() => router.push('/privacy')} />
         <AppButton title="利用規約" variant="secondary" onPress={() => router.push('/terms')} />
         <AppButton title="データ初期化" variant="danger" onPress={resetData} />
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>EC API連携</Text>
-        <Text style={styles.note}>楽天市場の商品検索に使うAPI設定です。入力内容は端末内に保存します。</Text>
-        <AppTextInput
-          label="Rakuten Application ID"
-          value={rakutenApplicationId}
-          onChangeText={setRakutenApplicationId}
-          autoCapitalize="none"
-        />
-        <AppTextInput
-          label="Rakuten Access Key"
-          value={rakutenAccessKey}
-          onChangeText={setRakutenAccessKey}
-          autoCapitalize="none"
-          secureTextEntry
-        />
-        <AppTextInput
-          label="Rakuten Affiliate ID"
-          value={rakutenAffiliateId}
-          onChangeText={setRakutenAffiliateId}
-          autoCapitalize="none"
-        />
-        <AppButton title="EC API設定を保存" variant="secondary" onPress={() => void saveEcSettings()} />
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -248,7 +204,7 @@ const styles = StyleSheet.create({
 
 const todoItems = [
   { label: 'ログイン、サーバー、クラウド同期', status: '初期版では未対応' },
-  { label: 'EC API連携、商品検索', status: '楽天市場の商品検索を追加済み', done: true },
+  { label: 'EC API連携、商品検索', status: 'Supabase Edge Function経由の検索に対応済み', done: true },
   { label: 'バーコード、OCR', status: '初期版では未対応' },
   { label: '多頭飼いUIの完全対応', status: 'プロフィール管理と在庫の猫別表示を追加済み', done: true },
   { label: '正式なアプリアイコン/スプラッシュ画像', status: 'Expo設定に追加済み', done: true },
