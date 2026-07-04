@@ -17,6 +17,8 @@ export type PurchaseLinks = {
   other?: string;
 };
 
+export type InventoryEstimationMode = 'usage' | 'lasting_days' | 'purchase_frequency';
+
 export type InventoryItem = {
   id: string;
   catId: string;
@@ -29,6 +31,7 @@ export type InventoryItem = {
   purchaseDate: string;
   openedDate?: string;
   estimatedEndDate?: string;
+  estimationMode?: InventoryEstimationMode;
   notifyBeforeDays: number[];
   purchaseLinks: PurchaseLinks;
   memo?: string;

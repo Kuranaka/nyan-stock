@@ -5,12 +5,27 @@ import { colors } from '@/constants/colors';
 type Props = TextInputProps & {
   label: string;
   error?: string;
+  requirement?: 'required' | 'optional' | 'conditional';
 };
 
-export function AppTextInput({ label, error, style, ...props }: Props) {
+export function AppTextInput({ label, error, requirement, style, ...props }: Props) {
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {requirement ? (
+          <Text
+            style={[
+              styles.requirementBadge,
+              requirement === 'required' && styles.requiredBadge,
+              requirement === 'optional' && styles.optionalBadge,
+              requirement === 'conditional' && styles.conditionalBadge,
+            ]}
+          >
+            {requirement === 'required' ? '必須' : requirement === 'conditional' ? 'どちらか必須' : '任意'}
+          </Text>
+        ) : null}
+      </View>
       <TextInput
         placeholderTextColor={colors.subText}
         style={[styles.input, Boolean(error) && styles.inputError, style]}
@@ -25,10 +40,36 @@ const styles = StyleSheet.create({
   wrap: {
     gap: 7,
   },
+  labelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   label: {
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
+  },
+  requirementBadge: {
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  requiredBadge: {
+    backgroundColor: colors.dangerLight,
+    color: colors.danger,
+  },
+  optionalBadge: {
+    backgroundColor: colors.muted,
+    color: colors.subText,
+  },
+  conditionalBadge: {
+    backgroundColor: colors.warningLight,
+    color: colors.primaryDark,
   },
   input: {
     minHeight: 48,

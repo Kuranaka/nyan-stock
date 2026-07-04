@@ -67,6 +67,12 @@ export default function InventoryDetailScreen() {
   const percent = calculateRemainingPercent(item);
   const status = getInventoryStatus(item);
   const catName = cats.find((cat) => cat.id === item.catId)?.name;
+  const estimationLabel =
+    item.estimationMode === 'purchase_frequency'
+      ? '購入頻度から自動計算待ち'
+      : item.estimationMode === 'lasting_days'
+        ? '買い替えまでの日数'
+        : '内容量と消費量';
 
   const remove = () => {
     Alert.alert('削除しますか？', `${item.name}と関連する購入履歴を削除します。`, [
@@ -143,6 +149,7 @@ export default function InventoryDetailScreen() {
         <Info label="購入日" value={formatDisplayDate(item.purchaseDate)} />
         <Info label="開封日" value={formatDisplayDate(item.openedDate)} />
         <Info label="推定終了日" value={formatDisplayDate(item.estimatedEndDate)} />
+        <Info label="推定方法" value={estimationLabel} />
         <Info
           label="消費ペース"
           value={item.dailyUsage ? `${item.dailyUsage}${item.unit}/日` : '未設定'}

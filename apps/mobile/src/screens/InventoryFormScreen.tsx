@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addDays, parseISO } from 'date-fns';
 import { Href } from 'expo-router';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -32,7 +33,7 @@ import { getSettings, updateSettings } from '@/features/settings/settingsStorage
 import { nowIso, todayIso } from '@/utils/date';
 import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
-type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'url', string>>;
+type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'url', string>>;
 type AddMethod = 'master' | 'barcode' | 'manual';
 type ProductCategoryFilter = ProductCategory | 'all';
 
@@ -62,6 +63,7 @@ export default function InventoryFormScreen() {
   const [openedDate, setOpenedDate] = useState('');
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
+  const [usePurchaseFrequencyEstimate, setUsePurchaseFrequencyEstimate] = useState(false);
   const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>([7, 3, 1]);
   const [amazon, setAmazon] = useState('');
   const [rakuten, setRakuten] = useState('');
@@ -131,6 +133,7 @@ export default function InventoryFormScreen() {
         setPurchaseDate(item.purchaseDate);
         setOpenedDate(item.openedDate ?? '');
         setDailyUsage(item.dailyUsage?.toString() ?? '');
+        setUsePurchaseFrequencyEstimate(item.estimationMode === 'purchase_frequency');
         setNotifyBeforeDays(item.notifyBeforeDays);
         setAmazon(item.purchaseLinks.amazon ?? '');
         setRakuten(item.purchaseLinks.rakuten ?? '');
@@ -174,11 +177,25 @@ export default function InventoryFormScreen() {
   const validate = () => {
     const nextErrors: FormErrors = {};
     const amountNumber = parseOptionalNumber(amount);
-    const dailyUsageNumber = parseOptionalNumber(dailyUsage) ?? calculatedDailyUsage;
+    const dailyUsageNumber = parseOptionalNumber(dailyUsage);
+    const lastingDaysNumber = parseOptionalNumber(lastingDays);
+    const hasUsagePair = Boolean(amountNumber && amountNumber > 0 && dailyUsageNumber && dailyUsageNumber > 0);
+    const hasLastingDays = Boolean(lastingDaysNumber && lastingDaysNumber > 0);
+    const hasPurchaseFrequencyEstimate = usePurchaseFrequencyEstimate;
     if (!name.trim()) nextErrors.name = '商品名は必須です。';
-    if (!amountNumber || amountNumber <= 0) nextErrors.amount = '内容量は0より大きくしてください。';
     if (dailyUsageNumber !== undefined && dailyUsageNumber <= 0) {
       nextErrors.dailyUsage = '1日あたりの消費量は0より大きくしてください。';
+    }
+    if (amountNumber !== undefined && amountNumber <= 0) {
+      nextErrors.amount = '内容量は0より大きくしてください。';
+    }
+    if (lastingDaysNumber !== undefined && lastingDaysNumber <= 0) {
+      nextErrors.lastingDays = '買い替えまでの日数は0より大きくしてください。';
+    }
+    if (!hasUsagePair && !hasLastingDays && !hasPurchaseFrequencyEstimate) {
+      nextErrors.amount = '内容量と1日あたりの消費量、買い替えまでの日数、または購入頻度から自動計算を選んでください。';
+      nextErrors.dailyUsage = '内容量とセットで入力するか、別の推定方法を選んでください。';
+      nextErrors.lastingDays = 'この日数だけでも登録できます。一旦保留にする場合は購入頻度から自動計算を選んでください。';
     }
     if (![amazon, rakuten, yahoo, other].every(isValidOptionalUrl)) {
       nextErrors.url = 'URLは http:// または https:// で始めてください。';
@@ -263,6 +280,7 @@ export default function InventoryFormScreen() {
     setName(product.name);
     setCategory(nextCategory);
     setAmount(shouldCopyAmount ? String(product.amount) : '');
+    setUsePurchaseFrequencyEstimate(false);
     setUnit(shouldCopyAmount && product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
     setAmazon(nextLinks.amazon ?? '');
     setRakuten(nextLinks.rakuten ?? '');
@@ -286,7 +304,21 @@ export default function InventoryFormScreen() {
   const save = async () => {
     if (!validate() || !selectedCatId) return;
     const now = nowIso();
-    const dailyUsageNumber = parseOptionalNumber(dailyUsage) ?? calculatedDailyUsage;
+    const amountNumber = parseOptionalNumber(amount);
+    const dailyUsageNumber = usePurchaseFrequencyEstimate
+      ? undefined
+      : parseOptionalNumber(dailyUsage) ?? calculatedDailyUsage;
+    const lastingDaysNumber = parseOptionalNumber(lastingDays);
+    const estimationMode = usePurchaseFrequencyEstimate
+      ? 'purchase_frequency'
+      : dailyUsageNumber && amountNumber
+      ? 'usage'
+      : lastingDaysNumber
+        ? 'lasting_days'
+        : 'purchase_frequency';
+    const estimatedEndDate = !usePurchaseFrequencyEstimate && lastingDaysNumber
+      ? addDays(parseISO(openedDate.trim() || purchaseDate), lastingDaysNumber).toISOString().slice(0, 10)
+      : undefined;
     const purchaseLinks = {
       amazon: amazon.trim() || undefined,
       rakuten: rakuten.trim() || undefined,
@@ -299,11 +331,13 @@ export default function InventoryFormScreen() {
       productMasterId,
       name: name.trim(),
       category,
-      amount: Number(amount),
+      amount: amountNumber ?? 0,
       unit,
       dailyUsage: dailyUsageNumber,
       purchaseDate,
       openedDate: openedDate.trim() || undefined,
+      estimatedEndDate,
+      estimationMode,
       notifyBeforeDays,
       purchaseLinks,
       memo: memo.trim() || undefined,
@@ -331,7 +365,7 @@ export default function InventoryFormScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       {cats.length > 1 ? (
         <>
-          <Text style={styles.label}>対象の猫</Text>
+          <FieldLabel label="対象の猫" requirement="required" />
           <View style={styles.wrapRow}>
             {cats.map((cat) => (
               <AppButton
@@ -491,7 +525,7 @@ export default function InventoryFormScreen() {
         </AppCard>
       ) : null}
 
-      <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} />
+      <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} requirement="required" />
 
       <AppCard style={styles.searchCard}>
         <Text style={styles.sectionTitle}>EC商品検索</Text>
@@ -522,7 +556,7 @@ export default function InventoryFormScreen() {
         ))}
       </AppCard>
 
-      <Text style={styles.label}>カテゴリ</Text>
+      <FieldLabel label="カテゴリ" requirement="required" />
       <View style={styles.wrapRow}>
         {categories.map((option) => (
           <AppButton
@@ -538,12 +572,16 @@ export default function InventoryFormScreen() {
         <AppTextInput
           label="内容量"
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(value) => {
+            setAmount(value);
+            if (value.trim()) setUsePurchaseFrequencyEstimate(false);
+          }}
           keyboardType="decimal-pad"
           error={errors.amount}
+          requirement="conditional"
         />
         <View style={styles.unitBox}>
-          <Text style={styles.label}>単位</Text>
+          <FieldLabel label="単位" requirement="required" />
           <View style={styles.wrapRow}>
             {units.map((option) => (
               <AppButton
@@ -557,26 +595,54 @@ export default function InventoryFormScreen() {
         </View>
       </View>
 
-      <AppTextInput label="購入日" value={purchaseDate} onChangeText={setPurchaseDate} />
-      <AppTextInput label="開封日" value={openedDate} onChangeText={setOpenedDate} />
+      <AppTextInput label="購入日" value={purchaseDate} onChangeText={setPurchaseDate} requirement="required" />
+      <AppTextInput label="開封日" value={openedDate} onChangeText={setOpenedDate} requirement="optional" />
       <AppTextInput
         label="1日あたりの消費量"
         value={dailyUsage}
-        onChangeText={setDailyUsage}
+        onChangeText={(value) => {
+          setDailyUsage(value);
+          if (value.trim()) setUsePurchaseFrequencyEstimate(false);
+        }}
         keyboardType="decimal-pad"
         error={errors.dailyUsage}
+        requirement="conditional"
       />
       <AppTextInput
-        label="簡単入力：この商品は何日くらい持ちますか？"
+        label="買い替えまでの日数"
         value={lastingDays}
-        onChangeText={setLastingDays}
+        onChangeText={(value) => {
+          setLastingDays(value);
+          if (value.trim()) setUsePurchaseFrequencyEstimate(false);
+        }}
         keyboardType="numeric"
+        error={errors.lastingDays}
+        requirement="conditional"
       />
+      <AppButton
+        title={usePurchaseFrequencyEstimate ? '購入頻度から自動計算：選択中' : '一旦保留して購入頻度から自動計算'}
+        variant={usePurchaseFrequencyEstimate ? 'primary' : 'secondary'}
+        onPress={() => {
+          setUsePurchaseFrequencyEstimate((current) => !current);
+          setErrors((currentErrors) => ({
+            ...currentErrors,
+            amount: undefined,
+            dailyUsage: undefined,
+            lastingDays: undefined,
+          }));
+        }}
+      />
+      <Text style={styles.hint}>
+        内容量と1日あたりの消費量、買い替えまでの日数、または購入頻度から自動計算のどれかを選んでください。
+      </Text>
+      {usePurchaseFrequencyEstimate ? (
+        <Text style={styles.hint}>購入履歴が増えるまでは残り日数は未計算として表示します。</Text>
+      ) : null}
       {calculatedDailyUsage ? (
         <Text style={styles.hint}>簡単入力から {calculatedDailyUsage}{unit}/日 として保存できます。</Text>
       ) : null}
 
-      <Text style={styles.label}>通知タイミング</Text>
+      <FieldLabel label="通知タイミング" requirement="optional" />
       <View style={styles.wrapRow}>
         {[7, 3, 1].map((day) => (
           <AppButton
@@ -588,11 +654,11 @@ export default function InventoryFormScreen() {
         ))}
       </View>
 
-      <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} />
-      <AppTextInput label="楽天 URL" value={rakuten} onChangeText={setRakuten} />
-      <AppTextInput label="Yahoo URL" value={yahoo} onChangeText={setYahoo} />
-      <AppTextInput label="その他URL" value={other} onChangeText={setOther} />
-      <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
+      <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />
+      <AppTextInput label="楽天 URL" value={rakuten} onChangeText={setRakuten} requirement="optional" />
+      <AppTextInput label="Yahoo URL" value={yahoo} onChangeText={setYahoo} requirement="optional" />
+      <AppTextInput label="その他URL" value={other} onChangeText={setOther} requirement="optional" />
+      <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} requirement="optional" />
 
       <AppButton title="保存する" onPress={() => void save()} />
       <AppButton
@@ -606,6 +672,17 @@ export default function InventoryFormScreen() {
         }}
       />
     </ScrollView>
+  );
+}
+
+function FieldLabel({ label, requirement }: { label: string; requirement: 'required' | 'optional' }) {
+  return (
+    <View style={styles.labelRow}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.requirementBadge, requirement === 'required' ? styles.requiredBadge : styles.optionalBadge]}>
+        {requirement === 'required' ? '必須' : '任意'}
+      </Text>
+    </View>
   );
 }
 
@@ -638,6 +715,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
+  },
+  labelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  requirementBadge: {
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  requiredBadge: {
+    backgroundColor: colors.dangerLight,
+    color: colors.danger,
+  },
+  optionalBadge: {
+    backgroundColor: colors.muted,
+    color: colors.subText,
   },
   sectionTitle: {
     color: colors.text,

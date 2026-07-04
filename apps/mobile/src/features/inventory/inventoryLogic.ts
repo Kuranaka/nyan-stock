@@ -34,7 +34,7 @@ export function calculateRemainingPercent(
 }
 
 export function getInventoryStatus(item: InventoryItem): InventoryStatus {
-  if (!item.dailyUsage || item.dailyUsage <= 0) return 'unknown';
+  if (!item.estimatedEndDate && (!item.dailyUsage || item.dailyUsage <= 0)) return 'unknown';
   const remainingDays = calculateRemainingDays(item);
   if (remainingDays === undefined) return 'unknown';
   if (remainingDays <= 0) return 'out';

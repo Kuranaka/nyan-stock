@@ -18,9 +18,10 @@ export async function getInventoryItem(id: string): Promise<InventoryItem | unde
 
 export async function saveInventoryItem(item: InventoryItem): Promise<void> {
   const items = await getInventoryItems();
+  const estimatedEndDate = calculateEstimatedEndDate(item) ?? item.estimatedEndDate;
   const normalized = {
     ...item,
-    estimatedEndDate: calculateEstimatedEndDate(item),
+    estimatedEndDate,
     updatedAt: nowIso(),
   };
   const next = items.some((current) => current.id === item.id)
