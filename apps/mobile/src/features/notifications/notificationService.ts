@@ -8,7 +8,8 @@ import { AppSettings } from '@/features/settings/settingsTypes';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
@@ -50,13 +51,13 @@ export async function scheduleInventoryNotifications(
       return notifyDays
         .map((beforeDays) => {
           const targetDate = addDays(parseISO(estimatedEndDate), -beforeDays);
-          const trigger = set(targetDate, {
+          const triggerDate = set(targetDate, {
             hours: settings.notificationHour,
             minutes: settings.notificationMinute,
             seconds: 0,
             milliseconds: 0,
           });
-          if (isBefore(trigger, now)) return undefined;
+          if (isBefore(triggerDate, now)) return undefined;
           const remainingText = beforeDays === 0 ? '今日なくなる目安です' : `残り${beforeDays}日くらいです`;
           return Notifications.scheduleNotificationAsync({
             content: {
@@ -64,7 +65,10 @@ export async function scheduleInventoryNotifications(
               body: `${item.name}が${remainingText}。いつもの商品を確認しましょう。`,
               data: { inventoryItemId: item.id },
             },
-            trigger,
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: triggerDate,
+            },
           });
         })
         .filter((promise): promise is Promise<string> => Boolean(promise));

@@ -1,18 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import {
-  addDays,
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  parseISO,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addDays, parseISO } from 'date-fns';
 import { Href } from 'expo-router';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -20,6 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
+import { DatePickerField } from '@/components/DatePickerField';
 import { categories, defaultUnitByCategory, units } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCats, saveCat } from '@/features/cats/catStorage';
@@ -29,6 +18,7 @@ import {
   PurchaseLinkProvider,
   RakutenSearchResult,
   searchRakutenItems,
+  searchYahooItemsByJanCode,
 } from '@/features/ec/rakutenSearch';
 import {
   getInventoryItem,
@@ -43,6 +33,7 @@ import {
 } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import {
+  findProductByJanCodeAsync,
   findProductsByKeywordAsync,
   getProductMasterBrands,
   productCategoryLabels,
@@ -53,7 +44,7 @@ import {
 import { ProductCategory, ProductMaster } from '@/features/products/productTypes';
 import { saveUserProductSuggestion } from '@/features/products/userProductSuggestionStorage';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
-import { formatDisplayDate, nowIso, todayIso } from '@/utils/date';
+import { nowIso, todayIso } from '@/utils/date';
 import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
 type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'url', string>>;
@@ -72,9 +63,10 @@ const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] 
 
 export default function InventoryFormScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, barcode, scannedAt } = useLocalSearchParams<{ id?: string; barcode?: string; scannedAt?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const nameFieldYRef = useRef(0);
+  const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [current, setCurrent] = useState<InventoryItem | undefined>();
@@ -85,8 +77,6 @@ export default function InventoryFormScreen() {
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<InventoryUnit>('g');
   const [purchaseDate, setPurchaseDate] = useState(todayIso());
-  const [purchaseCalendarMonth, setPurchaseCalendarMonth] = useState(() => new Date());
-  const [showPurchaseCalendar, setShowPurchaseCalendar] = useState(false);
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
   const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
@@ -108,6 +98,10 @@ export default function InventoryFormScreen() {
   const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [masterSearchLoading, setMasterSearchLoading] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState('');
+  const [barcodeSearchMessage, setBarcodeSearchMessage] = useState('');
+  const [barcodeSearchLoading, setBarcodeSearchLoading] = useState(false);
+  const [barcodeYahooResults, setBarcodeYahooResults] = useState<RakutenSearchResult[]>([]);
   const [showPurchaseLinkSearch, setShowPurchaseLinkSearch] = useState(false);
   const [purchaseLinkProvider, setPurchaseLinkProvider] = useState<PurchaseLinkProvider>('rakuten');
   const [productSearchKeyword, setProductSearchKeyword] = useState('');
@@ -159,7 +153,6 @@ export default function InventoryFormScreen() {
         setAmount(String(item.amount));
         setUnit(item.unit);
         setPurchaseDate(item.purchaseDate);
-        setPurchaseCalendarMonth(parseISO(item.purchaseDate));
         setDailyUsage(item.dailyUsage?.toString() ?? '');
         setEstimationMode(item.estimationMode ?? (item.estimatedEndDate && !item.dailyUsage ? 'lasting_days' : 'usage'));
         setNotifyBeforeDays(item.notifyBeforeDays);
@@ -170,7 +163,7 @@ export default function InventoryFormScreen() {
         setMemo(item.memo ?? '');
       }
       void load();
-    }, [id]),
+  }, [id]),
   );
 
   useEffect(() => {
@@ -213,14 +206,6 @@ export default function InventoryFormScreen() {
     if (normalizedKeyword || masterBrandExpanded) return filteredBrands;
     return filteredBrands.slice(0, visibleBrandLimit);
   }, [masterBrandExpanded, masterBrandKeyword, masterBrandOptions]);
-
-  const purchaseCalendarDays = useMemo(() => {
-    const monthStart = startOfMonth(purchaseCalendarMonth);
-    return eachDayOfInterval({
-      start: startOfWeek(monthStart),
-      end: endOfWeek(endOfMonth(monthStart)),
-    });
-  }, [purchaseCalendarMonth]);
 
   const selectCategory = (next: InventoryCategory) => {
     setCategory(next);
@@ -372,7 +357,7 @@ export default function InventoryFormScreen() {
     }
   };
 
-  const applyProductMaster = (product: ProductMaster) => {
+  const applyProductMaster = useCallback((product: ProductMaster) => {
     const nextCategory = productCategoryToInventoryCategory(product.category);
     const nextLinks = productPurchaseLinksToInventoryLinks(product);
     const shouldCopyAmount = Boolean(product.amount !== undefined && product.unit && (product.janCode || product.gtin));
@@ -398,7 +383,95 @@ export default function InventoryFormScreen() {
       '商品マスタから反映しました',
       shouldCopyAmount ? '内容は保存前に自由に編集できます。' : '内容量は今回登録する商品の容量を入力してください。',
     );
-  };
+  }, []);
+
+  const applyYahooBarcodeResult = useCallback(
+    (result: RakutenSearchResult, options: { showAlert: boolean } = { showAlert: true }) => {
+      setProductMasterId(undefined);
+      setName(result.name);
+      setYahoo(result.url);
+      setProductSearchKeyword(result.name);
+      setErrors((currentErrors) => ({ ...currentErrors, name: undefined, url: undefined }));
+      if (options.showAlert) {
+        Alert.alert('Yahoo検索結果を反映しました', '商品名とYahoo URLを入力欄に反映しました。');
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (id) return;
+    const normalizedBarcode = normalizeBarcodeParam(barcode);
+    if (!normalizedBarcode) return;
+    const scanKey = `${normalizedBarcode}:${typeof scannedAt === 'string' ? scannedAt : ''}`;
+    if (lastAppliedBarcodeRef.current === scanKey) return;
+    let isActive = true;
+    lastAppliedBarcodeRef.current = scanKey;
+    setAddMethod('barcode');
+    setScannedBarcode(normalizedBarcode);
+    setBarcodeSearchMessage('');
+    setBarcodeSearchLoading(true);
+    setBarcodeYahooResults([]);
+
+    async function applyScannedBarcode() {
+      const product = await findProductByJanCodeAsync(normalizedBarcode);
+      if (!isActive) return;
+      if (product) {
+        applyProductMaster(product);
+        setBarcodeSearchMessage(`JAN ${normalizedBarcode} に一致する商品をフォームへ反映しました。`);
+        setBarcodeSearchLoading(false);
+        return;
+      }
+
+      if (!hasPurchaseLinkSearchApi()) {
+        setProductMasterId(undefined);
+        setMasterSearchKeyword(normalizedBarcode);
+        setMasterSearchResults([]);
+        setBarcodeSearchMessage(
+          `JAN ${normalizedBarcode} は商品マスタに見つかりませんでした。Yahoo API設定がないため、手入力で登録してください。`,
+        );
+        setBarcodeSearchLoading(false);
+        return;
+      }
+
+      try {
+        setBarcodeSearchMessage(`JAN ${normalizedBarcode} は商品マスタにないため、Yahooショッピングを検索しています。`);
+        const yahooResults = await searchYahooItemsByJanCode(normalizedBarcode);
+        if (!isActive) return;
+        setBarcodeYahooResults(yahooResults);
+        if (yahooResults.length > 0) {
+          applyYahooBarcodeResult(yahooResults[0], { showAlert: false });
+          setBarcodeSearchMessage(
+            `Yahooショッピングで${yahooResults.length}件見つかりました。先頭候補をフォームへ反映しました。`,
+          );
+          return;
+        }
+        setProductMasterId(undefined);
+        setMasterSearchKeyword(normalizedBarcode);
+        setMasterSearchResults([]);
+        setBarcodeSearchMessage(
+          `JAN ${normalizedBarcode} は商品マスタとYahooショッピングのどちらにも見つかりませんでした。手入力で登録してください。`,
+        );
+      } catch (error) {
+        if (!isActive) return;
+        setProductMasterId(undefined);
+        setMasterSearchKeyword(normalizedBarcode);
+        setMasterSearchResults([]);
+        setBarcodeSearchMessage(
+          error instanceof Error
+            ? `商品マスタに見つからず、Yahoo検索にも失敗しました: ${error.message}`
+            : '商品マスタに見つからず、Yahoo検索にも失敗しました。',
+        );
+      } finally {
+        if (isActive) setBarcodeSearchLoading(false);
+      }
+    }
+
+    void applyScannedBarcode();
+    return () => {
+      isActive = false;
+    };
+  }, [applyProductMaster, applyYahooBarcodeResult, barcode, id, scannedAt]);
 
   const applyRakutenResult = (result: RakutenSearchResult, options: { includeName: boolean }) => {
     if (options.includeName) {
@@ -631,6 +704,52 @@ export default function InventoryFormScreen() {
               ))}
             </>
           ) : null}
+          {addMethod === 'barcode' ? (
+            <View style={styles.barcodeResultBox}>
+              <Text style={styles.sectionTitle}>バーコード読み取り結果</Text>
+              {scannedBarcode ? <Text style={styles.resultMeta}>JAN {scannedBarcode}</Text> : null}
+              {barcodeSearchLoading ? <Text style={styles.resultSummary}>検索しています...</Text> : null}
+              {barcodeSearchMessage ? <Text style={styles.resultSummary}>{barcodeSearchMessage}</Text> : null}
+              {barcodeYahooResults.length > 0 ? (
+                <>
+                  <Text style={styles.affiliate}>Yahooショッピングの候補リンクにはアフィリエイトが含まれる場合があります。</Text>
+                  {barcodeYahooResults.map((result) => (
+                    <View key={result.id} style={styles.searchResult}>
+                      <Text style={styles.resultName}>{result.name}</Text>
+                      <Text style={styles.resultMeta}>
+                        {[
+                          'Yahooショッピング',
+                          result.shopName,
+                          result.price ? `${result.price.toLocaleString()}円` : undefined,
+                        ]
+                          .filter(Boolean)
+                          .join(' ・ ')}
+                      </Text>
+                      <AppButton
+                        title="このYahoo候補を反映する"
+                        variant="secondary"
+                        onPress={() => applyYahooBarcodeResult(result)}
+                      />
+                    </View>
+                  ))}
+                </>
+              ) : null}
+              <View style={styles.resultActions}>
+                <AppButton
+                  title="もう一度読み取る"
+                  variant="secondary"
+                  onPress={() => router.push('/barcode-scan' as Href)}
+                  style={styles.resultAction}
+                />
+                <AppButton
+                  title="手入力で続ける"
+                  variant="secondary"
+                  onPress={() => setAddMethod('manual')}
+                  style={styles.resultAction}
+                />
+              </View>
+            </View>
+          ) : null}
         </AppCard>
       ) : null}
 
@@ -652,68 +771,12 @@ export default function InventoryFormScreen() {
         ))}
       </View>
 
-      <View style={styles.datePickerBox}>
-        <FieldLabel label="購入日" requirement="required" />
-        <AppButton
-          title={formatDisplayDate(purchaseDate)}
-          variant="secondary"
-          onPress={() => setShowPurchaseCalendar((current) => !current)}
-        />
-        {showPurchaseCalendar ? (
-          <View style={styles.calendarBox}>
-            <View style={styles.calendarHeader}>
-              <AppButton
-                title="前月"
-                variant="secondary"
-                onPress={() => setPurchaseCalendarMonth((current) => addMonths(current, -1))}
-              />
-              <Text style={styles.calendarTitle}>{format(purchaseCalendarMonth, 'yyyy年M月')}</Text>
-              <AppButton
-                title="翌月"
-                variant="secondary"
-                onPress={() => setPurchaseCalendarMonth((current) => addMonths(current, 1))}
-              />
-            </View>
-            <View style={styles.calendarGrid}>
-              {['日', '月', '火', '水', '木', '金', '土'].map((dayLabel) => (
-                <Text key={dayLabel} style={styles.calendarWeekday}>{dayLabel}</Text>
-              ))}
-              {purchaseCalendarDays.map((day) => {
-                const dayIso = format(day, 'yyyy-MM-dd');
-                const selected = isSameDay(day, parseISO(purchaseDate));
-                const inMonth = isSameMonth(day, purchaseCalendarMonth);
-                return (
-                  <Pressable
-                    key={dayIso}
-                    accessibilityRole="button"
-                    onPress={() => {
-                      setPurchaseDate(dayIso);
-                      setPurchaseCalendarMonth(day);
-                      setShowPurchaseCalendar(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.calendarDay,
-                      !inMonth && styles.calendarDayOutside,
-                      selected && styles.calendarDaySelected,
-                      pressed && styles.calendarDayPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.calendarDayText,
-                        !inMonth && styles.calendarDayTextOutside,
-                        selected && styles.calendarDayTextSelected,
-                      ]}
-                    >
-                      {format(day, 'd')}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-      </View>
+      <DatePickerField
+        label="購入日"
+        value={purchaseDate}
+        onChange={setPurchaseDate}
+        requirement="required"
+      />
 
       <AppCard style={styles.searchCard}>
         <FieldLabel label="次回購入日の計算方法" requirement="required" />
@@ -938,6 +1001,11 @@ function getProductCategoryFilterLabel(category: ProductCategoryFilter): string 
   return category === 'all' ? 'すべて' : productCategoryLabels[category];
 }
 
+function normalizeBarcodeParam(value: string | string[] | undefined): string {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return rawValue?.replace(/\D/g, '') ?? '';
+}
+
 const styles = StyleSheet.create({
   container: {
     gap: 16,
@@ -979,69 +1047,6 @@ const styles = StyleSheet.create({
   searchCard: {
     gap: 12,
   },
-  datePickerBox: {
-    gap: 8,
-  },
-  calendarBox: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 10,
-    padding: 12,
-  },
-  calendarHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-  },
-  calendarTitle: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  calendarWeekday: {
-    color: colors.subText,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 28,
-    textAlign: 'center',
-    width: `${100 / 7}%`,
-  },
-  calendarDay: {
-    alignItems: 'center',
-    aspectRatio: 1,
-    justifyContent: 'center',
-    width: `${100 / 7}%`,
-  },
-  calendarDayOutside: {
-    opacity: 0.45,
-  },
-  calendarDaySelected: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-  },
-  calendarDayPressed: {
-    opacity: 0.75,
-  },
-  calendarDayText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  calendarDayTextOutside: {
-    color: colors.subText,
-  },
-  calendarDayTextSelected: {
-    color: colors.card,
-  },
   collapsibleHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -1067,6 +1072,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
+  },
+  barcodeResultBox: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: 10,
+    paddingTop: 12,
   },
   searchResult: {
     borderTopColor: colors.border,

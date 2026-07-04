@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, differenceInMonths, differenceInYears, format, isAfter, isValid, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 
 export function todayIso() {
@@ -20,6 +20,22 @@ export function daysUntil(targetIso: string, today: Date = new Date()) {
 export function formatDisplayDate(iso?: string) {
   if (!iso) return '未設定';
   return format(parseISO(iso), 'yyyy年M月d日', { locale: ja });
+}
+
+export function isFutureIsoDate(iso: string, today: Date = new Date()) {
+  const date = parseISO(iso);
+  return isValid(date) && isAfter(date, today);
+}
+
+export function formatAgeFromBirthday(birthday?: string, today: Date = new Date()) {
+  if (!birthday) return '未設定';
+  const birthdayDate = parseISO(birthday);
+  if (!isValid(birthdayDate) || isAfter(birthdayDate, today)) return '未設定';
+
+  const years = differenceInYears(today, birthdayDate);
+  const months = differenceInMonths(today, birthdayDate) % 12;
+  if (years <= 0) return `${Math.max(0, months)}か月`;
+  return months > 0 ? `${years}歳${months}か月` : `${years}歳`;
 }
 
 export function formatTodayJapanese() {

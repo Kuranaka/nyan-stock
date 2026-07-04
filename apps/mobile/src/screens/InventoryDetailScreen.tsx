@@ -5,6 +5,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
+import { DatePickerField } from '@/components/DatePickerField';
 import { StatusBadge } from '@/components/StatusBadge';
 import { categoryLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
@@ -186,7 +187,12 @@ export default function InventoryDetailScreen() {
       {showReplenish ? (
         <AppCard style={styles.card}>
           <Text style={styles.sectionTitle}>補充内容</Text>
-          <AppTextInput label="補充日" value={replenishDate} onChangeText={setReplenishDate} />
+          <DatePickerField
+            label="補充日"
+            value={replenishDate}
+            onChange={setReplenishDate}
+            requirement="required"
+          />
           <AppTextInput label="内容量" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
           <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
           <AppTextInput label="購入先" value={shopName} onChangeText={setShopName} />

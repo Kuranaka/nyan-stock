@@ -47,13 +47,36 @@ export async function searchRakutenItems(
   throw new Error('Supabase Edge FunctionのURLとAnon Keyを設定してください。');
 }
 
+export async function searchYahooItemsByJanCode(janCode: string): Promise<RakutenSearchResult[]> {
+  const normalizedJanCode = janCode.replace(/\D/g, '');
+
+  if (!normalizedJanCode) {
+    throw new Error('JANコードを読み取れませんでした。');
+  }
+
+  if (hasPurchaseLinkSearchApi()) {
+    return searchPurchaseLinksFromEdgeFunction(normalizedJanCode, 'yahoo', { searchBy: 'jan_code' });
+  }
+
+  throw new Error('Supabase Edge FunctionのURLとAnon Keyを設定してください。');
+}
+
 async function searchPurchaseLinksFromEdgeFunction(
   keyword: string,
   provider: PurchaseLinkProvider,
+  options: { searchBy?: 'keyword' | 'jan_code' } = {},
 ): Promise<RakutenSearchResult[]> {
   const baseUrl = getPurchaseLinkSearchEndpoint();
   if (!baseUrl || !supabaseAnonKey) return [];
-  const endpoint = `${baseUrl}?keyword=${encodeURIComponent(keyword)}&provider=${provider}`;
+  const params = new URLSearchParams({
+    provider,
+  });
+  if (options.searchBy === 'jan_code') {
+    params.set('janCode', keyword);
+  } else {
+    params.set('keyword', keyword);
+  }
+  const endpoint = `${baseUrl}?${params.toString()}`;
   const response = await fetch(endpoint, {
     headers: {
       apikey: supabaseAnonKey,

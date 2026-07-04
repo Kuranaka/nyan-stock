@@ -5,13 +5,14 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
+import { DatePickerField } from '@/components/DatePickerField';
 import { colors } from '@/constants/colors';
 import { deleteCat, getCat, getCats, saveCat } from '@/features/cats/catStorage';
 import { Cat, CatGender } from '@/features/cats/catTypes';
 import { deleteInventoryItemsForCat, getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
-import { nowIso } from '@/utils/date';
+import { formatAgeFromBirthday, isFutureIsoDate, nowIso } from '@/utils/date';
 import { createId, parseOptionalNumber } from '@/utils/validation';
 
 const genderOptions: { label: string; value: CatGender }[] = [
@@ -27,7 +28,6 @@ export default function CatProfileScreen() {
   const [current, setCurrent] = useState<Cat | undefined>();
   const [name, setName] = useState('');
   const [birthday, setBirthday] = useState('');
-  const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [gender, setGender] = useState<CatGender>('unknown');
   const [memo, setMemo] = useState('');
@@ -36,7 +36,6 @@ export default function CatProfileScreen() {
     setCurrent(undefined);
     setName('');
     setBirthday('');
-    setAge('');
     setWeight('');
     setGender('unknown');
     setMemo('');
@@ -46,7 +45,6 @@ export default function CatProfileScreen() {
     setCurrent(cat);
     setName(cat.name);
     setBirthday(cat.birthday ?? '');
-    setAge(cat.age?.toString() ?? '');
     setWeight(cat.weight?.toString() ?? '');
     setGender(cat.gender);
     setMemo(cat.memo ?? '');
@@ -83,13 +81,16 @@ export default function CatProfileScreen() {
       Alert.alert('入力を確認してください', '猫の名前は必須です。');
       return;
     }
+    if (birthday && isFutureIsoDate(birthday)) {
+      Alert.alert('入力を確認してください', '誕生日は今日以前の日付を選んでください。');
+      return;
+    }
     const now = nowIso();
     const catId = current?.id ?? createId('cat');
     await saveCat({
       id: catId,
       name: name.trim(),
       birthday: birthday.trim() || undefined,
-      age: parseOptionalNumber(age),
       weight: parseOptionalNumber(weight),
       gender,
       memo: memo.trim() || undefined,
@@ -160,19 +161,17 @@ export default function CatProfileScreen() {
 
       <Text style={styles.sectionTitle}>{current ? 'プロフィール編集' : 'プロフィール追加'}</Text>
       <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" />
-      <AppTextInput
+      <DatePickerField
         label="誕生日"
         value={birthday}
-        onChangeText={setBirthday}
-        placeholder="例：2022-04-01"
+        onChange={setBirthday}
+        requirement="optional"
+        placeholder="未設定"
       />
-      <AppTextInput
-        label="年齢"
-        value={age}
-        onChangeText={setAge}
-        keyboardType="numeric"
-        placeholder="例：3"
-      />
+      <View style={styles.ageBox}>
+        <Text style={styles.ageLabel}>年齢</Text>
+        <Text style={styles.ageValue}>{formatAgeFromBirthday(birthday)}</Text>
+      </View>
       <AppTextInput
         label="体重"
         value={weight}
@@ -238,6 +237,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
+  },
+  ageBox: {
+    backgroundColor: colors.muted,
+    borderRadius: 12,
+    gap: 4,
+    padding: 14,
+  },
+  ageLabel: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ageValue: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
   },
   segment: {
     flexDirection: 'row',

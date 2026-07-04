@@ -15,16 +15,20 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.nyanstock"
+      "bundleIdentifier": "com.example.nyanstock",
+      "infoPlist": {
+        "NSCameraUsageDescription": "JANコードを読み取り、猫用品の在庫登録を補助するためにカメラを使用します。"
+      }
     },
     "android": {
       "package": "com.example.nyanstock",
+      "permissions": ["CAMERA"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF7E8"
       }
     },
-    "plugins": ["expo-router", "expo-notifications"],
+    "plugins": ["expo-router", "expo-notifications", "expo-camera"],
     "experiments": {
       "typedRoutes": true
     }

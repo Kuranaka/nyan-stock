@@ -42,6 +42,7 @@ type YahooItem = {
   name?: string;
   price?: number;
   url?: string;
+  janCode?: string;
   seller?: {
     name?: string;
   };
@@ -74,6 +75,7 @@ Deno.serve(async (request) => {
 
   const url = new URL(request.url);
   const keyword = url.searchParams.get('keyword')?.trim() ?? '';
+  const janCode = (url.searchParams.get('janCode') ?? url.searchParams.get('jan_code'))?.replace(/\D/g, '') ?? '';
   const purchaseUrl = url.searchParams.get('url')?.trim() ?? '';
   const provider = url.searchParams.get('provider') ?? 'all';
   const mode = url.searchParams.get('mode') ?? 'search';
@@ -88,11 +90,21 @@ Deno.serve(async (request) => {
     const price = await findCurrentPrice(purchaseUrl, provider);
     return json({ item: price });
   }
-  if (!keyword) {
-    return json({ error: 'missing_keyword', message: 'keyword is required.' }, 400);
+  if (!keyword && !janCode) {
+    return json({ error: 'missing_keyword', message: 'keyword or janCode is required.' }, 400);
   }
   if (!['all', 'rakuten', 'yahoo'].includes(provider)) {
     return json({ error: 'invalid_provider', message: 'provider must be all, rakuten, or yahoo.' }, 400);
+  }
+  if (janCode && provider !== 'all' && provider !== 'yahoo') {
+    return json({ error: 'invalid_provider', message: 'janCode search is supported for yahoo only.' }, 400);
+  }
+
+  if (janCode) {
+    const yahoo = await searchYahooByJanCode(janCode);
+    return json({
+      items: yahoo.slice(0, 20),
+    });
   }
 
   const [rakuten, yahoo] = await Promise.all([
@@ -207,20 +219,29 @@ async function searchRakuten(keyword: string): Promise<PurchaseLinkSearchResult[
 }
 
 async function searchYahoo(keyword: string): Promise<PurchaseLinkSearchResult[]> {
+  return searchYahooItems({ query: keyword });
+}
+
+async function searchYahooByJanCode(janCode: string): Promise<PurchaseLinkSearchResult[]> {
+  return searchYahooItems({ janCode });
+}
+
+async function searchYahooItems(searchOptions: { query?: string; janCode?: string }): Promise<PurchaseLinkSearchResult[]> {
   const clientId = Deno.env.get('YAHOO_CLIENT_ID');
   if (!clientId) {
     console.warn('[purchase-link-search] Missing Yahoo secret: YAHOO_CLIENT_ID');
     return [];
   }
 
-  const params = new URLSearchParams({
+  const searchParams = new URLSearchParams({
     appid: clientId,
-    query: keyword,
     results: '10',
   });
+  if (searchOptions.query) searchParams.set('query', searchOptions.query);
+  if (searchOptions.janCode) searchParams.set('jan_code', searchOptions.janCode);
 
   try {
-    const response = await fetch(`${yahooEndpoint}?${params.toString()}`);
+    const response = await fetch(`${yahooEndpoint}?${searchParams.toString()}`);
     const body = (await response.json()) as YahooResponse;
     if (!response.ok || body.error) {
       console.warn(`[purchase-link-search] Yahoo error: ${body.error?.message ?? response.status}`);
