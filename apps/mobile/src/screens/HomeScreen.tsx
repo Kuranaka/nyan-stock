@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,16 +16,16 @@ import {
   isInventoryItemForCat,
   sortInventoryItems,
 } from '@/features/inventory/inventoryLogic';
-import { getInventoryItems, replenishInventoryItem } from '@/features/inventory/inventoryStorage';
-import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
-import { getPurchasePriceComparison, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
+import { getInventoryItems } from '@/features/inventory/inventoryStorage';
+import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
-import { formatTodayJapanese, nowIso, todayIso } from '@/utils/date';
-import { createId } from '@/utils/validation';
+import { formatTodayJapanese } from '@/utils/date';
 
 import OnboardingScreen from './OnboardingScreen';
+
+type InventoryFilter = 'out' | 'warning' | 'watch';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -35,6 +35,7 @@ export default function HomeScreen() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [settings, setSettings] = useState<AppSettings | undefined>();
   const [loading, setLoading] = useState(false);
+  const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter | undefined>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,86 +75,39 @@ export default function HomeScreen() {
       <OnboardingScreen
         onStart={() => void completeOnboarding(true)}
         onSkip={() => void completeOnboarding(false)}
+        onSignedIn={() => void completeOnboarding(true)}
       />
     );
   }
 
   const selectedCat = cats.find((nextCat) => nextCat.id === selectedCatId);
-  const visibleItems = selectedCatId ? items.filter((item) => isInventoryItemForCat(item, selectedCatId)) : items;
-  const outCount = visibleItems.filter((item) => getInventoryStatus(item) === 'out').length;
-  const warningCount = visibleItems.filter((item) => {
+  const catItems = selectedCatId ? items.filter((item) => isInventoryItemForCat(item, selectedCatId)) : items;
+  const outItems = catItems.filter((item) => getInventoryStatus(item) === 'out');
+  const warningItems = catItems.filter((item) => {
     const days = calculateRemainingDays(item);
     return days !== undefined && days > 0 && days <= 3;
-  }).length;
-  const watchCount = visibleItems.filter((item) => {
+  });
+  const watchItems = catItems.filter((item) => {
     const days = calculateRemainingDays(item);
     return days !== undefined && days > 3 && days <= 7;
-  }).length;
+  });
+  const visibleItems =
+    inventoryFilter === 'out'
+      ? outItems
+      : inventoryFilter === 'warning'
+        ? warningItems
+        : inventoryFilter === 'watch'
+          ? watchItems
+          : catItems;
 
   const selectCat = async (catId: string) => {
     setSelectedCatId(catId);
+    setInventoryFilter(undefined);
     await updateSettings({ selectedCatId: catId });
   };
 
-  const replenishQuick = (item: InventoryItem) => {
-    const saveReplenish = async (mode: LastingDaysReplenishMode = 'add_remaining') => {
-      const history: PurchaseHistory = {
-        id: createId('history'),
-        inventoryItemId: item.id,
-        purchasedAt: todayIso(),
-        amount: item.amount,
-        unit: item.unit,
-        createdAt: nowIso(),
-      };
-      await replenishInventoryItem(item, history, true, mode);
-      await load();
-    };
-
-    if (item.estimationMode === 'lasting_days') {
-      Alert.alert('補充後の残り日数', `${item.name}を今日の日付で補充します。残っている日数をどう扱いますか？`, [
-        { text: 'キャンセル', style: 'cancel' },
-        { text: '残りに足す', onPress: () => void saveReplenish('add_remaining') },
-        { text: '周期に戻す', onPress: () => void saveReplenish('reset_cycle') },
-      ]);
-      return;
-    }
-
-    Alert.alert('在庫を補充しましたか？', `${item.name}を今日の日付で補充します。`, [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '補充する', onPress: () => void saveReplenish() },
-    ]);
-  };
-
-  const purchase = async (item: InventoryItem) => {
-    const shop = item.purchaseLinks.amazon
-      ? 'amazon'
-      : item.purchaseLinks.rakuten
-        ? 'rakuten'
-        : item.purchaseLinks.yahoo
-          ? 'yahoo'
-          : item.purchaseLinks.other
-            ? 'other'
-            : undefined;
-    if (!shop) {
-      Alert.alert('購入URLが未登録です', '商品詳細または編集画面からURLを登録できます。');
-      return;
-    }
-    if (item.purchaseLinks.rakuten || item.purchaseLinks.yahoo) {
-      const prices = await getPurchasePriceComparison(item);
-      const message = buildPurchasePriceMessage(prices);
-      const buttons = buildPurchasePageButtons(item);
-      if (buttons.length === 1) {
-        Alert.alert('購入URLが未登録です', '楽天またはYahooのURLを登録すると価格比較できます。');
-        return;
-      }
-      Alert.alert(
-        hasAnyPrice(prices) ? '現在価格を確認しました' : '価格を確認できませんでした',
-        `${message}\nどの購入ページを開きますか？`,
-        buttons,
-      );
-      return;
-    }
-    await openPurchaseUrl(item, shop);
+  const toggleInventoryFilter = (nextFilter: InventoryFilter) => {
+    setInventoryFilter((currentFilter) => (currentFilter === nextFilter ? undefined : nextFilter));
   };
 
   return (
@@ -171,12 +125,11 @@ export default function HomeScreen() {
 
       <View style={styles.catTabs}>
         {cats.map((nextCat) => (
-          <AppButton
+          <CatTab
             key={nextCat.id}
-            title={nextCat.name}
-            variant={nextCat.id === selectedCatId ? 'primary' : 'secondary'}
+            cat={nextCat}
+            selected={nextCat.id === selectedCatId}
             onPress={() => void selectCat(nextCat.id)}
-            style={styles.catTab}
           />
         ))}
         <AppButton
@@ -190,9 +143,27 @@ export default function HomeScreen() {
       <AppCard>
         <Text style={styles.sectionTitle}>在庫状況</Text>
         <View style={styles.summaryRow}>
-          <Summary value={outCount} label="在庫切れ" tone="danger" />
-          <Summary value={warningCount} label="残り3日以内" tone="warning" />
-          <Summary value={watchCount} label="残り7日以内" tone="normal" />
+          <Summary
+            value={outItems.length}
+            label="在庫切れ"
+            tone="danger"
+            selected={inventoryFilter === 'out'}
+            onPress={() => toggleInventoryFilter('out')}
+          />
+          <Summary
+            value={warningItems.length}
+            label="残り3日以内"
+            tone="warning"
+            selected={inventoryFilter === 'warning'}
+            onPress={() => toggleInventoryFilter('warning')}
+          />
+          <Summary
+            value={watchItems.length}
+            label="残り7日以内"
+            tone="normal"
+            selected={inventoryFilter === 'watch'}
+            onPress={() => toggleInventoryFilter('watch')}
+          />
         </View>
       </AppCard>
 
@@ -203,19 +174,20 @@ export default function HomeScreen() {
           variant="secondary"
           onPress={() => router.push('/cost-dashboard')}
         />
-        <AppButton
-          title="購入履歴"
-          variant="secondary"
-          onPress={() => router.push('/purchase-history')}
-        />
       </View>
 
       {visibleItems.length === 0 ? (
         <EmptyState
-          title={selectedCat ? `${selectedCat.name}の用品を登録しましょう` : 'まずは、いつものフードや猫砂を登録しましょう'}
-          message="登録すると、残り何日でなくなるか自動で分かります"
-          actionTitle="商品を追加する"
-          onAction={() => router.push('/inventory-form')}
+          title={
+            inventoryFilter
+              ? '条件に合う在庫はありません'
+              : selectedCat
+                ? `${selectedCat.name}の用品を登録しましょう`
+                : 'まずは、いつものフードや猫砂を登録しましょう'
+          }
+          message={inventoryFilter ? '在庫状況の項目をもう一度押すと絞り込みを解除できます。' : '登録すると、残り何日でなくなるか自動で分かります'}
+          actionTitle={inventoryFilter ? undefined : '商品を追加する'}
+          onAction={inventoryFilter ? undefined : () => router.push('/inventory-form')}
         />
       ) : (
         <View style={styles.list}>
@@ -223,8 +195,8 @@ export default function HomeScreen() {
             <InventoryCard
               key={item.id}
               item={item}
-              onPurchase={() => void purchase(item)}
-              onReplenish={() => replenishQuick(item)}
+              onPurchase={() => router.push({ pathname: '/inventory-detail', params: { id: item.id, action: 'purchase' } })}
+              onReplenish={() => router.push({ pathname: '/inventory-detail', params: { id: item.id, action: 'replenish' } })}
               onDetail={() => router.push({ pathname: '/inventory-detail', params: { id: item.id } })}
             />
           ))}
@@ -234,41 +206,52 @@ export default function HomeScreen() {
   );
 }
 
-function Summary({ value, label, tone }: { value: number; label: string; tone: string }) {
+function CatTab({ cat, selected, onPress }: { cat: Cat; selected: boolean; onPress: () => void }) {
   return (
-    <View style={styles.summaryItem}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.catTab,
+        selected ? styles.catTabSelected : styles.catTabSecondary,
+        pressed && styles.catTabPressed,
+      ]}
+    >
+      {cat.iconUrl ? <Image source={{ uri: cat.iconUrl }} style={styles.catTabIcon} resizeMode="cover" /> : null}
+      <Text style={[styles.catTabText, selected && styles.catTabTextSelected]} numberOfLines={1}>
+        {cat.name}
+      </Text>
+    </Pressable>
+  );
+}
+
+function Summary({
+  value,
+  label,
+  tone,
+  selected,
+  onPress,
+}: {
+  value: number;
+  label: string;
+  tone: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.summaryItem, selected && styles.summaryItemSelected, pressed && styles.summaryItemPressed]}
+    >
       <Text style={[styles.summaryValue, tone === 'danger' && styles.danger, tone === 'warning' && styles.warning]}>
         {value}
       </Text>
       <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
-}
-
-function buildPurchasePriceMessage(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): string {
-  const rakuten = prices.rakuten?.price !== undefined ? `${prices.rakuten.price.toLocaleString()}円` : '取得できませんでした';
-  const yahoo = prices.yahoo?.price !== undefined ? `${prices.yahoo.price.toLocaleString()}円` : '取得できませんでした';
-  return `楽天: ${rakuten}\nYahoo: ${yahoo}`;
-}
-
-function hasAnyPrice(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): boolean {
-  return prices.rakuten?.price !== undefined || prices.yahoo?.price !== undefined;
-}
-
-function buildPurchasePageButtons(item: InventoryItem) {
-  const buttons: { text: string; style?: 'cancel'; onPress?: () => void }[] = [
-    { text: 'キャンセル', style: 'cancel' },
-  ];
-  const shops: { shop: ShopType; label: string }[] = [
-    { shop: 'rakuten', label: '楽天を開く' },
-    { shop: 'yahoo', label: 'Yahooを開く' },
-  ];
-  shops.forEach(({ shop, label }) => {
-    if (item.purchaseLinks[shop]) {
-      buttons.push({ text: label, onPress: () => void openPurchaseUrl(item, shop) });
-    }
-  });
-  return buttons;
 }
 
 const styles = StyleSheet.create({
@@ -299,7 +282,44 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   catTab: {
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 48,
     minWidth: 92,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  catTabSecondary: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.border,
+  },
+  catTabSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  catTabPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.98 }],
+  },
+  catTabIcon: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 28,
+    width: 28,
+  },
+  catTabText: {
+    color: colors.text,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  catTabTextSelected: {
+    color: colors.card,
   },
   catManageTab: {
     backgroundColor: colors.accent,
@@ -318,8 +338,17 @@ const styles = StyleSheet.create({
   summaryItem: {
     flex: 1,
     backgroundColor: colors.muted,
+    borderColor: 'transparent',
+    borderWidth: 2,
     borderRadius: 14,
     padding: 12,
+  },
+  summaryItemPressed: {
+    opacity: 0.82,
+  },
+  summaryItemSelected: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
   },
   summaryValue: {
     color: colors.text,

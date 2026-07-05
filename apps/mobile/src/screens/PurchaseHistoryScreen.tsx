@@ -1,16 +1,19 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { isSameMonth, parseISO } from 'date-fns';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { format, parseISO } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import { useFocusEffect } from 'expo-router';
 
+import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
+import { AppTextInput } from '@/components/AppTextInput';
 import { EmptyState } from '@/components/EmptyState';
 import { unitLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import { getInventoryCatIds } from '@/features/inventory/inventoryLogic';
-import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inventoryStorage';
+import { getInventoryItems, getPurchaseHistory, updatePurchaseHistoryPrice } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { formatDisplayDate } from '@/utils/date';
 
@@ -18,6 +21,9 @@ export default function PurchaseHistoryScreen() {
   const [history, setHistory] = useState<PurchaseHistory[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [cats, setCats] = useState<Cat[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
+  const [editingHistoryId, setEditingHistoryId] = useState<string | undefined>();
+  const [editingPrice, setEditingPrice] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -53,14 +59,59 @@ export default function PurchaseHistoryScreen() {
       ),
     [catNames, items],
   );
-  const monthlyTotal = history
-    .filter((entry) => entry.price && isSameMonth(parseISO(entry.purchasedAt), new Date()))
+  const monthOptions = useMemo(() => buildMonthOptions(history), [history]);
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const activeMonth = selectedMonth ?? (monthOptions.some((month) => month.value === currentMonth) ? currentMonth : monthOptions[0]?.value);
+  const filteredHistory = activeMonth
+    ? history.filter((entry) => monthKeyOf(entry.purchasedAt) === activeMonth)
+    : history;
+  const monthlyTotal = filteredHistory
+    .filter((entry) => entry.price)
     .reduce((sum, entry) => sum + (entry.price ?? 0), 0);
+  const activeMonthLabel = monthOptions.find((month) => month.value === activeMonth)?.label ?? '購入履歴';
+
+  function startEditingPrice(entry: PurchaseHistory) {
+    setEditingHistoryId(entry.id);
+    setEditingPrice(entry.price ? String(entry.price) : '');
+  }
+
+  function cancelEditingPrice() {
+    setEditingHistoryId(undefined);
+    setEditingPrice('');
+  }
+
+  async function saveEditingPrice() {
+    if (!editingHistoryId) return;
+    const normalizedPrice = editingPrice.trim();
+    const parsedPrice = normalizedPrice ? Number(normalizedPrice) : undefined;
+
+    if (parsedPrice !== undefined && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
+      Alert.alert('価格を確認してください', '価格は0以上の数字で入力してください。');
+      return;
+    }
+
+    const nextHistory = await updatePurchaseHistoryPrice(editingHistoryId, parsedPrice);
+    setHistory(nextHistory);
+    cancelEditingPrice();
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <AppCard>
-        <Text style={styles.total}>今月の猫用品：{monthlyTotal.toLocaleString()}円</Text>
+      <AppCard style={styles.summaryCard}>
+        <Text style={styles.total}>{activeMonthLabel}の猫用品：{monthlyTotal.toLocaleString()}円</Text>
+        {monthOptions.length > 0 ? (
+          <View style={styles.monthTabs}>
+            {monthOptions.map((month) => (
+              <AppButton
+                key={month.value}
+                title={month.label}
+                variant={month.value === activeMonth ? 'primary' : 'secondary'}
+                onPress={() => setSelectedMonth(month.value)}
+                style={styles.monthTab}
+              />
+            ))}
+          </View>
+        ) : null}
         <Text style={styles.note}>価格未入力の履歴は合計から除外しています。</Text>
       </AppCard>
 
@@ -71,18 +122,48 @@ export default function PurchaseHistoryScreen() {
         />
       ) : (
         <View style={styles.list}>
-          {history.map((entry) => (
+          {filteredHistory.map((entry) => (
             <AppCard key={entry.id} style={styles.entry}>
-              <Text style={styles.date}>{formatDisplayDate(entry.purchasedAt)}</Text>
+              <View style={styles.entryHeader}>
+                <Text style={styles.date}>{formatDisplayDate(entry.purchasedAt)}</Text>
+                {editingHistoryId === entry.id ? null : (
+                  <AppButton
+                    title="編集"
+                    variant="secondary"
+                    onPress={() => startEditingPrice(entry)}
+                    style={styles.editButton}
+                  />
+                )}
+              </View>
               <Text style={styles.name}>{itemNames.get(entry.inventoryItemId) ?? '削除済みの商品'}</Text>
               <Text style={styles.catName}>
                 {itemCatNames.get(entry.inventoryItemId) || '猫プロフィール未設定'}
               </Text>
-              <Text style={styles.detail}>
-                {entry.amount}
-                {unitLabels[entry.unit]}
-                {entry.price ? ` ・ ${entry.price.toLocaleString()}円` : ''}
-              </Text>
+              {editingHistoryId === entry.id ? (
+                <View style={styles.editArea}>
+                  <Text style={styles.detail}>
+                    {entry.amount}
+                    {unitLabels[entry.unit]}
+                  </Text>
+                  <AppTextInput
+                    label="価格"
+                    value={editingPrice}
+                    onChangeText={setEditingPrice}
+                    keyboardType="numeric"
+                    placeholder="例：1280"
+                  />
+                  <View style={styles.editActions}>
+                    <AppButton title="キャンセル" variant="ghost" onPress={cancelEditingPrice} style={styles.editAction} />
+                    <AppButton title="保存" onPress={() => void saveEditingPrice()} style={styles.editAction} />
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.detail}>
+                  {entry.amount}
+                  {unitLabels[entry.unit]}
+                  {entry.price ? ` ・ ${entry.price.toLocaleString()}円` : ' ・ 価格未入力'}
+                </Text>
+              )}
               {entry.shopName ? <Text style={styles.detail}>購入先：{entry.shopName}</Text> : null}
               {entry.memo ? <Text style={styles.memo}>{entry.memo}</Text> : null}
             </AppCard>
@@ -91,6 +172,20 @@ export default function PurchaseHistoryScreen() {
       )}
     </ScrollView>
   );
+}
+
+function buildMonthOptions(history: PurchaseHistory[]) {
+  const monthKeys = Array.from(new Set(history.map((entry) => monthKeyOf(entry.purchasedAt))));
+  return monthKeys
+    .sort((a, b) => b.localeCompare(a))
+    .map((value) => ({
+      value,
+      label: format(parseISO(`${value}-01`), 'yyyy年M月', { locale: ja }),
+    }));
+}
+
+function monthKeyOf(iso: string) {
+  return format(parseISO(iso), 'yyyy-MM');
 }
 
 const styles = StyleSheet.create({
@@ -104,6 +199,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
+  summaryCard: {
+    gap: 12,
+  },
+  monthTabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  monthTab: {
+    minWidth: 110,
+  },
   note: {
     color: colors.subText,
     fontSize: 12,
@@ -115,9 +221,21 @@ const styles = StyleSheet.create({
   entry: {
     gap: 6,
   },
+  entryHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
   date: {
     color: colors.subText,
     fontSize: 13,
+    flex: 1,
+  },
+  editButton: {
+    minHeight: 36,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
   name: {
     color: colors.text,
@@ -132,6 +250,16 @@ const styles = StyleSheet.create({
   detail: {
     color: colors.text,
     fontSize: 14,
+  },
+  editArea: {
+    gap: 10,
+  },
+  editActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editAction: {
+    flex: 1,
   },
   memo: {
     color: colors.subText,

@@ -98,6 +98,40 @@ Supabase/DBではなくローカルJSONを強制的に使う場合:
 npm run export:csv -- --local-json
 ```
 
+## 商品マスタをレビュー・修正する
+
+現在のProductMasterを確認するHTMLを出力できます。Supabase接続情報または `DATABASE_URL` がある場合は保存先DBから読み込み、未設定の場合はローカルの `data/generated/productMaster.generated.json` から読み込みます。
+
+```bash
+npm run review:products
+```
+
+出力先:
+
+```text
+services/product-importer/data/generated/productMaster.review.html
+```
+
+Supabase/DBではなくローカルJSONを強制的に使う場合:
+
+```bash
+npm run review:products -- --local-json
+```
+
+レビュー画面では、商品の採用/要修正/除外、修正メモ、購入URL、代表画像URLを編集できます。画像候補から「代表にする」を押すと、その画像URLが代表画像としてレビュー結果に保存されます。
+
+画面右上の「レビュー結果を書き出す」から `productMaster.review-decisions.json` を保存し、反映前にdry-runします。
+
+```bash
+npm run apply:review -- --file=/path/to/productMaster.review-decisions.json --dry-run
+```
+
+問題なければProductMasterへ反映します。Supabase接続情報が `.env` にある場合はSupabaseへ保存され、未設定の場合はローカルJSONへ保存されます。
+
+```bash
+npm run apply:review -- --file=/path/to/productMaster.review-decisions.json
+```
+
 ## 本番運用方針
 
 楽天APIはIP制限を解除できない前提で運用します。Supabase Edge Functionの送信元IPは固定IPとして扱いづらいため、本番アプリから楽天APIのリアルタイム検索は行いません。
@@ -121,6 +155,21 @@ Expoアプリ
 ## 購入リンク検索をSupabase Edge Functionで使う
 
 Expoアプリの「購入リンクを探す」は、APIキーをアプリ本体に入れず、Supabase Edge Function経由でYahooを検索します。楽天はIP制限のため、本番ではリアルタイム検索対象にせず、ProductMasterに事前登録された楽天URLを使います。
+
+Edge FunctionはSupabase DBにキャッシュを保存できます。以下のSQLをSupabaseで実行してください。
+
+```sql
+-- services/product-importer/sql/edge_function_cache.sql
+```
+
+キャッシュ期間:
+
+- 商品検索結果: 6時間
+- 価格: 3時間
+- アフィリエイトURL変換: 7日
+- ProductMaster検索: 1日
+
+楽天リアルタイム検索は本番では使わない方針ですが、将来固定IPの中継APIなどで再開できるように、楽天検索・楽天価格・楽天アフィリエイトURLも同じキャッシュ層を通します。
 
 Edge Functionに以下のSecretsを設定してください。
 

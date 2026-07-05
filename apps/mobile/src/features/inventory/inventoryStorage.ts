@@ -2,12 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 
 import { storageKeys } from '@/features/storageKeys';
+import { getActiveHouseholdSnapshot, updateActiveHouseholdSnapshot } from '@/features/sync/householdSyncService';
 import { nowIso } from '@/utils/date';
 
 import { calculateEstimatedEndDate, calculateRemainingDays, getInventoryCatIds } from './inventoryLogic';
 import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from './inventoryTypes';
 
 export async function getInventoryItems(): Promise<InventoryItem[]> {
+  const snapshot = await getActiveHouseholdSnapshot();
+  if (snapshot) return snapshot.inventoryItems;
+
   const raw = await AsyncStorage.getItem(storageKeys.inventoryItems);
   return raw ? (JSON.parse(raw) as InventoryItem[]) : [];
 }
@@ -18,13 +22,25 @@ export async function getInventoryItem(id: string): Promise<InventoryItem | unde
 }
 
 export async function saveInventoryItem(item: InventoryItem): Promise<void> {
-  const items = await getInventoryItems();
   const estimatedEndDate = item.estimatedEndDate ?? calculateEstimatedEndDate(item);
   const normalized = {
     ...item,
     estimatedEndDate,
     updatedAt: nowIso(),
   };
+
+  const snapshot = await updateActiveHouseholdSnapshot((current) => {
+    const nextItems = current.inventoryItems.some((currentItem) => currentItem.id === item.id)
+      ? current.inventoryItems.map((currentItem) => (currentItem.id === item.id ? normalized : currentItem))
+      : [normalized, ...current.inventoryItems];
+    return {
+      ...current,
+      inventoryItems: nextItems,
+    };
+  });
+  if (snapshot) return;
+
+  const items = await getInventoryItems();
   const next = items.some((current) => current.id === item.id)
     ? items.map((current) => (current.id === item.id ? normalized : current))
     : [normalized, ...items];
@@ -32,6 +48,13 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
+  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
+    ...current,
+    inventoryItems: current.inventoryItems.filter((item) => item.id !== id),
+    purchaseHistory: current.purchaseHistory.filter((entry) => entry.inventoryItemId !== id),
+  }));
+  if (snapshot) return;
+
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
   await AsyncStorage.setItem(
     storageKeys.inventoryItems,
@@ -44,19 +67,19 @@ export async function deleteInventoryItem(id: string): Promise<void> {
 }
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
+  const snapshot = await updateActiveHouseholdSnapshot((current) => {
+    const nextItems = removeCatFromInventoryItems(current.inventoryItems, catId);
+    const nextItemIds = new Set(nextItems.map((item) => item.id));
+    return {
+      ...current,
+      inventoryItems: nextItems,
+      purchaseHistory: current.purchaseHistory.filter((entry) => nextItemIds.has(entry.inventoryItemId)),
+    };
+  });
+  if (snapshot) return;
+
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
-  const nextItems = items
-    .map((item): InventoryItem | undefined => {
-      const catIds = getInventoryCatIds(item).filter((currentCatId) => currentCatId !== catId);
-      if (catIds.length === 0) return undefined;
-      return {
-        ...item,
-        catId: catIds[0],
-        sharedCatIds: catIds.length > 1 ? catIds.slice(1) : undefined,
-        updatedAt: nowIso(),
-      };
-    })
-    .filter((item): item is InventoryItem => Boolean(item));
+  const nextItems = removeCatFromInventoryItems(items, catId);
   const nextItemIds = new Set(nextItems.map((item) => item.id));
   await AsyncStorage.setItem(
     storageKeys.inventoryItems,
@@ -69,13 +92,35 @@ export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
 }
 
 export async function getPurchaseHistory(): Promise<PurchaseHistory[]> {
+  const snapshot = await getActiveHouseholdSnapshot();
+  if (snapshot) return snapshot.purchaseHistory;
+
   const raw = await AsyncStorage.getItem(storageKeys.purchaseHistory);
   return raw ? (JSON.parse(raw) as PurchaseHistory[]) : [];
 }
 
 export async function addPurchaseHistory(entry: PurchaseHistory): Promise<void> {
+  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
+    ...current,
+    purchaseHistory: [entry, ...current.purchaseHistory],
+  }));
+  if (snapshot) return;
+
   const history = await getPurchaseHistory();
   await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify([entry, ...history]));
+}
+
+export async function updatePurchaseHistoryPrice(id: string, price?: number): Promise<PurchaseHistory[]> {
+  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
+    ...current,
+    purchaseHistory: current.purchaseHistory.map((entry) => (entry.id === id ? { ...entry, price } : entry)),
+  }));
+  if (snapshot) return snapshot.purchaseHistory;
+
+  const history = await getPurchaseHistory();
+  const nextHistory = history.map((entry) => (entry.id === id ? { ...entry, price } : entry));
+  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
+  return nextHistory;
 }
 
 export async function replenishInventoryItem(
@@ -107,10 +152,32 @@ export async function replenishInventoryItem(
 }
 
 export async function clearInventoryData(): Promise<void> {
+  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
+    ...current,
+    inventoryItems: [],
+    purchaseHistory: [],
+  }));
+  if (snapshot) return;
+
   await Promise.all([
     AsyncStorage.removeItem(storageKeys.inventoryItems),
     AsyncStorage.removeItem(storageKeys.purchaseHistory),
   ]);
+}
+
+function removeCatFromInventoryItems(items: InventoryItem[], catId: string): InventoryItem[] {
+  return items
+    .map((item): InventoryItem | undefined => {
+      const catIds = getInventoryCatIds(item).filter((currentCatId) => currentCatId !== catId);
+      if (catIds.length === 0) return undefined;
+      return {
+        ...item,
+        catId: catIds[0],
+        sharedCatIds: catIds.length > 1 ? catIds.slice(1) : undefined,
+        updatedAt: nowIso(),
+      };
+    })
+    .filter((item): item is InventoryItem => Boolean(item));
 }
 
 function calculateReplenishedEstimatedEndDate(

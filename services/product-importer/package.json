@@ -14,7 +14,8 @@
     "export:mobile-seed": "tsx src/scripts/exportMobileSeed.ts",
     "export:csv": "tsx src/scripts/exportProductMasterCsv.ts",
     "quality:products": "tsx src/scripts/checkProductMasterQuality.ts",
-    "review:products": "tsx src/scripts/exportReviewPage.ts"
+    "review:products": "tsx src/scripts/exportReviewPage.ts",
+    "apply:review": "tsx src/scripts/applyProductMasterReview.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",

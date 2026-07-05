@@ -2,15 +2,30 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { config } from '../config.js';
+import { loadProductMasters } from '../repositories/productRepository.js';
 import { ProductMaster } from '../types.js';
 
 const reviewPagePath = path.join(path.dirname(config.outputJsonPath), 'productMaster.review.html');
 
 async function main() {
-  const products = JSON.parse(await readFile(config.outputJsonPath, 'utf8')) as ProductMaster[];
+  const options = parseOptions(process.argv.slice(2));
+  const products = options.localJson ? await loadFromLocalJson() : await loadProductMasters();
   await mkdir(path.dirname(reviewPagePath), { recursive: true });
   await writeFile(reviewPagePath, buildReviewPage(products), 'utf8');
-  console.log(`[review:products] exported ${products.length} products to ${reviewPagePath}`);
+  console.log(
+    `[review:products] exported ${products.length} products to ${reviewPagePath} source=${options.localJson ? 'local-json' : 'repository'}`,
+  );
+}
+
+function parseOptions(args: string[]): { localJson: boolean } {
+  return {
+    localJson: args.includes('--local-json'),
+  };
+}
+
+async function loadFromLocalJson(): Promise<ProductMaster[]> {
+  const products = JSON.parse(await readFile(config.outputJsonPath, 'utf8')) as ProductMaster[];
+  return products;
 }
 
 function buildReviewPage(products: ProductMaster[]): string {
@@ -123,8 +138,8 @@ function buildReviewPage(products: ProductMaster[]): string {
     }
     .image-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 12px;
     }
     .image-candidate {
       border: 1px solid var(--line);
@@ -135,19 +150,23 @@ function buildReviewPage(products: ProductMaster[]): string {
     .image-candidate img {
       display: block;
       width: 100%;
-      aspect-ratio: 1 / 1;
+      aspect-ratio: 4 / 3;
       object-fit: contain;
       background: white;
     }
     .image-candidate footer {
       display: grid;
-      gap: 4px;
-      padding: 6px;
+      gap: 6px;
+      padding: 8px;
     }
     .image-candidate button {
-      min-height: 30px;
-      padding: 4px 6px;
+      min-height: 34px;
+      padding: 6px 8px;
       font-size: 12px;
+    }
+    .image-candidate.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(47, 125, 104, 0.14);
     }
     .image-url {
       color: var(--muted);
@@ -166,6 +185,20 @@ function buildReviewPage(products: ProductMaster[]): string {
       display: grid;
       gap: 8px;
       align-content: start;
+    }
+    .edit-group {
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 6px;
+      padding-top: 8px;
+    }
+    .edit-group-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .edit-group input {
+      width: 100%;
     }
     textarea {
       min-height: 74px;
@@ -257,8 +290,22 @@ function buildReviewPage(products: ProductMaster[]): string {
       document.querySelectorAll('[data-note]').forEach((textarea) => {
         textarea.addEventListener('input', (event) => updateReview(event.target.dataset.id, { note: event.target.value }));
       });
+      document.querySelectorAll('[data-link-provider]').forEach((input) => {
+        input.addEventListener('input', (event) => {
+          updatePurchaseLink(event.target.dataset.id, event.target.dataset.linkProvider, event.target.value);
+        });
+      });
+      document.querySelectorAll('[data-image-url-input]').forEach((input) => {
+        input.addEventListener('input', (event) => updateReview(event.target.dataset.id, { imageUrl: event.target.value.trim() }));
+      });
       document.querySelectorAll('[data-copy-url]').forEach((button) => {
         button.addEventListener('click', () => copyImageUrl(button.dataset.copyUrl));
+      });
+      document.querySelectorAll('[data-primary-image]').forEach((button) => {
+        button.addEventListener('click', () => {
+          updateReview(button.dataset.id, { imageUrl: button.dataset.primaryImage });
+          render();
+        });
       });
     }
 
@@ -318,6 +365,7 @@ function buildReviewPage(products: ProductMaster[]): string {
 
     function renderProduct(product) {
       const review = state[product.id] || {};
+      const selectedImageUrl = review.imageUrl || product.imageUrl;
       const providers = Array.from(new Set((product.sources || []).map((source) => source.provider))).join(', ');
       const badges = [
         badge(labels[product.category] || product.category, product.category === 'other' ? 'bad' : ''),
@@ -333,7 +381,7 @@ function buildReviewPage(products: ProductMaster[]): string {
           '<h2 class="name">' + escapeHtml(product.name) + '</h2>' +
           '<div class="badges">' + badges + '</div>' +
           '<p class="meta">' + escapeHtml(product.id) + '</p>' +
-          renderImageReview(product) +
+          renderImageReview(product, selectedImageUrl) +
         '</div>' +
         '<div class="review-controls">' +
           '<select data-status data-id="' + escapeHtml(product.id) + '">' +
@@ -343,12 +391,14 @@ function buildReviewPage(products: ProductMaster[]): string {
             option('rejected', '除外', review.status) +
           '</select>' +
           '<textarea data-note data-id="' + escapeHtml(product.id) + '" placeholder="修正メモ">' + escapeHtml(review.note || '') + '</textarea>' +
+          renderPurchaseLinkEditor(product, review) +
+          renderImageUrlEditor(product, review) +
         '</div>' +
       '</article>';
     }
 
-    function renderImageReview(product) {
-      const imageUrls = uniqueUrls([product.imageUrl, ...(product.packageImageUrls || [])]);
+    function renderImageReview(product, selectedImageUrl) {
+      const imageUrls = uniqueUrls([selectedImageUrl, product.imageUrl, ...(product.packageImageUrls || [])]);
       if (!imageUrls.length) {
         return '<section class="image-review"><div class="image-review-title">画像候補</div><div class="image-empty">画像候補はありません</div></section>';
       }
@@ -359,19 +409,44 @@ function buildReviewPage(products: ProductMaster[]): string {
           (product.imageUrl ? badge('代表画像あり', 'good') : badge('代表画像なし', 'warn')) +
           (extraCount > 0 ? badge('ほか' + extraCount + '件', '') : '') +
         '</div>' +
-        '<div class="image-grid">' + visibleUrls.map((url) => renderImageCandidate(url, product.imageUrl === url)).join('') + '</div>' +
+        '<div class="image-grid">' + visibleUrls.map((url) => renderImageCandidate(product.id, url, selectedImageUrl === url)).join('') + '</div>' +
       '</section>';
     }
 
-    function renderImageCandidate(url, isPrimary) {
-      return '<figure class="image-candidate">' +
+    function renderImageCandidate(productId, url, isPrimary) {
+      return '<figure class="image-candidate ' + (isPrimary ? 'selected' : '') + '">' +
         '<img src="' + escapeAttribute(url) + '" loading="lazy" referrerpolicy="no-referrer" alt="商品画像候補" />' +
         '<footer>' +
           '<div class="badges">' + (isPrimary ? badge('代表', 'good') : badge('候補', '')) + '</div>' +
           '<div class="image-url" title="' + escapeAttribute(url) + '">' + escapeHtml(shortenUrl(url)) + '</div>' +
+          '<button type="button" data-primary-image="' + escapeAttribute(url) + '" data-id="' + escapeHtml(productId) + '">代表にする</button>' +
           '<button type="button" data-copy-url="' + escapeAttribute(url) + '">URLコピー</button>' +
         '</footer>' +
       '</figure>';
+    }
+
+    function renderPurchaseLinkEditor(product, review) {
+      const links = { ...(product.purchaseLinks || {}), ...(review.purchaseLinks || {}) };
+      return '<section class="edit-group">' +
+        '<div class="edit-group-title">購入URL</div>' +
+        linkInput(product.id, 'rakuten', '楽天', links.rakuten) +
+        linkInput(product.id, 'yahoo', 'Yahoo', links.yahoo) +
+        linkInput(product.id, 'amazon', 'Amazon', links.amazon) +
+        linkInput(product.id, 'official', '公式', links.official) +
+      '</section>';
+    }
+
+    function renderImageUrlEditor(product, review) {
+      return '<section class="edit-group">' +
+        '<div class="edit-group-title">代表画像URL</div>' +
+        '<input data-image-url-input data-id="' + escapeHtml(product.id) + '" placeholder="https://..." value="' + escapeAttribute(review.imageUrl || product.imageUrl || '') + '" />' +
+      '</section>';
+    }
+
+    function linkInput(productId, provider, label, value) {
+      return '<label>' + label +
+        '<input data-link-provider="' + provider + '" data-id="' + escapeHtml(productId) + '" placeholder="https://..." value="' + escapeAttribute(value || '') + '" />' +
+      '</label>';
     }
 
     function uniqueUrls(values) {
@@ -392,9 +467,26 @@ function buildReviewPage(products: ProductMaster[]): string {
 
     function updateReview(id, patch) {
       state[id] = { ...(state[id] || {}), ...patch };
-      if (!state[id].status && !state[id].note) delete state[id];
+      if (isEmptyReview(state[id])) delete state[id];
       localStorage.setItem(storageKey, JSON.stringify(state));
       renderSummary(filteredProducts());
+    }
+
+    function updatePurchaseLink(id, provider, value) {
+      const current = state[id] || {};
+      updateReview(id, {
+        purchaseLinks: {
+          ...(current.purchaseLinks || {}),
+          [provider]: value.trim(),
+        },
+      });
+    }
+
+    function isEmptyReview(review) {
+      return !review.status &&
+        !review.note &&
+        !Object.prototype.hasOwnProperty.call(review, 'imageUrl') &&
+        !Object.keys(review.purchaseLinks || {}).length;
     }
 
     function exportReview() {

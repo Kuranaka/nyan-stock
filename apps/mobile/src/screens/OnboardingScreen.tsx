@@ -1,14 +1,16 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/AppButton';
+import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 
 type Props = {
   onStart: () => void;
   onSkip: () => void;
+  onSignedIn: () => void;
 };
 
-export default function OnboardingScreen({ onStart, onSkip }: Props) {
+export default function OnboardingScreen({ onStart, onSkip, onSignedIn }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.mark}>🐱</Text>
@@ -19,6 +21,7 @@ export default function OnboardingScreen({ onStart, onSkip }: Props) {
         <Text style={styles.point}>・なくなる前に通知</Text>
         <Text style={styles.point}>・いつもの商品をすぐ再購入</Text>
       </View>
+      <SignInButtons onSignedIn={onSignedIn} />
       <AppButton title="はじめる" onPress={onStart} />
       <AppButton title="あとで設定する" variant="secondary" onPress={onSkip} />
     </View>

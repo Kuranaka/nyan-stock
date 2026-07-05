@@ -1,28 +1,51 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
+import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
+import { clearAuthSession, getAuthSession } from '@/features/auth/authStorage';
+import { AuthSession } from '@/features/auth/authTypes';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
+import {
+  createHouseholdSyncSpace,
+  isHouseholdSyncConfigured,
+  joinHouseholdSyncSpace,
+  pullCurrentHouseholdSnapshot,
+  pushCurrentHouseholdSnapshot,
+} from '@/features/sync/householdSyncService';
+import { getHouseholdSyncState } from '@/features/sync/householdSyncStorage';
+import { HouseholdSyncState } from '@/features/sync/householdSyncTypes';
+import { formatDisplayDate } from '@/utils/date';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [settings, setSettings] = useState<AppSettings | undefined>();
+  const [authSession, setAuthSession] = useState<AuthSession | undefined>();
+  const [syncState, setSyncState] = useState<HouseholdSyncState | undefined>();
+  const [joinCode, setJoinCode] = useState('');
+  const [syncBusy, setSyncBusy] = useState(false);
   const [hour, setHour] = useState('9');
   const [minute, setMinute] = useState('0');
 
   const load = useCallback(async () => {
-    const next = await getSettings();
+    const [next, nextAuthSession, nextSyncState] = await Promise.all([
+      getSettings(),
+      getAuthSession(),
+      getHouseholdSyncState(),
+    ]);
     setSettings(next);
+    setAuthSession(nextAuthSession);
+    setSyncState(nextSyncState);
     setHour(String(next.notificationHour));
     setMinute(String(next.notificationMinute));
   }, []);
@@ -82,8 +105,167 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const signOut = () => {
+    Alert.alert('ログアウトしますか？', '在庫データは端末内に残ります。', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: 'ログアウト',
+        style: 'destructive',
+        onPress: async () => {
+          await clearAuthSession();
+          setAuthSession(undefined);
+        },
+      },
+    ]);
+  };
+
+  const runSyncAction = async (
+    successTitle: string,
+    action: () => Promise<HouseholdSyncState>,
+    successMessage?: (state: HouseholdSyncState) => string,
+  ) => {
+    setSyncBusy(true);
+    try {
+      const nextState = await action();
+      setSyncState(nextState);
+      Alert.alert(successTitle, successMessage?.(nextState));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
+      Alert.alert('共有に失敗しました', message);
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
+  const createSharedSpace = () => {
+    void runSyncAction(
+      '共有コードを作成しました',
+      createHouseholdSyncSpace,
+      (state) => `このコードを共有したい相手に渡してください。\n${state.householdId}`,
+    );
+  };
+
+  const pushSharedData = () => {
+    void runSyncAction('共有データを更新しました', pushCurrentHouseholdSnapshot);
+  };
+
+  const pullSharedData = () => {
+    Alert.alert('共有データを取り込みますか？', 'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '取り込む',
+        onPress: () => {
+          void runSyncAction('共有データを取り込みました', pullCurrentHouseholdSnapshot);
+        },
+      },
+    ]);
+  };
+
+  const joinSharedSpace = () => {
+    Alert.alert('共有スペースに参加しますか？', 'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '参加する',
+        onPress: () => {
+          void runSyncAction('共有スペースに参加しました', () => joinHouseholdSyncSpace(joinCode), (state) => {
+            setJoinCode('');
+            return `共有コード: ${state.householdId}`;
+          });
+        },
+      },
+    ]);
+  };
+
+  const shareHouseholdCode = () => {
+    if (!syncState) return;
+    void Share.share({
+      message: `にゃんストックの共有コード: ${syncState.householdId}`,
+    });
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <AppCard style={styles.card}>
+        <Text style={styles.title}>アカウント</Text>
+        {authSession ? (
+          <>
+            <Text style={styles.note}>
+              {authProviderLabels[authSession.provider]}でログイン中
+              {authSession.name ? `：${authSession.name}` : ''}
+            </Text>
+            {authSession.email ? <Text style={styles.note}>{authSession.email}</Text> : null}
+            <AppButton title="ログアウト" variant="secondary" onPress={signOut} />
+          </>
+        ) : (
+          <>
+            <Text style={styles.note}>GoogleまたはAppleでログインできます。共有データは下の共有設定で管理します。</Text>
+            <SignInButtons onSignedIn={setAuthSession} />
+          </>
+        )}
+      </AppCard>
+
+      <AppCard style={styles.card}>
+        <Text style={styles.title}>家族・他アカウントと共有</Text>
+        <Text style={styles.note}>
+          共有コードで参加すると、猫プロフィール、在庫、購入履歴はSupabase側を保存先として参照・更新します。
+        </Text>
+        {!isHouseholdSyncConfigured() ? (
+          <Text style={styles.warningText}>Supabase URLとAnon Keyを設定すると共有を使えます。</Text>
+        ) : null}
+        {syncState ? (
+          <>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeLabel}>共有コード</Text>
+              <Text style={styles.codeText}>{syncState.householdId}</Text>
+              {syncState.lastPushedAt ? (
+                <Text style={styles.codeNote}>最終保存: {formatDisplayDate(syncState.lastPushedAt)}</Text>
+              ) : null}
+              {syncState.lastPulledAt ? (
+                <Text style={styles.codeNote}>最終取り込み: {formatDisplayDate(syncState.lastPulledAt)}</Text>
+              ) : null}
+            </View>
+            <AppButton
+              title="共有コードを送る"
+              variant="secondary"
+              disabled={syncBusy}
+              onPress={shareHouseholdCode}
+            />
+            <AppButton
+              title="今すぐSupabaseに保存"
+              disabled={syncBusy || !isHouseholdSyncConfigured()}
+              onPress={pushSharedData}
+            />
+            <AppButton
+              title="Supabaseから再読み込み"
+              variant="secondary"
+              disabled={syncBusy || !isHouseholdSyncConfigured()}
+              onPress={pullSharedData}
+            />
+          </>
+        ) : (
+          <>
+            <AppButton
+              title="共有コードを作成"
+              disabled={syncBusy || !isHouseholdSyncConfigured()}
+              onPress={createSharedSpace}
+            />
+            <AppTextInput
+              label="共有コード"
+              value={joinCode}
+              onChangeText={setJoinCode}
+              autoCapitalize="characters"
+              placeholder="NYAN-XXXX-XXXX"
+            />
+            <AppButton
+              title="共有スペースに参加"
+              variant="secondary"
+              disabled={syncBusy || !joinCode.trim() || !isHouseholdSyncConfigured()}
+              onPress={joinSharedSpace}
+            />
+          </>
+        )}
+      </AppCard>
+
       <AppCard style={styles.card}>
         <View style={styles.switchRow}>
           <View style={styles.switchText}>
@@ -134,7 +316,7 @@ export default function SettingsScreen() {
       <AppCard>
         <Text style={styles.title}>アプリ情報</Text>
         <Text style={styles.note}>にゃんストック 1.0.0</Text>
-        <Text style={styles.note}>初期版はログイン不要で、データは端末内に保存します。</Text>
+        <Text style={styles.note}>共有スペース参加後の在庫データはSupabase側に保存します。</Text>
       </AppCard>
     </ScrollView>
   );
@@ -168,6 +350,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     marginTop: 4,
+  },
+  warningText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  codeBox: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  codeLabel: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  codeText: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  codeNote: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 17,
   },
   todoRow: {
     alignItems: 'flex-start',
@@ -203,10 +414,17 @@ const styles = StyleSheet.create({
 });
 
 const todoItems = [
-  { label: 'ログイン、サーバー、クラウド同期', status: '初期版では未対応' },
+  { label: 'Google / Appleログイン', status: '任意ログインに対応済み', done: true },
+  { label: '共有コードによるクラウド共有', status: 'Supabase参照・保存に対応済み', done: true },
+  { label: 'リアルタイム同期、自動マージ', status: '初期版では未対応' },
   { label: 'EC API連携、商品検索', status: 'Supabase Edge Function経由の検索に対応済み', done: true },
   { label: 'バーコード、OCR', status: '初期版では未対応' },
   { label: '多頭飼いUIの完全対応', status: 'プロフィール管理と在庫の猫別表示を追加済み', done: true },
   { label: '正式なアプリアイコン/スプラッシュ画像', status: 'Expo設定に追加済み', done: true },
   { label: 'seedデータ投入UI', status: '設定画面に追加済み', done: true },
 ];
+
+const authProviderLabels = {
+  google: 'Google',
+  apple: 'Apple',
+} satisfies Record<AuthSession['provider'], string>;

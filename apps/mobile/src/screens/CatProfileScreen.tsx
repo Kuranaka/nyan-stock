@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -10,6 +10,7 @@ import { colors } from '@/constants/colors';
 import { deleteCat, getCat, getCats, saveCat } from '@/features/cats/catStorage';
 import { Cat, CatGender } from '@/features/cats/catTypes';
 import { deleteInventoryItemsForCat, getInventoryItems } from '@/features/inventory/inventoryStorage';
+import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { formatAgeFromBirthday, isFutureIsoDate, nowIso } from '@/utils/date';
@@ -26,33 +27,42 @@ export default function CatProfileScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [cats, setCats] = useState<Cat[]>([]);
   const [current, setCurrent] = useState<Cat | undefined>();
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [draftCatId, setDraftCatId] = useState(() => createId('cat'));
   const [name, setName] = useState('');
   const [birthday, setBirthday] = useState('');
   const [weight, setWeight] = useState('');
   const [gender, setGender] = useState<CatGender>('unknown');
+  const [iconUrl, setIconUrl] = useState<string | undefined>();
+  const [iconUploading, setIconUploading] = useState(false);
   const [memo, setMemo] = useState('');
 
   const resetForm = useCallback(() => {
     setCurrent(undefined);
+    setDraftCatId(createId('cat'));
     setName('');
     setBirthday('');
     setWeight('');
     setGender('unknown');
+    setIconUrl(undefined);
     setMemo('');
   }, []);
 
   const fillForm = useCallback((cat: Cat) => {
+    setIsCreatingNew(false);
     setCurrent(cat);
     setName(cat.name);
     setBirthday(cat.birthday ?? '');
     setWeight(cat.weight?.toString() ?? '');
     setGender(cat.gender);
+    setIconUrl(cat.iconUrl);
     setMemo(cat.memo ?? '');
   }, []);
 
   const load = useCallback(async () => {
     const nextCats = await getCats();
     setCats(nextCats);
+    if (isCreatingNew) return;
     if (id) {
       const cat = await getCat(id);
       if (cat) {
@@ -68,7 +78,7 @@ export default function CatProfileScreen() {
       return;
     }
     resetForm();
-  }, [current, fillForm, id, resetForm]);
+  }, [current, fillForm, id, isCreatingNew, resetForm]);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,10 +96,11 @@ export default function CatProfileScreen() {
       return;
     }
     const now = nowIso();
-    const catId = current?.id ?? createId('cat');
+    const catId = current?.id ?? draftCatId;
     await saveCat({
       id: catId,
       name: name.trim(),
+      iconUrl,
       birthday: birthday.trim() || undefined,
       weight: parseOptionalNumber(weight),
       gender,
@@ -97,13 +108,38 @@ export default function CatProfileScreen() {
       createdAt: current?.createdAt ?? now,
       updatedAt: now,
     });
+    await saveIconReference('cat', catId, iconUrl);
     await updateSettings({ selectedCatId: catId });
-    await load();
+    const nextCats = await getCats();
+    const savedCat = await getCat(catId);
+    setCats(nextCats);
+    if (savedCat) fillForm(savedCat);
     Alert.alert('保存しました', `${name.trim()}のプロフィールを保存しました。`);
   };
 
   const startNew = () => {
+    setIsCreatingNew(true);
     resetForm();
+  };
+
+  const selectIcon = async () => {
+    const catId = current?.id ?? draftCatId;
+    if (!hasIconUploadStorage()) {
+      Alert.alert('保存先が未設定です', 'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。');
+      return;
+    }
+
+    try {
+      setIconUploading(true);
+      const result = await pickAndUploadIcon({ kind: 'cats', ownerId: catId });
+      if (result.status === 'uploaded') {
+        setIconUrl(result.url);
+      }
+    } catch (error) {
+      Alert.alert('アイコンを保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setIconUploading(false);
+    }
   };
 
   const remove = () => {
@@ -120,6 +156,7 @@ export default function CatProfileScreen() {
             const deletedCatId = current.id;
             await deleteInventoryItemsForCat(deletedCatId);
             await deleteCat(deletedCatId);
+            await clearIconReference('cat', deletedCatId);
             const [nextCats, items, settings] = await Promise.all([getCats(), getInventoryItems(), getSettings()]);
             const nextSelectedCatId =
               settings.selectedCatId === deletedCatId ? nextCats[0]?.id : settings.selectedCatId;
@@ -160,6 +197,24 @@ export default function CatProfileScreen() {
       ) : null}
 
       <Text style={styles.sectionTitle}>{current ? 'プロフィール編集' : 'プロフィール追加'}</Text>
+      <View style={styles.iconRow}>
+        {iconUrl ? (
+          <Image source={{ uri: iconUrl }} style={styles.catIcon} resizeMode="cover" />
+        ) : (
+          <View style={styles.catIconPlaceholder}>
+            <Text style={styles.catIconPlaceholderText}>猫</Text>
+          </View>
+        )}
+        <View style={styles.iconActions}>
+          <AppButton
+            title={iconUploading ? 'アップロード中...' : iconUrl ? '別のアイコンに変更' : 'アイコンを選ぶ'}
+            variant="secondary"
+            disabled={iconUploading}
+            onPress={() => void selectIcon()}
+          />
+          {iconUrl ? <AppButton title="削除" variant="ghost" onPress={() => setIconUrl(undefined)} /> : null}
+        </View>
+      </View>
       <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" />
       <DatePickerField
         label="誕生日"
@@ -200,8 +255,14 @@ export default function CatProfileScreen() {
         style={styles.memo}
       />
       <AppButton title="保存する" onPress={() => void save()} />
-      {current ? <AppButton title="この猫を削除" variant="danger" onPress={remove} /> : null}
       <AppButton title="閉じる" variant="secondary" onPress={() => router.back()} />
+      {current ? (
+        <AppCard style={styles.dangerZone}>
+          <Text style={styles.dangerZoneTitle}>削除</Text>
+          <Text style={styles.dangerZoneText}>この猫だけに紐づく在庫と購入履歴を削除します。</Text>
+          <AppButton title="この猫を削除" variant="danger" onPress={remove} />
+        </AppCard>
+      ) : null}
     </ScrollView>
   );
 }
@@ -214,6 +275,21 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: 12,
+  },
+  dangerZone: {
+    borderColor: colors.danger,
+    gap: 10,
+    marginTop: 12,
+  },
+  dangerZoneTitle: {
+    color: colors.danger,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dangerZoneText: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
   },
   lead: {
     color: colors.subText,
@@ -232,6 +308,38 @@ const styles = StyleSheet.create({
   },
   catButton: {
     minWidth: 96,
+  },
+  iconRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+  },
+  catIcon: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 36,
+    borderWidth: 1,
+    height: 72,
+    width: 72,
+  },
+  catIconPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.border,
+    borderRadius: 36,
+    borderWidth: 1,
+    height: 72,
+    justifyContent: 'center',
+    width: 72,
+  },
+  catIconPlaceholderText: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  iconActions: {
+    flex: 1,
+    gap: 8,
   },
   label: {
     color: colors.text,

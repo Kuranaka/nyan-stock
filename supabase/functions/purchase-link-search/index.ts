@@ -21,6 +21,24 @@ type AffiliateUrlResult = {
   provider: string;
 };
 
+type ProductMaster = {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+};
+
+type CacheEntry<T> = {
+  result: {
+    value: T | null;
+  };
+  expires_at: string;
+};
+
+type CacheLookup<T> = {
+  hit: boolean;
+  value?: T;
+};
+
 type RakutenItem = {
   itemCode?: string;
   itemName?: string;
@@ -69,6 +87,12 @@ const corsHeaders = {
 
 const rakutenEndpoint = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701';
 const yahooEndpoint = 'https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch';
+const cacheTableName = Deno.env.get('SUPABASE_EDGE_CACHE_TABLE') ?? 'edge_function_cache';
+const productMasterTableName = Deno.env.get('SUPABASE_PRODUCT_MASTER_TABLE') ?? 'product_masters';
+const searchResultCacheTtlSeconds = 6 * 60 * 60;
+const priceCacheTtlSeconds = 3 * 60 * 60;
+const affiliateCacheTtlSeconds = 7 * 24 * 60 * 60;
+const productMasterSearchCacheTtlSeconds = 24 * 60 * 60;
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -85,15 +109,35 @@ Deno.serve(async (request) => {
   const purchaseUrl = url.searchParams.get('url')?.trim() ?? '';
   const provider = url.searchParams.get('provider') ?? 'all';
   const mode = url.searchParams.get('mode') ?? 'search';
+  if (mode === 'product_master_search') {
+    const products = await withCache(
+      cacheKey('product_master_search', productMasterTableName),
+      productMasterSearchCacheTtlSeconds,
+      () => loadProductMasters(),
+      'product_master_search',
+    );
+    return json({ items: products });
+  }
+
   if (mode === 'affiliate') {
     if (!purchaseUrl) {
       return json({ error: 'missing_url', message: 'url is required.' }, 400);
     }
-    const affiliateUrl = await buildAffiliateUrl(purchaseUrl, provider);
+    const affiliateUrl = await withCache(
+      cacheKey('affiliate', provider, purchaseUrl),
+      affiliateCacheTtlSeconds,
+      () => buildAffiliateUrl(purchaseUrl, provider),
+      'affiliate',
+    );
     return json(affiliateUrl);
   }
   if (purchaseUrl) {
-    const price = await findCurrentPrice(purchaseUrl, provider);
+    const price = await withCache(
+      cacheKey('price', provider, purchaseUrl),
+      priceCacheTtlSeconds,
+      () => findCurrentPrice(purchaseUrl, provider),
+      'price',
+    );
     return json({ item: price });
   }
   if (!keyword && !janCode) {
@@ -107,20 +151,119 @@ Deno.serve(async (request) => {
   }
 
   if (janCode) {
-    const yahoo = await searchYahooByJanCode(janCode);
+    const yahoo = await withCache(
+      cacheKey('product_search', 'jan', provider, janCode),
+      searchResultCacheTtlSeconds,
+      () => searchYahooByJanCode(janCode),
+      'product_search',
+    );
     return json({
       items: yahoo.slice(0, 20),
     });
   }
 
-  const [rakuten, yahoo] = await Promise.all([
-    provider === 'all' || provider === 'rakuten' ? searchRakuten(keyword) : [],
-    provider === 'all' || provider === 'yahoo' ? searchYahoo(keyword) : [],
-  ]);
-  return json({
-    items: [...rakuten, ...yahoo].slice(0, 20),
-  });
+  const items = await withCache(
+    cacheKey('product_search', 'keyword', provider, keyword),
+    searchResultCacheTtlSeconds,
+    async () => {
+      const [rakuten, yahoo] = await Promise.all([
+        provider === 'all' || provider === 'rakuten' ? searchRakuten(keyword) : [],
+        provider === 'all' || provider === 'yahoo' ? searchYahoo(keyword) : [],
+      ]);
+      return [...rakuten, ...yahoo].slice(0, 20);
+    },
+    'product_search',
+  );
+  return json({ items });
 });
+
+async function withCache<T>(
+  key: string,
+  ttlSeconds: number,
+  loader: () => Promise<T>,
+  cacheType: string,
+): Promise<T> {
+  const cached = await readCache<T>(key);
+  if (cached.hit) return cached.value as T;
+
+  const result = await loader();
+  await writeCache(key, cacheType, result, ttlSeconds);
+  return result;
+}
+
+async function readCache<T>(key: string): Promise<CacheLookup<T>> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) return { hit: false };
+
+  try {
+    const endpoint = `${supabaseUrl}/rest/v1/${encodeURIComponent(
+      cacheTableName,
+    )}?cache_key=eq.${encodeURIComponent(key)}&select=result,expires_at&limit=1`;
+    const response = await fetch(endpoint, {
+      headers: supabaseHeaders(serviceRoleKey),
+    });
+    if (!response.ok) {
+      console.warn(`[purchase-link-search] cache read failed ${response.status}: ${await response.text()}`);
+      return { hit: false };
+    }
+    const rows = (await response.json()) as Array<CacheEntry<T>>;
+    const row = rows[0];
+    if (!row || Date.parse(row.expires_at) <= Date.now()) return { hit: false };
+    return {
+      hit: true,
+      value: row.result.value ?? undefined,
+    };
+  } catch (error) {
+    console.warn('[purchase-link-search] cache read failed:', error);
+    return { hit: false };
+  }
+}
+
+async function writeCache<T>(key: string, cacheType: string, result: T, ttlSeconds: number): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) return;
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/${encodeURIComponent(cacheTableName)}?on_conflict=cache_key`,
+      {
+        method: 'POST',
+        headers: {
+          ...supabaseHeaders(serviceRoleKey),
+          Prefer: 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({
+          cache_key: key,
+          cache_type: cacheType,
+          result: {
+            value: result ?? null,
+          },
+          expires_at: new Date(Date.now() + ttlSeconds * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+      },
+    );
+    if (!response.ok) {
+      console.warn(`[purchase-link-search] cache write failed ${response.status}: ${await response.text()}`);
+    }
+  } catch (error) {
+    console.warn('[purchase-link-search] cache write failed:', error);
+  }
+}
+
+function supabaseHeaders(serviceRoleKey: string): Record<string, string> {
+  return {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+function cacheKey(...parts: string[]): string {
+  return parts.map((part) => encodeURIComponent(part.trim().normalize('NFKC').toLowerCase())).join(':');
+}
 
 async function buildAffiliateUrl(purchaseUrl: string, provider: string): Promise<AffiliateUrlResult> {
   if (provider === 'rakuten' || (provider === 'all' && purchaseUrl.includes('rakuten.co.jp'))) {
@@ -170,6 +313,35 @@ async function findCurrentPrice(
     return findYahooCurrentPrice(purchaseUrl);
   }
   return undefined;
+}
+
+async function loadProductMasters(): Promise<ProductMaster[]> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[purchase-link-search] Missing Supabase secret(s): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+    return [];
+  }
+
+  try {
+    const endpoint = `${supabaseUrl}/rest/v1/${encodeURIComponent(
+      productMasterTableName,
+    )}?select=data&limit=1000&order=updated_at.desc`;
+    const response = await fetch(endpoint, {
+      headers: supabaseHeaders(serviceRoleKey),
+    });
+    if (!response.ok) {
+      console.warn(`[purchase-link-search] ProductMaster load failed ${response.status}: ${await response.text()}`);
+      return [];
+    }
+    const rows = (await response.json()) as Array<{ data?: ProductMaster }>;
+    return rows
+      .map((row) => row.data)
+      .filter((product): product is ProductMaster => Boolean(product?.id && product.name));
+  } catch (error) {
+    console.warn('[purchase-link-search] ProductMaster load failed:', error);
+    return [];
+  }
 }
 
 async function searchRakuten(keyword: string): Promise<PurchaseLinkSearchResult[]> {

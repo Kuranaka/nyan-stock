@@ -222,6 +222,7 @@ Before App Store / Google Play release, prepare:
 - Final privacy policy.
 - Final terms of service.
 - Final affiliate disclosure wording.
+- Final ad integration review, including ad SDK choice, ad unit IDs, test ads, privacy disclosures, and store policy compliance.
 - Notification permission explanation review.
 - Data safety declarations.
 - Store screenshots.

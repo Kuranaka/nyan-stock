@@ -14,6 +14,11 @@ type SupabaseProductMasterRow = {
   data?: ProductMaster;
 };
 
+type ProductMasterSearchResponse = {
+  items?: ProductMaster[];
+  error?: string;
+};
+
 const productCategorySortOrder: ProductCategory[] = [
   'dry_food',
   'wet_food',
@@ -29,6 +34,7 @@ const productCategorySortOrder: ProductCategory[] = [
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseProductMasterTable = process.env.EXPO_PUBLIC_SUPABASE_PRODUCT_MASTER_TABLE ?? 'product_masters';
+const purchaseLinkSearchFunctionUrl = process.env.EXPO_PUBLIC_PURCHASE_LINK_SEARCH_FUNCTION_URL;
 
 let cachedRemoteProductMasters: ProductMaster[] | undefined;
 
@@ -103,7 +109,15 @@ async function getProductMastersAsync(): Promise<ProductMaster[]> {
 
 async function loadSupabaseProductMasters(): Promise<ProductMaster[]> {
   if (cachedRemoteProductMasters) return cachedRemoteProductMasters;
-  if (!supabaseUrl || !supabaseAnonKey) return [];
+  if (!supabaseAnonKey) return [];
+
+  const edgeFunctionProducts = await loadProductMastersFromEdgeFunction();
+  if (edgeFunctionProducts.length > 0) {
+    cachedRemoteProductMasters = edgeFunctionProducts;
+    return cachedRemoteProductMasters;
+  }
+
+  if (!supabaseUrl) return [];
 
   const baseUrl = supabaseUrl.replace(/\/+$/, '');
   const table = encodeURIComponent(supabaseProductMasterTable);
@@ -129,6 +143,33 @@ async function loadSupabaseProductMasters(): Promise<ProductMaster[]> {
     console.warn('[productMaster] Supabase load failed. Falling back to local seed.', error);
     return [];
   }
+}
+
+async function loadProductMastersFromEdgeFunction(): Promise<ProductMaster[]> {
+  const endpoint = getPurchaseLinkSearchEndpoint();
+  if (!endpoint || !supabaseAnonKey) return [];
+
+  try {
+    const response = await fetch(`${endpoint}?mode=product_master_search`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+    });
+    const body = (await response.json()) as ProductMasterSearchResponse;
+    if (!response.ok || body.error) {
+      return [];
+    }
+    return (body.items ?? []).filter((product): product is ProductMaster => Boolean(product?.id && product.name));
+  } catch {
+    return [];
+  }
+}
+
+function getPurchaseLinkSearchEndpoint(): string | undefined {
+  if (purchaseLinkSearchFunctionUrl) return purchaseLinkSearchFunctionUrl.replace(/\/+$/, '');
+  if (!supabaseUrl) return undefined;
+  return `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/purchase-link-search`;
 }
 
 function searchProductMasters(

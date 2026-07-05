@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -19,6 +19,7 @@ import {
   getInventoryStatus,
 } from '@/features/inventory/inventoryLogic';
 import {
+  addPurchaseHistory,
   deleteInventoryItem,
   getInventoryItem,
   getInventoryItems,
@@ -27,20 +28,29 @@ import {
 } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { getPurchasePriceComparison, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
+import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings } from '@/features/settings/settingsStorage';
 import { formatDisplayDate, nowIso, todayIso } from '@/utils/date';
-import { createId, parseOptionalNumber } from '@/utils/validation';
+import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, action } = useLocalSearchParams<{ id: string; action?: string }>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const replenishCardYRef = useRef(0);
+  const purchaseCardYRef = useRef(0);
+  const historyCardYRef = useRef(0);
   const [item, setItem] = useState<InventoryItem | undefined>();
   const [cats, setCats] = useState<Cat[]>([]);
   const [showReplenish, setShowReplenish] = useState(false);
+  const [showHistoryAdd, setShowHistoryAdd] = useState(false);
   const [replenishDate, setReplenishDate] = useState(todayIso());
   const [price, setPrice] = useState('');
   const [memo, setMemo] = useState('');
+  const [historyDate, setHistoryDate] = useState(todayIso());
+  const [historyPrice, setHistoryPrice] = useState('');
+  const [historyMemo, setHistoryMemo] = useState('');
   const [showStockEdit, setShowStockEdit] = useState(false);
   const [editPurchaseDate, setEditPurchaseDate] = useState(todayIso());
   const [editPrice, setEditPrice] = useState('');
@@ -48,6 +58,12 @@ export default function InventoryDetailScreen() {
   const [editDailyUsage, setEditDailyUsage] = useState('');
   const [editLastingDays, setEditLastingDays] = useState('');
   const [editMemo, setEditMemo] = useState('');
+  const [imageUploading, setImageUploading] = useState(false);
+  const [showPurchaseLinkEdit, setShowPurchaseLinkEdit] = useState(false);
+  const [editAmazonUrl, setEditAmazonUrl] = useState('');
+  const [editRakutenUrl, setEditRakutenUrl] = useState('');
+  const [editYahooUrl, setEditYahooUrl] = useState('');
+  const [editOtherUrl, setEditOtherUrl] = useState('');
 
   const resetStockEditFields = (nextItem: InventoryItem) => {
     setEditPurchaseDate(nextItem.purchaseDate);
@@ -58,6 +74,13 @@ export default function InventoryDetailScreen() {
     setEditMemo(nextItem.memo ?? '');
   };
 
+  const resetPurchaseLinkFields = (nextItem: InventoryItem) => {
+    setEditAmazonUrl(nextItem.purchaseLinks.amazon ?? '');
+    setEditRakutenUrl(nextItem.purchaseLinks.rakuten ?? '');
+    setEditYahooUrl(nextItem.purchaseLinks.yahoo ?? '');
+    setEditOtherUrl(nextItem.purchaseLinks.other ?? '');
+  };
+
   const load = useCallback(async () => {
     if (!id) return;
     const [next, nextCats] = await Promise.all([getInventoryItem(id), getCats()]);
@@ -65,14 +88,30 @@ export default function InventoryDetailScreen() {
     setCats(nextCats);
     if (next) {
       resetStockEditFields(next);
+      resetPurchaseLinkFields(next);
+      if (action === 'replenish') {
+        setReplenishDate(todayIso());
+        setPrice(next.price?.toString() ?? '');
+        setMemo('');
+        setShowReplenish(true);
+      }
     }
-  }, [id]);
+  }, [action, id]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
+
+  useEffect(() => {
+    if (!showReplenish && action !== 'purchase') return;
+    const timeout = setTimeout(() => {
+      const targetY = action === 'purchase' ? purchaseCardYRef.current : replenishCardYRef.current;
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 12), animated: true });
+    }, 120);
+    return () => clearTimeout(timeout);
+  }, [action, showReplenish]);
 
   if (!item) {
     return (
@@ -106,6 +145,31 @@ export default function InventoryDetailScreen() {
     setShowStockEdit(true);
   };
 
+  const selectProductIcon = async () => {
+    if (!hasIconUploadStorage()) {
+      Alert.alert('保存先が未設定です', 'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。');
+      return;
+    }
+
+    try {
+      setImageUploading(true);
+      const result = await pickAndUploadIcon({ kind: 'products', ownerId: item.id });
+      if (result.status !== 'uploaded') return;
+      const nextItem: InventoryItem = {
+        ...item,
+        imageUrl: result.url,
+        updatedAt: nowIso(),
+      };
+      await saveInventoryItem(nextItem);
+      await saveIconReference('inventory_item', item.id, result.url);
+      setItem(nextItem);
+    } catch (error) {
+      Alert.alert('アイコンを保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
   const remove = () => {
     Alert.alert('削除しますか？', `${item.name}と関連する購入履歴を削除します。`, [
       { text: 'キャンセル', style: 'cancel' },
@@ -114,6 +178,7 @@ export default function InventoryDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           await deleteInventoryItem(item.id);
+          await clearIconReference('inventory_item', item.id);
           const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
           await scheduleInventoryNotifications(items, settings);
           router.back();
@@ -133,6 +198,22 @@ export default function InventoryDetailScreen() {
     setShowReplenish(false);
     setPrice('');
     setMemo('');
+  };
+
+  const openHistoryAdd = () => {
+    setHistoryDate(todayIso());
+    setHistoryPrice(item.price?.toString() ?? '');
+    setHistoryMemo('');
+    setShowHistoryAdd(true);
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, historyCardYRef.current - 12), animated: true });
+    }, 120);
+  };
+
+  const closeHistoryAdd = () => {
+    setShowHistoryAdd(false);
+    setHistoryPrice('');
+    setHistoryMemo('');
   };
 
   const submitReplenish = () => {
@@ -216,6 +297,34 @@ export default function InventoryDetailScreen() {
     resetStockEditFields(nextItem);
   };
 
+  const submitPastPurchaseHistory = () => {
+    const priceNumber = parseOptionalNumber(historyPrice);
+    if (historyPrice.trim() && (priceNumber === undefined || priceNumber < 0)) {
+      Alert.alert('入力を確認してください', '価格は0以上の数字で入力してください。');
+      return;
+    }
+    Alert.alert('購入履歴を追加しますか？', `${formatDisplayDate(historyDate)}の購入として記録します。`, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '追加する', onPress: () => void savePastPurchaseHistory(priceNumber) },
+    ]);
+  };
+
+  const savePastPurchaseHistory = async (priceNumber: number | undefined) => {
+    const history: PurchaseHistory = {
+      id: createId('history'),
+      inventoryItemId: item.id,
+      purchasedAt: historyDate,
+      amount: item.amount,
+      unit: item.unit,
+      price: priceNumber,
+      memo: historyMemo.trim() || undefined,
+      createdAt: nowIso(),
+    };
+    await addPurchaseHistory(history);
+    closeHistoryAdd();
+    Alert.alert('追加しました', '購入履歴に追加しました。');
+  };
+
   const saveStockEdit = async () => {
     const priceNumber = parseOptionalNumber(editPrice);
     const amountNumber = parseOptionalNumber(editAmount);
@@ -263,6 +372,33 @@ export default function InventoryDetailScreen() {
       resetStockEditFields(savedItem);
     }
     setShowStockEdit(false);
+  };
+
+  const openPurchaseLinkEdit = () => {
+    resetPurchaseLinkFields(item);
+    setShowPurchaseLinkEdit(true);
+  };
+
+  const savePurchaseLinks = async () => {
+    const urls = [editAmazonUrl, editRakutenUrl, editYahooUrl, editOtherUrl];
+    if (urls.some((url) => !isValidOptionalUrl(url.trim() || undefined))) {
+      Alert.alert('入力を確認してください', 'URLは http:// または https:// で始めてください。');
+      return;
+    }
+    const nextItem: InventoryItem = {
+      ...item,
+      purchaseLinks: {
+        amazon: editAmazonUrl.trim() || undefined,
+        rakuten: editRakutenUrl.trim() || undefined,
+        yahoo: editYahooUrl.trim() || undefined,
+        other: editOtherUrl.trim() || undefined,
+      },
+      updatedAt: nowIso(),
+    };
+    await saveInventoryItem(nextItem);
+    setItem(nextItem);
+    resetPurchaseLinkFields(nextItem);
+    setShowPurchaseLinkEdit(false);
   };
 
   const switchToLastingDays = () => {
@@ -321,12 +457,24 @@ export default function InventoryDetailScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
       <AppCard style={styles.card}>
         <View style={styles.header}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="contain" />
-          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            disabled={imageUploading}
+            onPress={() => void selectProductIcon()}
+            style={({ pressed }) => [styles.productImageButton, pressed && styles.productImagePressed]}
+          >
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.productImagePlaceholder}>
+                <Text style={styles.productImagePlaceholderText}>画像</Text>
+              </View>
+            )}
+            <Text style={styles.productImageEditText}>{imageUploading ? '保存中' : '変更'}</Text>
+          </Pressable>
           <View style={styles.titleWrap}>
             <Text style={styles.title}>{item.name}</Text>
             <Text style={styles.sub}>{catNames ? `${catNames} ・ ${categoryLabels[item.category]}` : categoryLabels[item.category]}</Text>
@@ -435,63 +583,143 @@ export default function InventoryDetailScreen() {
         )}
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <Text style={styles.sectionTitle}>購入する</Text>
-        <Text style={styles.affiliate}>リンクにはアフィリエイトが含まれる場合があります</Text>
-        <View style={styles.actionGrid}>
-          <PurchaseButton
-            label="Amazon"
-            configured={Boolean(item.purchaseLinks.amazon)}
-            primary
-            onPress={() => void buy('amazon')}
-          />
-          <PurchaseButton
-            label="楽天"
-            configured={Boolean(item.purchaseLinks.rakuten)}
-            onPress={() => void buy('rakuten')}
-          />
-          <PurchaseButton
-            label="Yahoo"
-            configured={Boolean(item.purchaseLinks.yahoo)}
-            onPress={() => void buy('yahoo')}
-          />
-          <PurchaseButton
-            label="その他"
-            configured={Boolean(item.purchaseLinks.other)}
-            onPress={() => void buy('other')}
-          />
-        </View>
-      </AppCard>
+      <View
+        onLayout={(event) => {
+          purchaseCardYRef.current = event.nativeEvent.layout.y;
+        }}
+      >
+        <AppCard style={styles.card}>
+          <View style={styles.infoHeader}>
+            <Text style={styles.sectionTitle}>購入する</Text>
+            <AppButton
+              title={showPurchaseLinkEdit ? 'キャンセル' : 'URL設定'}
+              variant="secondary"
+              onPress={
+                showPurchaseLinkEdit
+                  ? () => {
+                      resetPurchaseLinkFields(item);
+                      setShowPurchaseLinkEdit(false);
+                    }
+                  : openPurchaseLinkEdit
+              }
+              style={styles.editButton}
+            />
+          </View>
+          <Text style={styles.affiliate}>リンクにはアフィリエイトが含まれる場合があります</Text>
+          {showPurchaseLinkEdit ? (
+            <>
+              <AppTextInput
+                label="Amazon URL"
+                value={editAmazonUrl}
+                onChangeText={setEditAmazonUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              <AppTextInput
+                label="楽天 URL"
+                value={editRakutenUrl}
+                onChangeText={setEditRakutenUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              <AppTextInput
+                label="Yahoo URL"
+                value={editYahooUrl}
+                onChangeText={setEditYahooUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              <AppTextInput
+                label="その他URL"
+                value={editOtherUrl}
+                onChangeText={setEditOtherUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              <AppButton title="URLを保存" onPress={() => void savePurchaseLinks()} />
+            </>
+          ) : (
+            <View style={styles.actionGrid}>
+              <PurchaseButton
+                label="Amazon"
+                configured={Boolean(item.purchaseLinks.amazon)}
+                primary
+                onPress={() => void buy('amazon')}
+              />
+              <PurchaseButton
+                label="楽天"
+                configured={Boolean(item.purchaseLinks.rakuten)}
+                onPress={() => void buy('rakuten')}
+              />
+              <PurchaseButton
+                label="Yahoo"
+                configured={Boolean(item.purchaseLinks.yahoo)}
+                onPress={() => void buy('yahoo')}
+              />
+              <PurchaseButton
+                label="その他"
+                configured={Boolean(item.purchaseLinks.other)}
+                onPress={() => void buy('other')}
+              />
+            </View>
+          )}
+        </AppCard>
+      </View>
 
       {showReplenish ? (
-        <AppCard style={styles.card}>
-          <Text style={styles.sectionTitle}>補充内容</Text>
-          <DatePickerField
-            label="補充日"
-            value={replenishDate}
-            onChange={setReplenishDate}
-            requirement="required"
-          />
-          {!item.estimationMode || item.estimationMode === 'usage' ? (
-            <Text style={styles.affiliate}>
-              内容量は設定済みの{item.amount}
-              {unitLabels[item.unit]}で記録します。
-            </Text>
-          ) : null}
-          <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
-          <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
-          <AppButton title="補充を保存" onPress={submitReplenish} />
-          <AppButton title="閉じる" variant="secondary" onPress={closeReplenish} />
-        </AppCard>
+        <View
+          onLayout={(event) => {
+            replenishCardYRef.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <AppCard style={styles.card}>
+            <Text style={styles.sectionTitle}>補充内容</Text>
+            <DatePickerField
+              label="補充日"
+              value={replenishDate}
+              onChange={setReplenishDate}
+              requirement="required"
+            />
+            <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
+            <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
+            <AppButton title="補充を保存" onPress={submitReplenish} />
+            <AppButton title="閉じる" variant="secondary" onPress={closeReplenish} />
+          </AppCard>
+        </View>
       ) : null}
 
-      <AppButton title="在庫を補充した" onPress={openReplenish} />
-      <AppButton
-        title="編集"
-        variant="secondary"
-        onPress={() => router.push({ pathname: '/inventory-form', params: { id: item.id } })}
-      />
-      <AppButton title="削除" variant="danger" onPress={remove} />
+      {showHistoryAdd ? (
+        <View
+          onLayout={(event) => {
+            historyCardYRef.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <AppCard style={styles.card}>
+            <Text style={styles.sectionTitle}>過去の購入履歴</Text>
+            <DatePickerField
+              label="購入日"
+              value={historyDate}
+              onChange={setHistoryDate}
+              requirement="required"
+            />
+            <AppTextInput label="価格" value={historyPrice} onChangeText={setHistoryPrice} keyboardType="numeric" />
+            <AppTextInput label="メモ" value={historyMemo} onChangeText={setHistoryMemo} multiline style={styles.memo} />
+            <AppButton title="購入履歴を追加" onPress={submitPastPurchaseHistory} />
+            <AppButton title="閉じる" variant="secondary" onPress={closeHistoryAdd} />
+          </AppCard>
+        </View>
+      ) : null}
+
+      <View style={styles.bottomActions}>
+        <AppButton title="在庫を補充した" onPress={openReplenish} />
+        <AppButton title="過去の購入履歴を追加" variant="secondary" onPress={openHistoryAdd} />
+      </View>
+
+      <AppCard style={styles.dangerZone}>
+        <Text style={styles.dangerZoneTitle}>削除</Text>
+        <Text style={styles.dangerZoneText}>商品と関連する購入履歴を削除します。</Text>
+        <AppButton title="この商品を削除" variant="danger" onPress={remove} />
+      </AppCard>
     </ScrollView>
   );
 }
@@ -601,19 +829,70 @@ const styles = StyleSheet.create({
   card: {
     gap: 14,
   },
+  bottomActions: {
+    gap: 10,
+  },
+  dangerZone: {
+    borderColor: colors.danger,
+    gap: 10,
+    marginTop: 12,
+  },
+  dangerZoneTitle: {
+    color: colors.danger,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dangerZoneText: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   header: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
   },
-  productImage: {
+  productImageButton: {
+    alignItems: 'center',
     backgroundColor: colors.muted,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     height: 76,
+    justifyContent: 'center',
+    overflow: 'hidden',
     width: 76,
+  },
+  productImagePressed: {
+    opacity: 0.75,
+  },
+  productImage: {
+    height: '100%',
+    width: '100%',
+  },
+  productImagePlaceholder: {
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  productImagePlaceholderText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  productImageEditText: {
+    backgroundColor: 'rgba(0, 0, 0, 0.48)',
+    bottom: 0,
+    color: colors.card,
+    fontSize: 11,
+    fontWeight: '800',
+    left: 0,
+    paddingVertical: 3,
+    position: 'absolute',
+    right: 0,
+    textAlign: 'center',
   },
   titleWrap: {
     flex: 1,

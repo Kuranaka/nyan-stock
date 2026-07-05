@@ -15,9 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.example.nyanstock",
       "infoPlist": {
-        "NSCameraUsageDescription": "JANコードを読み取り、猫用品の在庫登録を補助するためにカメラを使用します。"
+        "NSCameraUsageDescription": "JANコードを読み取り、猫用品の在庫登録を補助するためにカメラを使用します。",
+        "NSPhotoLibraryUsageDescription": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。"
       }
     },
     "android": {
@@ -28,7 +30,18 @@
         "backgroundColor": "#FFF7E8"
       }
     },
-    "plugins": ["expo-router", "expo-notifications", "expo-camera"],
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      "expo-camera",
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }

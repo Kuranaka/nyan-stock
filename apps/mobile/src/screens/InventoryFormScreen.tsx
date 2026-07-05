@@ -33,6 +33,7 @@ import {
   InventoryUnit,
 } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import {
   findProductByJanCodeAsync,
   findProductsByKeywordAsync,
@@ -70,6 +71,7 @@ export default function InventoryFormScreen() {
   const nameFieldYRef = useRef(0);
   const purchaseDateFieldYRef = useRef(0);
   const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
+  const [draftItemId] = useState(() => createId('item'));
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [targetCatIds, setTargetCatIds] = useState<string[]>([]);
@@ -77,6 +79,7 @@ export default function InventoryFormScreen() {
   const [addMethod, setAddMethod] = useState<AddMethod>('master');
   const [productMasterId, setProductMasterId] = useState<string | undefined>();
   const [imageUrl, setImageUrl] = useState<string | undefined>();
+  const [imageUploading, setImageUploading] = useState(false);
   const [price, setPrice] = useState('');
   const [name, setName] = useState('');
   const [category, setCategory] = useState<InventoryCategory>('dry_food');
@@ -87,7 +90,7 @@ export default function InventoryFormScreen() {
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
   const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
-  const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>([7, 3, 1]);
+  const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>([]);
   const [amazon, setAmazon] = useState('');
   const [rakuten, setRakuten] = useState('');
   const [yahoo, setYahoo] = useState('');
@@ -555,6 +558,26 @@ export default function InventoryFormScreen() {
     );
   };
 
+  const selectProductIcon = async () => {
+    if (!hasIconUploadStorage()) {
+      Alert.alert('保存先が未設定です', 'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。');
+      return;
+    }
+
+    try {
+      setImageUploading(true);
+      const result = await pickAndUploadIcon({ kind: 'products', ownerId: current?.id ?? draftItemId });
+      if (result.status === 'uploaded') {
+        setImageUrl(result.url);
+        setErrors((currentErrors) => ({ ...currentErrors, imageUrl: undefined }));
+      }
+    } catch (error) {
+      Alert.alert('アイコンを保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
   const save = async () => {
     const primaryCatId = targetCatIds[0] ?? selectedCatId;
     if (!validate() || !primaryCatId) return;
@@ -572,8 +595,9 @@ export default function InventoryFormScreen() {
       yahoo: yahoo.trim() || undefined,
       other: other.trim() || undefined,
     };
+    const itemId = current?.id ?? draftItemId;
     await saveInventoryItem({
-      id: current?.id ?? createId('item'),
+      id: itemId,
       catId: primaryCatId,
       sharedCatIds: targetCatIds.length > 1 ? targetCatIds.slice(1) : undefined,
       productMasterId,
@@ -595,6 +619,7 @@ export default function InventoryFormScreen() {
       createdAt: current?.createdAt ?? now,
       updatedAt: now,
     });
+    await saveIconReference('inventory_item', itemId, imageUrl?.trim() || undefined);
     if (!productMasterId && !current) {
       await saveUserProductSuggestion({
         id: createId('suggestion'),
@@ -848,6 +873,24 @@ export default function InventoryFormScreen() {
         error={errors.imageUrl}
         requirement="optional"
       />
+      <View style={styles.iconPickerRow}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.iconPreview} resizeMode="cover" />
+        ) : (
+          <View style={styles.iconPreviewPlaceholder}>
+            <Text style={styles.iconPreviewText}>商品</Text>
+          </View>
+        )}
+        <View style={styles.iconPickerActions}>
+          <AppButton
+            title={imageUploading ? 'アップロード中...' : imageUrl ? '別の商品アイコンに変更' : '商品アイコンを選ぶ'}
+            variant="secondary"
+            disabled={imageUploading}
+            onPress={() => void selectProductIcon()}
+          />
+          {imageUrl ? <AppButton title="削除" variant="ghost" onPress={() => setImageUrl(undefined)} /> : null}
+        </View>
+      </View>
 
       <FieldLabel label="カテゴリ" requirement="required" />
       <View style={styles.wrapRow}>
@@ -1200,6 +1243,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 72,
     width: 72,
+  },
+  iconPickerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+  },
+  iconPreview: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 72,
+    width: 72,
+  },
+  iconPreviewPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 72,
+    justifyContent: 'center',
+    width: 72,
+  },
+  iconPreviewText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  iconPickerActions: {
+    flex: 1,
+    gap: 8,
   },
   resultName: {
     color: colors.text,

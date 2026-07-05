@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { isSameMonth, parseISO } from 'date-fns';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -17,11 +17,14 @@ import {
   isInventoryItemForCat,
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inventoryStorage';
-import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import { InventoryCategory, InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 
 const allCatsFilter = 'all';
+const chartColors = ['#D99A4E', '#4E9F3D', '#F0A202', '#6C8AE4', '#D9534F', '#8A6BBE', '#3AA6A6', '#A86421'];
+const donutSegmentCount = 72;
 
 export default function CostDashboardScreen() {
+  const router = useRouter();
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [history, setHistory] = useState<PurchaseHistory[]>([]);
@@ -72,6 +75,7 @@ export default function CostDashboardScreen() {
     .filter((entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
     .reduce((sum, entry) => sum + (entry.price ?? 0), 0);
   const yearlyEstimate = monthlyEstimate * 12;
+  const categoryBreakdown = useMemo(() => buildCategoryBreakdown(costRows), [costRows]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -107,6 +111,7 @@ export default function CostDashboardScreen() {
           <Summary label="年額目安" value={`${Math.round(yearlyEstimate).toLocaleString()}円`} tone="normal" />
           <Summary label="今月の実績" value={`${monthlyActual.toLocaleString()}円`} tone="normal" />
         </View>
+        <AppButton title="購入履歴を見る" variant="secondary" onPress={() => router.push('/purchase-history')} />
         <Text style={styles.note}>価格未入力、または使い切る周期を計算できない商品は目安から除外しています。</Text>
       </AppCard>
 
@@ -118,6 +123,13 @@ export default function CostDashboardScreen() {
           <Summary label="周期未計算" value={`${missingCycleCount}件`} tone="warning" />
         </View>
       </AppCard>
+
+      {categoryBreakdown.length > 0 ? (
+        <AppCard style={styles.card}>
+          <Text style={styles.sectionTitle}>カテゴリ別の月額内訳</Text>
+          <CostDonutChart rows={categoryBreakdown} total={monthlyEstimate} />
+        </AppCard>
+      ) : null}
 
       {visibleItems.length === 0 ? (
         <EmptyState
@@ -162,6 +174,78 @@ function Summary({ label, value, tone }: { label: string; value: string; tone: '
       <Text style={styles.summaryLabel}>{label}</Text>
     </View>
   );
+}
+
+type CostRow = {
+  item: InventoryItem;
+  cycleDays: number | undefined;
+  monthlyCost: number | undefined;
+};
+
+type CategoryBreakdownRow = {
+  category: InventoryCategory;
+  label: string;
+  amount: number;
+  color: string;
+};
+
+function CostDonutChart({ rows, total }: { rows: CategoryBreakdownRow[]; total: number }) {
+  return (
+    <View style={styles.chartWrap}>
+      <View style={styles.donut}>
+        {Array.from({ length: donutSegmentCount }).map((_, index) => {
+          const color = getDonutSegmentColor(rows, total, index);
+          return (
+            <View key={index} style={[styles.donutSegmentWrap, { transform: [{ rotate: `${(360 / donutSegmentCount) * index}deg` }] }]}>
+              <View style={[styles.donutSegment, { backgroundColor: color }]} />
+            </View>
+          );
+        })}
+        <View style={styles.donutCenter}>
+          <Text style={styles.donutTotal}>{Math.round(total).toLocaleString()}円</Text>
+          <Text style={styles.donutLabel}>月額目安</Text>
+        </View>
+      </View>
+      <View style={styles.legend}>
+        {rows.map((row) => (
+          <View key={row.category} style={styles.legendRow}>
+            <View style={[styles.legendDot, { backgroundColor: row.color }]} />
+            <Text style={styles.legendLabel}>{row.label}</Text>
+            <Text style={styles.legendValue}>
+              {Math.round(row.amount).toLocaleString()}円・{Math.round((row.amount / total) * 100)}%
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function buildCategoryBreakdown(rows: CostRow[]): CategoryBreakdownRow[] {
+  const totals = new Map<InventoryCategory, number>();
+  rows.forEach(({ item, monthlyCost }) => {
+    if (monthlyCost === undefined) return;
+    totals.set(item.category, (totals.get(item.category) ?? 0) + monthlyCost);
+  });
+  return Array.from(totals.entries())
+    .filter(([, amount]) => amount > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, amount], index) => ({
+      category,
+      label: categoryLabels[category],
+      amount,
+      color: chartColors[index % chartColors.length],
+    }));
+}
+
+function getDonutSegmentColor(rows: CategoryBreakdownRow[], total: number, index: number): string {
+  const ratio = (index + 0.5) / donutSegmentCount;
+  let accumulated = 0;
+  const row = rows.find((currentRow) => {
+    accumulated += currentRow.amount / total;
+    return ratio <= accumulated;
+  });
+  return row?.color ?? colors.border;
 }
 
 function getCatLabel(item: InventoryItem, catNames: Map<string, string>): string {
@@ -238,6 +322,78 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 12,
     lineHeight: 18,
+  },
+  chartWrap: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  donut: {
+    alignItems: 'center',
+    height: 188,
+    justifyContent: 'center',
+    width: 188,
+  },
+  donutSegmentWrap: {
+    height: 188,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 188,
+  },
+  donutSegment: {
+    borderRadius: 4,
+    height: 76,
+    left: 90,
+    position: 'absolute',
+    top: 8,
+    width: 8,
+  },
+  donutCenter: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 54,
+    borderWidth: 1,
+    height: 108,
+    justifyContent: 'center',
+    padding: 10,
+    width: 108,
+  },
+  donutTotal: {
+    color: colors.primaryDark,
+    fontSize: 17,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  donutLabel: {
+    color: colors.subText,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  legend: {
+    gap: 8,
+    width: '100%',
+  },
+  legendRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  legendDot: {
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  legendLabel: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  legendValue: {
+    color: colors.subText,
+    fontSize: 12,
+    textAlign: 'right',
   },
   list: {
     gap: 12,

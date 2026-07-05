@@ -3,6 +3,7 @@ export type CatGender = 'male' | 'female' | 'unknown';
 export type Cat = {
   id: string;
   name: string;
+  iconUrl?: string;
   birthday?: string;
   age?: number;
   weight?: number;
