@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
 import { AppButton } from '@/components/AppButton';
 import { colors } from '@/constants/colors';
-import {
-  createGoogleAuthSession,
-  googleClientIds,
-  hasAnyGoogleClientId,
-} from '@/features/auth/googleAuth';
 import { AuthSession } from '@/features/auth/authTypes';
-import { signInWithAppleIdToken, signInWithGoogleIdToken } from '@/features/auth/supabaseAuth';
+import { signInWithSupabaseOAuth } from '@/features/auth/supabaseAuth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -20,110 +14,35 @@ type Props = {
   onSignedIn?: (session: AuthSession) => void;
 };
 
-const fallbackGoogleClientId =
-  googleClientIds.webClientId ??
-  googleClientIds.iosClientId ??
-  googleClientIds.androidClientId ??
-  'missing-google-client-id';
-
 export function SignInButtons({ onSignedIn }: Props) {
   const [busyProvider, setBusyProvider] = useState<'google' | 'apple' | undefined>();
   const [appleAvailable, setAppleAvailable] = useState(false);
-  const [request, response, promptGoogleAsync] = Google.useAuthRequest({
-    clientId: fallbackGoogleClientId,
-    iosClientId: googleClientIds.iosClientId,
-    androidClientId: googleClientIds.androidClientId,
-    webClientId: googleClientIds.webClientId,
-    scopes: ['openid', 'profile', 'email'],
-    selectAccount: true,
-    language: 'ja',
-  });
 
   useEffect(() => {
     void AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
   }, []);
 
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const accessToken = response.authentication?.accessToken ?? response.params.access_token;
-      const idToken = getGoogleIdToken(response.authentication, response.params);
-      if (!accessToken) {
-        Alert.alert('Googleログインに失敗しました', 'アクセストークンを取得できませんでした。');
-        setBusyProvider(undefined);
-        return;
-      }
-      if (!idToken) {
-        Alert.alert('Googleログインに失敗しました', '共有権限に必要なIDトークンを取得できませんでした。もう一度ログインしてください。');
-        setBusyProvider(undefined);
-        return;
-      }
-
-      void createGoogleAuthSession(accessToken)
-        .then(async (profile) => {
-          const session = await signInWithGoogleIdToken(idToken, {
-            providerUserId: profile.providerUserId,
-            email: profile.email,
-            name: profile.name,
-            photoUrl: profile.photoUrl,
-          });
-          onSignedIn?.(session);
-        })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
-          Alert.alert('Googleログインに失敗しました', message);
-        })
-        .finally(() => setBusyProvider(undefined));
-    }
-
-    if (response?.type === 'error') {
-      Alert.alert('Googleログインに失敗しました', response.error?.message ?? 'しばらくしてからもう一度お試しください。');
-      setBusyProvider(undefined);
-    }
-
-    if (response?.type === 'cancel' || response?.type === 'dismiss') {
-      setBusyProvider(undefined);
-    }
-  }, [onSignedIn, response]);
-
   const signInWithGoogle = useCallback(async () => {
-    if (!hasAnyGoogleClientId()) {
-      Alert.alert(
-        'Googleログインの設定が必要です',
-        '.env に EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID / EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID / EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID のいずれかを設定してください。',
-      );
-      return;
-    }
-
     setBusyProvider('google');
-    const result = await promptGoogleAsync();
-    if (result.type !== 'success' && result.type !== 'opened') {
+    try {
+      const session = await signInWithSupabaseOAuth('google');
+      onSignedIn?.(session);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
+      Alert.alert('Googleログインに失敗しました', message);
+    } finally {
       setBusyProvider(undefined);
     }
-  }, [promptGoogleAsync]);
+  }, [onSignedIn]);
 
   const signInWithApple = useCallback(async () => {
     setBusyProvider('apple');
     try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      const formattedName = credential.fullName
-        ? AppleAuthentication.formatFullName(credential.fullName)
-        : undefined;
-      if (!credential.identityToken) {
-        Alert.alert('Appleログインに失敗しました', '共有権限に必要なIDトークンを取得できませんでした。もう一度ログインしてください。');
-        return;
-      }
-      const session = await signInWithAppleIdToken(credential.identityToken, credential, formattedName);
+      const session = await signInWithSupabaseOAuth('apple');
       onSignedIn?.(session);
     } catch (error: unknown) {
-      const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : undefined;
-      if (code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Appleログインに失敗しました', 'しばらくしてからもう一度お試しください。');
-      }
+      const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
+      Alert.alert('Appleログインに失敗しました', message);
     } finally {
       setBusyProvider(undefined);
     }
@@ -131,12 +50,23 @@ export function SignInButtons({ onSignedIn }: Props) {
 
   return (
     <View style={styles.container}>
-      <AppButton
-        title={busyProvider === 'google' ? 'Googleでログイン中...' : 'Googleで続ける'}
-        variant="secondary"
-        disabled={!request || busyProvider !== undefined}
+      <Pressable
+        accessibilityRole="button"
+        disabled={busyProvider !== undefined}
+        style={({ pressed }) => [
+          styles.googleButton,
+          busyProvider !== undefined && styles.disabled,
+          pressed && busyProvider === undefined && styles.pressed,
+        ]}
         onPress={() => void signInWithGoogle()}
-      />
+      >
+        <View style={styles.googleIcon}>
+          <Text style={styles.googleIconText}>G</Text>
+        </View>
+        <Text style={styles.googleButtonText}>
+          {busyProvider === 'google' ? 'Googleでログイン中...' : 'Googleでログイン'}
+        </Text>
+      </Pressable>
       {appleAvailable ? (
         <AppleAuthentication.AppleAuthenticationButton
           buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
@@ -162,9 +92,50 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
   },
+  googleButton: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  googleIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    height: 24,
+    justifyContent: 'center',
+    marginRight: 10,
+    width: 24,
+  },
+  googleIconText: {
+    color: '#4285F4',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  googleButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
   appleButton: {
     height: 48,
     width: '100%',
+  },
+  disabled: {
+    opacity: 0.45,
+  },
+  pressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.98 }],
   },
   caption: {
     color: colors.subText,
@@ -173,11 +144,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-function getGoogleIdToken(authentication: unknown, params: Record<string, string>): string | undefined {
-  if (authentication && typeof authentication === 'object' && 'idToken' in authentication) {
-    const idToken = (authentication as { idToken?: unknown }).idToken;
-    if (typeof idToken === 'string') return idToken;
-  }
-  return params.id_token;
-}

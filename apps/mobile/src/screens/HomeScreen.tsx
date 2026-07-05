@@ -78,7 +78,6 @@ export default function HomeScreen() {
     return (
       <OnboardingScreen
         onStart={() => void completeOnboarding(true)}
-        onSkip={() => void completeOnboarding(false)}
         onSignedIn={() => void completeOnboarding(true)}
       />
     );

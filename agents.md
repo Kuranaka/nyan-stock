@@ -229,6 +229,7 @@ Before App Store / Google Play release, prepare:
 - App icon and splash asset review.
 - Store description.
 - Copy review to avoid being mistaken for a veterinary or medical app.
+- Configure and verify Supabase Auth providers for release, especially Apple Sign in with Apple settings, redirect URLs, Apple Developer identifiers/keys, and iOS bundle ID alignment.
 - Review npm audit findings and plan a staged Expo SDK / React Native upgrade; do not use `npm audit fix --force` as a release shortcut.
 
 ## LP Readiness TODOs

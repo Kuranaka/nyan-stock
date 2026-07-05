@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getAuthSession } from '@/features/auth/authStorage';
-import { ensureSupabaseSessionForSharing, getSupabaseSession } from '@/features/auth/supabaseAuth';
+import { ensureSupabaseSessionForSharing, getCurrentAuthSession, getSupabaseSession } from '@/features/auth/supabaseAuth';
 import { Cat } from '@/features/cats/catTypes';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { storageKeys } from '@/features/storageKeys';
@@ -653,7 +652,7 @@ async function requireHouseholdSyncState(): Promise<HouseholdSyncState> {
 }
 
 async function getCurrentUserLabel(): Promise<string | undefined> {
-  const session = await getAuthSession();
+  const session = await getCurrentAuthSession();
   return session?.email ?? session?.name ?? session?.providerUserId;
 }
 

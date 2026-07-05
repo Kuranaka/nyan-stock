@@ -9,9 +9,9 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
-import { clearAuthSession, getAuthSession } from '@/features/auth/authStorage';
+import { clearAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
-import { signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
+import { getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
@@ -43,7 +43,7 @@ export default function SettingsScreen() {
   const load = useCallback(async () => {
     const [next, nextAuthSession, nextSyncState] = await Promise.all([
       getSettings(),
-      getAuthSession(),
+      getCurrentAuthSession(),
       getHouseholdSyncState(),
     ]);
     setSettings(next);
@@ -140,7 +140,7 @@ export default function SettingsScreen() {
     setSyncBusy(true);
     try {
       const nextState = await action();
-      const nextAuthSession = await getAuthSession();
+      const nextAuthSession = await getCurrentAuthSession();
       setSyncState(nextState);
       setAuthSession(nextAuthSession);
       DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);

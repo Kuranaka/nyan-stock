@@ -1,16 +1,12 @@
 import type { Session } from '@supabase/supabase-js';
-import type { AppleAuthenticationCredential } from 'expo-apple-authentication';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 
-import { clearAuthSession, saveAuthSession } from './authStorage';
-import { AuthSession } from './authTypes';
-import { requireSupabaseClient } from '@/features/supabase/supabaseClient';
+import { clearAuthSession, getAuthSession, saveAuthSession } from './authStorage';
+import { AuthProvider, AuthSession } from './authTypes';
+import { isSupabaseConfigured, requireSupabaseClient } from '@/features/supabase/supabaseClient';
 
-type GoogleProfile = {
-  providerUserId: string;
-  email?: string;
-  name?: string;
-  photoUrl?: string;
-};
+type OAuthProvider = Exclude<AuthProvider, 'guest'>;
 
 export async function getSupabaseSession() {
   const client = requireSupabaseClient();
@@ -19,6 +15,27 @@ export async function getSupabaseSession() {
     throw new Error('共有用セッションを確認できませんでした。');
   }
   return data.session;
+}
+
+export async function getCurrentAuthSession(): Promise<AuthSession | undefined> {
+  if (!isSupabaseConfigured()) {
+    return getAuthSession();
+  }
+
+  const session = await getSupabaseSession();
+  if (!session) {
+    await clearAuthSession();
+    return undefined;
+  }
+
+  const cachedSession = await getAuthSession();
+  if (cachedSession?.supabaseUserId === session.user.id) {
+    return cachedSession;
+  }
+
+  const nextSession = createAuthSessionFromSupabaseSession(session);
+  await saveAuthSession(nextSession);
+  return nextSession;
 }
 
 export async function ensureSupabaseSessionForSharing(): Promise<Session> {
@@ -34,67 +51,62 @@ export async function signInAsGuest(): Promise<Session> {
     throw new Error('ゲストアカウントを作成できませんでした。SupabaseのAnonymous Auth設定を確認してください。');
   }
 
-  await saveAuthSession({
-    provider: 'guest',
-    providerUserId: data.user.id,
-    supabaseUserId: data.user.id,
-    name: 'ゲスト',
-    signedInAt: new Date().toISOString(),
-  });
+  await saveAuthSession(createAuthSessionFromSupabaseSession(data.session));
   return data.session;
 }
 
-export async function signInWithGoogleIdToken(idToken: string, profile: GoogleProfile): Promise<AuthSession> {
+export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<AuthSession> {
   const client = requireSupabaseClient();
-  const { data, error } = await client.auth.signInWithIdToken({
-    provider: 'google',
-    token: idToken,
+  const redirectTo = getOAuthRedirectUrl();
+  console.log('[auth] Supabase OAuth redirect URL:', redirectTo);
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+    },
   });
-  if (error || !data.session || !data.user) {
-    throw new Error('Googleアカウントで共有用セッションを作成できませんでした。');
+  if (error || !data.url) {
+    throw new Error(`${authProviderLabels[provider]}ログインを開始できませんでした。SupabaseのProvider設定を確認してください。`);
   }
 
-  const session: AuthSession = {
-    provider: 'google',
-    providerUserId: profile.providerUserId,
-    supabaseUserId: data.user.id,
-    email: data.user.email ?? profile.email,
-    name: getStringMetadata(data.user.user_metadata?.name) ?? getStringMetadata(data.user.user_metadata?.full_name) ?? profile.name,
-    photoUrl: getStringMetadata(data.user.user_metadata?.avatar_url) ?? profile.photoUrl,
-    signedInAt: new Date().toISOString(),
-  };
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  if (result.type !== 'success') {
+    throw new Error(`${authProviderLabels[provider]}ログインがキャンセルされました。`);
+  }
+
+  const supabaseSession = await completeOAuthCallback(result.url);
+  const session = createAuthSessionFromSupabaseSession(supabaseSession, provider);
   await saveAuthSession(session);
   return session;
 }
 
-export async function signInWithAppleIdToken(
-  idToken: string,
-  credential: AppleAuthenticationCredential,
-  formattedName?: string,
-): Promise<AuthSession> {
+async function completeOAuthCallback(callbackUrl: string): Promise<Session> {
   const client = requireSupabaseClient();
-  const { data, error } = await client.auth.signInWithIdToken({
-    provider: 'apple',
-    token: idToken,
-  });
-  if (error || !data.session || !data.user) {
-    throw new Error('Appleアカウントで共有用セッションを作成できませんでした。');
+  const params = getCallbackParams(callbackUrl);
+  const code = params.get('code');
+  if (code) {
+    const { data, error } = await client.auth.exchangeCodeForSession(code);
+    if (error || !data.session) {
+      throw new Error('Supabaseログインセッションを作成できませんでした。');
+    }
+    return data.session;
   }
 
-  const session: AuthSession = {
-    provider: 'apple',
-    providerUserId: credential.user,
-    supabaseUserId: data.user.id,
-    email: data.user.email ?? credential.email ?? undefined,
-    name:
-      (getStringMetadata(data.user.user_metadata?.name) ??
-        getStringMetadata(data.user.user_metadata?.full_name) ??
-        formattedName) ||
-      undefined,
-    signedInAt: new Date().toISOString(),
-  };
-  await saveAuthSession(session);
-  return session;
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (accessToken && refreshToken) {
+    const { data, error } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error || !data.session) {
+      throw new Error('Supabaseログインセッションを保存できませんでした。');
+    }
+    return data.session;
+  }
+
+  throw new Error('Supabaseログインの戻り値を確認できませんでした。');
 }
 
 export async function signOutSupabaseAuth(): Promise<void> {
@@ -105,4 +117,55 @@ export async function signOutSupabaseAuth(): Promise<void> {
 
 function getStringMetadata(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function createAuthSessionFromSupabaseSession(session: Session, fallbackProvider?: AuthProvider): AuthSession {
+  const provider = getAuthProvider(session.user.app_metadata?.provider) ?? fallbackProvider ?? 'guest';
+  return {
+    provider,
+    providerUserId:
+      getStringMetadata(session.user.user_metadata?.provider_id) ??
+      getStringMetadata(session.user.identities?.[0]?.id) ??
+      session.user.id,
+    supabaseUserId: session.user.id,
+    email: session.user.email,
+    name:
+      getStringMetadata(session.user.user_metadata?.name) ??
+      getStringMetadata(session.user.user_metadata?.full_name) ??
+      (provider === 'guest' ? 'ゲスト' : undefined),
+    photoUrl:
+      getStringMetadata(session.user.user_metadata?.avatar_url) ??
+      getStringMetadata(session.user.user_metadata?.picture),
+    signedInAt: new Date().toISOString(),
+  };
+}
+
+function getAuthProvider(value: unknown): AuthProvider | undefined {
+  if (value === 'google' || value === 'apple') return value;
+  if (value === 'anonymous') return 'guest';
+  return undefined;
+}
+
+function getCallbackParams(callbackUrl: string): URLSearchParams {
+  const url = new URL(callbackUrl);
+  const params = new URLSearchParams(url.search);
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+  hashParams.forEach((value, key) => {
+    if (!params.has(key)) {
+      params.set(key, value);
+    }
+  });
+  return params;
+}
+
+const authProviderLabels = {
+  google: 'Google',
+  apple: 'Apple',
+} satisfies Record<OAuthProvider, string>;
+
+function getOAuthRedirectUrl(): string {
+  return (
+    process.env.EXPO_PUBLIC_SUPABASE_AUTH_REDIRECT_URL ??
+    Linking.createURL('auth/callback', { scheme: 'nyanstock' })
+  );
 }
