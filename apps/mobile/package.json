@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "web:clear": "expo start --web --clear",
     "lint": "eslint . --ext .ts,.tsx",
     "smoke:sync": "node scripts/smoke-household-sync.mjs",
     "format": "prettier --write ."
@@ -31,7 +32,8 @@
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-url-polyfill": "^3.0.0"
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

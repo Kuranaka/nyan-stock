@@ -21,6 +21,7 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
         <Text style={styles.point}>・いつもの商品をすぐ再購入</Text>
       </View>
       <SignInButtons onSignedIn={onSignedIn} />
+      <AppButton title="ゲストアカウントで始める" onPress={onStart} />
       <View style={styles.guestBox}>
         <Text style={styles.guestTitle}>ゲストアカウントの注意点</Text>
         <Text style={styles.guestText}>
@@ -28,7 +29,6 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
         </Text>
         <Text style={styles.guestText}>共有同期を使う場合は、あとからGoogleまたはAppleでログインしてください。</Text>
       </View>
-      <AppButton title="ゲストアカウントで始める" onPress={onStart} />
     </View>
   );
 }

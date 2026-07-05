@@ -197,6 +197,7 @@ export default function CatProfileScreen() {
       ) : null}
 
       <Text style={styles.sectionTitle}>{current ? 'プロフィール編集' : 'プロフィール追加'}</Text>
+      <FieldLabel label="アイコン" requirement="optional" />
       <View style={styles.iconRow}>
         {iconUrl ? (
           <Image source={{ uri: iconUrl }} style={styles.catIcon} resizeMode="cover" />
@@ -215,7 +216,7 @@ export default function CatProfileScreen() {
           {iconUrl ? <AppButton title="削除" variant="ghost" onPress={() => setIconUrl(undefined)} /> : null}
         </View>
       </View>
-      <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" />
+      <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" requirement="required" />
       <DatePickerField
         label="誕生日"
         value={birthday}
@@ -233,8 +234,9 @@ export default function CatProfileScreen() {
         onChangeText={setWeight}
         keyboardType="decimal-pad"
         placeholder="例：4.2"
+        requirement="optional"
       />
-      <Text style={styles.label}>性別</Text>
+      <FieldLabel label="性別" requirement="required" />
       <View style={styles.segment}>
         {genderOptions.map((option) => (
           <AppButton
@@ -253,6 +255,7 @@ export default function CatProfileScreen() {
         multiline
         placeholder="通院時のメモなど"
         style={styles.memo}
+        requirement="optional"
       />
       <AppButton title="保存する" onPress={() => void save()} />
       <AppButton title="閉じる" variant="secondary" onPress={() => router.back()} />
@@ -264,6 +267,17 @@ export default function CatProfileScreen() {
         </AppCard>
       ) : null}
     </ScrollView>
+  );
+}
+
+function FieldLabel({ label, requirement }: { label: string; requirement: 'required' | 'optional' }) {
+  return (
+    <View style={styles.labelRow}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.requirementBadge, requirement === 'required' ? styles.requiredBadge : styles.optionalBadge]}>
+        {requirement === 'required' ? '必須' : '任意'}
+      </Text>
+    </View>
   );
 }
 
@@ -345,6 +359,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
+  },
+  labelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  requirementBadge: {
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  requiredBadge: {
+    backgroundColor: colors.dangerLight,
+    color: colors.danger,
+  },
+  optionalBadge: {
+    backgroundColor: colors.muted,
+    color: colors.subText,
   },
   ageBox: {
     backgroundColor: colors.muted,

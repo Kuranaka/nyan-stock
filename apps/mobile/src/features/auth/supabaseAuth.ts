@@ -166,6 +166,6 @@ const authProviderLabels = {
 function getOAuthRedirectUrl(): string {
   return (
     process.env.EXPO_PUBLIC_SUPABASE_AUTH_REDIRECT_URL ??
-    Linking.createURL('auth/callback', { scheme: 'nyanstock' })
+    Linking.createURL('auth/callback')
   );
 }

@@ -36,6 +36,12 @@ type HouseholdMembershipResult = {
   invite_code: string;
 };
 
+export type ActivateAccountHouseholdSyncResult = {
+  state?: HouseholdSyncState;
+  mode: 'guest' | 'pulled_remote' | 'pushed_local' | 'skipped';
+  remoteHadData: boolean;
+};
+
 type HouseholdEntityRow<T> = {
   id: string;
   household_id: string;
@@ -99,6 +105,41 @@ export async function joinHouseholdSyncSpace(householdIdInput: string): Promise<
   await applyRemoteSnapshot(remote.snapshot);
   await saveHouseholdSyncState(state);
   return state;
+}
+
+export async function activateSignedInAccountHouseholdSync(options?: {
+  onRemoteDataWillOverwriteLocal?: () => Promise<void>;
+}): Promise<ActivateAccountHouseholdSyncResult> {
+  const authSession = await getCurrentAuthSession();
+  if (!authSession) return { mode: 'skipped', remoteHadData: false };
+  if (authSession.provider === 'guest') return { mode: 'guest', remoteHadData: false };
+
+  const { household_id: householdId, invite_code: inviteCode } = await getOrCreateAccountHousehold();
+  const joinedAt = nowIso();
+  const baseState: HouseholdSyncState = {
+    householdId,
+    inviteCode,
+    joinedAt,
+    createdBy: await getCurrentUserLabel(),
+    joinedBy: await getCurrentUserLabel(),
+  };
+  const remote = await fetchRemoteHouseholdData(householdId);
+  const remoteHadData = Boolean(remote && hasSnapshotData(remote.snapshot));
+  const localSnapshot = await createLocalSnapshot();
+
+  if (remoteHadData && remote) {
+    if (hasSnapshotData(localSnapshot)) {
+      await options?.onRemoteDataWillOverwriteLocal?.();
+    }
+    await applyRemoteSnapshot(remote.snapshot);
+    const nextState = { ...baseState, lastPulledAt: nowIso() };
+    await saveHouseholdSyncState(nextState);
+    return { state: nextState, mode: 'pulled_remote', remoteHadData };
+  }
+
+  await saveHouseholdSyncState(baseState);
+  const nextState = await pushLocalSnapshotToHousehold(baseState);
+  return { state: nextState, mode: 'pushed_local', remoteHadData };
 }
 
 export async function pushCurrentHouseholdSnapshot(): Promise<HouseholdSyncState> {
@@ -338,6 +379,15 @@ async function joinRemoteHouseholdByInviteCode(inviteCode: string): Promise<Hous
   return parseMembershipResult(data, '共有スペースに参加できませんでした。');
 }
 
+async function getOrCreateAccountHousehold(): Promise<HouseholdMembershipResult> {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.rpc('get_or_create_account_household');
+  if (error) {
+    throw new Error('ログインアカウントの共有スペースを準備できませんでした。Supabaseの共有権限設定を確認してください。');
+  }
+  return parseMembershipResult(data, 'ログインアカウントの共有スペースを準備できませんでした。');
+}
+
 function parseMembershipResult(data: unknown, fallbackMessage: string): HouseholdMembershipResult {
   const row = Array.isArray(data) ? data[0] : data;
   if (!row || typeof row !== 'object') {
@@ -349,6 +399,14 @@ function parseMembershipResult(data: unknown, fallbackMessage: string): Househol
     throw new Error(fallbackMessage);
   }
   return { household_id: householdId, invite_code: inviteCode };
+}
+
+function hasSnapshotData(snapshot: HouseholdSnapshot): boolean {
+  return Boolean(
+    snapshot.cats?.length ||
+      snapshot.inventoryItems?.length ||
+      snapshot.purchaseHistory?.length,
+  );
 }
 
 async function createLocalSnapshot(): Promise<HouseholdSnapshot> {
