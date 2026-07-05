@@ -4,7 +4,7 @@ import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 import { storageKeys } from '@/features/storageKeys';
 import { nowIso } from '@/utils/date';
 
-import { calculateEstimatedEndDate, calculateRemainingDays } from './inventoryLogic';
+import { calculateEstimatedEndDate, calculateRemainingDays, getInventoryCatIds } from './inventoryLogic';
 import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from './inventoryTypes';
 
 export async function getInventoryItems(): Promise<InventoryItem[]> {
@@ -45,14 +45,26 @@ export async function deleteInventoryItem(id: string): Promise<void> {
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
-  const deletedItemIds = new Set(items.filter((item) => item.catId === catId).map((item) => item.id));
+  const nextItems = items
+    .map((item): InventoryItem | undefined => {
+      const catIds = getInventoryCatIds(item).filter((currentCatId) => currentCatId !== catId);
+      if (catIds.length === 0) return undefined;
+      return {
+        ...item,
+        catId: catIds[0],
+        sharedCatIds: catIds.length > 1 ? catIds.slice(1) : undefined,
+        updatedAt: nowIso(),
+      };
+    })
+    .filter((item): item is InventoryItem => Boolean(item));
+  const nextItemIds = new Set(nextItems.map((item) => item.id));
   await AsyncStorage.setItem(
     storageKeys.inventoryItems,
-    JSON.stringify(items.filter((item) => item.catId !== catId)),
+    JSON.stringify(nextItems),
   );
   await AsyncStorage.setItem(
     storageKeys.purchaseHistory,
-    JSON.stringify(history.filter((entry) => !deletedItemIds.has(entry.inventoryItemId))),
+    JSON.stringify(history.filter((entry) => nextItemIds.has(entry.inventoryItemId))),
   );
 }
 

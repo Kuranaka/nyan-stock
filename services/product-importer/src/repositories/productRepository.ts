@@ -5,6 +5,10 @@ import { config } from '../config.js';
 import { dedupeProducts } from '../scripts/dedupeProducts.js';
 import { ProductMaster } from '../types.js';
 
+type UpsertProductMasterOptions = {
+  dedupe?: boolean;
+};
+
 export async function loadProductMasters(): Promise<ProductMaster[]> {
   if (config.databaseUrl) {
     return loadFromPostgres();
@@ -49,11 +53,22 @@ export async function deleteProductMastersByIds(ids: string[]): Promise<void> {
   await saveProductMasters(existing.filter((product) => !ids.includes(product.id)));
 }
 
-export async function upsertProductMasters(incoming: ProductMaster[]): Promise<ProductMaster[]> {
+export async function upsertProductMasters(
+  incoming: ProductMaster[],
+  options: UpsertProductMasterOptions = {},
+): Promise<ProductMaster[]> {
   const existing = await loadProductMasters();
-  const next = dedupeProducts([...existing, ...incoming]);
+  const next = options.dedupe === false ? upsertById(existing, incoming) : dedupeProducts([...existing, ...incoming]);
   await saveProductMasters(next);
   return next;
+}
+
+function upsertById(existing: ProductMaster[], incoming: ProductMaster[]): ProductMaster[] {
+  const byId = new Map(existing.map((product) => [product.id, product]));
+  incoming.forEach((product) => {
+    byId.set(product.id, product);
+  });
+  return Array.from(byId.values());
 }
 
 async function loadFromPostgres(): Promise<ProductMaster[]> {

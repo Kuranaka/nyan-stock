@@ -16,6 +16,7 @@ export function dedupeProducts(products: ProductMaster[]): ProductMaster[] {
 }
 
 export function isDuplicate(a: ProductMaster, b: ProductMaster): boolean {
+  if (isSeedProduct(a) && isSeedProduct(b) && a.id !== b.id) return false;
   if (a.janCode && b.janCode && a.janCode === b.janCode) return true;
   if (
     a.normalizedName === b.normalizedName &&
@@ -26,6 +27,10 @@ export function isDuplicate(a: ProductMaster, b: ProductMaster): boolean {
     return true;
   }
   return similarity(a.normalizedName, b.normalizedName) >= 0.88;
+}
+
+function isSeedProduct(product: ProductMaster): boolean {
+  return product.id.startsWith('pm-seed-product_');
 }
 
 function similarity(a: string, b: string): number {

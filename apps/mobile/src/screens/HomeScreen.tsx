@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -12,6 +13,7 @@ import { Cat } from '@/features/cats/catTypes';
 import {
   calculateRemainingDays,
   getInventoryStatus,
+  isInventoryItemForCat,
   sortInventoryItems,
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, replenishInventoryItem } from '@/features/inventory/inventoryStorage';
@@ -27,6 +29,7 @@ import OnboardingScreen from './OnboardingScreen';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -76,7 +79,7 @@ export default function HomeScreen() {
   }
 
   const selectedCat = cats.find((nextCat) => nextCat.id === selectedCatId);
-  const visibleItems = selectedCatId ? items.filter((item) => item.catId === selectedCatId) : items;
+  const visibleItems = selectedCatId ? items.filter((item) => isInventoryItemForCat(item, selectedCatId)) : items;
   const outCount = visibleItems.filter((item) => getInventoryStatus(item) === 'out').length;
   const warningCount = visibleItems.filter((item) => {
     const days = calculateRemainingDays(item);
@@ -155,7 +158,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingTop: Math.max(18, insets.top + 12) }]}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
     >
       <View style={styles.header}>
@@ -166,19 +169,23 @@ export default function HomeScreen() {
         <AppButton title="設定" variant="secondary" onPress={() => router.push('/settings')} />
       </View>
 
-      {cats.length > 1 ? (
-        <View style={styles.catTabs}>
-          {cats.map((nextCat) => (
-            <AppButton
-              key={nextCat.id}
-              title={nextCat.name}
-              variant={nextCat.id === selectedCatId ? 'primary' : 'secondary'}
-              onPress={() => void selectCat(nextCat.id)}
-              style={styles.catTab}
-            />
-          ))}
-        </View>
-      ) : null}
+      <View style={styles.catTabs}>
+        {cats.map((nextCat) => (
+          <AppButton
+            key={nextCat.id}
+            title={nextCat.name}
+            variant={nextCat.id === selectedCatId ? 'primary' : 'secondary'}
+            onPress={() => void selectCat(nextCat.id)}
+            style={styles.catTab}
+          />
+        ))}
+        <AppButton
+          title="猫管理"
+          variant="secondary"
+          onPress={() => router.push('/cat-profile')}
+          style={[styles.catTab, styles.catManageTab]}
+        />
+      </View>
 
       <AppCard>
         <Text style={styles.sectionTitle}>在庫状況</Text>
@@ -191,6 +198,11 @@ export default function HomeScreen() {
 
       <View style={styles.actions}>
         <AppButton title="商品を追加する" onPress={() => router.push('/inventory-form')} />
+        <AppButton
+          title="費用を見る"
+          variant="secondary"
+          onPress={() => router.push('/cost-dashboard')}
+        />
         <AppButton
           title="購入履歴"
           variant="secondary"
@@ -288,6 +300,10 @@ const styles = StyleSheet.create({
   },
   catTab: {
     minWidth: 92,
+  },
+  catManageTab: {
+    backgroundColor: colors.accent,
+    borderColor: colors.primaryDark,
   },
   sectionTitle: {
     color: colors.text,

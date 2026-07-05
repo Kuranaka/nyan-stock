@@ -2,6 +2,14 @@ import { addDays, differenceInCalendarDays, parseISO } from 'date-fns';
 
 import { InventoryItem, InventoryStatus } from './inventoryTypes';
 
+export function getInventoryCatIds(item: InventoryItem): string[] {
+  return Array.from(new Set([item.catId, ...(item.sharedCatIds ?? [])].filter(Boolean)));
+}
+
+export function isInventoryItemForCat(item: InventoryItem, catId: string): boolean {
+  return getInventoryCatIds(item).includes(catId);
+}
+
 function baseDateOf(item: InventoryItem) {
   return item.openedDate || item.purchaseDate;
 }
@@ -54,6 +62,25 @@ export function calculatePurchaseFrequencyDays(item: InventoryItem): number | un
   if (item.estimationMode !== 'purchase_frequency' || !item.estimatedEndDate) return undefined;
   const days = differenceInCalendarDays(parseISO(item.estimatedEndDate), parseISO(item.purchaseDate));
   return days > 0 ? days : undefined;
+}
+
+export function calculateInventoryCycleDays(item: InventoryItem): number | undefined {
+  if (item.estimationMode === 'lasting_days') {
+    return item.lastingDays && item.lastingDays > 0 ? item.lastingDays : undefined;
+  }
+
+  if (item.estimationMode === 'purchase_frequency') {
+    return calculatePurchaseFrequencyDays(item);
+  }
+
+  if (!item.dailyUsage || item.dailyUsage <= 0 || item.amount <= 0) return undefined;
+  return Math.ceil(item.amount / item.dailyUsage);
+}
+
+export function calculateMonthlyCost(item: InventoryItem): number | undefined {
+  const cycleDays = calculateInventoryCycleDays(item);
+  if (item.price === undefined || item.price < 0 || !cycleDays || cycleDays <= 0) return undefined;
+  return (item.price / cycleDays) * 30;
 }
 
 export function getInventoryStatus(item: InventoryItem): InventoryStatus {

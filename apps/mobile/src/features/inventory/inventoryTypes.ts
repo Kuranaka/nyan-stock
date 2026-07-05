@@ -23,8 +23,10 @@ export type LastingDaysReplenishMode = 'add_remaining' | 'reset_cycle';
 export type InventoryItem = {
   id: string;
   catId: string;
+  sharedCatIds?: string[];
   productMasterId?: string;
   imageUrl?: string;
+  price?: number;
   name: string;
   category: InventoryCategory;
   amount: number;

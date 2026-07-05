@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="inventory-form" options={{ title: '商品登録' }} />
         <Stack.Screen name="barcode-scan" options={{ title: 'バーコード読み取り' }} />
         <Stack.Screen name="inventory-detail" options={{ title: '商品詳細' }} />
+        <Stack.Screen name="cost-dashboard" options={{ title: '費用ダッシュボード' }} />
         <Stack.Screen name="purchase-history" options={{ title: '購入履歴' }} />
         <Stack.Screen name="settings" options={{ title: '設定' }} />
         <Stack.Screen name="privacy" options={{ title: 'プライバシーポリシー' }} />

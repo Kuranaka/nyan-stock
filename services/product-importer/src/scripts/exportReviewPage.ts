@@ -94,6 +94,7 @@ function buildReviewPage(products: ProductMaster[]): string {
     }
     .name { margin: 0 0 8px; font-size: 15px; line-height: 1.45; }
     .meta, .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .meta { color: var(--muted); font-size: 12px; }
     .badge {
       border: 1px solid var(--line);
       border-radius: 999px;
@@ -106,6 +107,61 @@ function buildReviewPage(products: ProductMaster[]): string {
     .badge.bad { color: var(--bad); border-color: #e2b8b8; background: #fff3f3; }
     .badge.warn { color: var(--warn); border-color: #e5cf99; background: #fff8e5; }
     .badge.good { color: var(--accent); border-color: #acd4c8; background: #edf8f4; }
+    .image-review {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .image-review-title {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+      gap: 8px;
+    }
+    .image-candidate {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f4efe3;
+      overflow: hidden;
+    }
+    .image-candidate img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      background: white;
+    }
+    .image-candidate footer {
+      display: grid;
+      gap: 4px;
+      padding: 6px;
+    }
+    .image-candidate button {
+      min-height: 30px;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+    .image-url {
+      color: var(--muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .image-empty {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      padding: 10px;
+    }
     .review-controls {
       display: grid;
       gap: 8px;
@@ -201,6 +257,9 @@ function buildReviewPage(products: ProductMaster[]): string {
       document.querySelectorAll('[data-note]').forEach((textarea) => {
         textarea.addEventListener('input', (event) => updateReview(event.target.dataset.id, { note: event.target.value }));
       });
+      document.querySelectorAll('[data-copy-url]').forEach((button) => {
+        button.addEventListener('click', () => copyImageUrl(button.dataset.copyUrl));
+      });
     }
 
     function filteredProducts() {
@@ -274,6 +333,7 @@ function buildReviewPage(products: ProductMaster[]): string {
           '<h2 class="name">' + escapeHtml(product.name) + '</h2>' +
           '<div class="badges">' + badges + '</div>' +
           '<p class="meta">' + escapeHtml(product.id) + '</p>' +
+          renderImageReview(product) +
         '</div>' +
         '<div class="review-controls">' +
           '<select data-status data-id="' + escapeHtml(product.id) + '">' +
@@ -285,6 +345,41 @@ function buildReviewPage(products: ProductMaster[]): string {
           '<textarea data-note data-id="' + escapeHtml(product.id) + '" placeholder="修正メモ">' + escapeHtml(review.note || '') + '</textarea>' +
         '</div>' +
       '</article>';
+    }
+
+    function renderImageReview(product) {
+      const imageUrls = uniqueUrls([product.imageUrl, ...(product.packageImageUrls || [])]);
+      if (!imageUrls.length) {
+        return '<section class="image-review"><div class="image-review-title">画像候補</div><div class="image-empty">画像候補はありません</div></section>';
+      }
+      const visibleUrls = imageUrls.slice(0, 12);
+      const extraCount = imageUrls.length - visibleUrls.length;
+      return '<section class="image-review">' +
+        '<div class="image-review-title">画像候補 ' + imageUrls.length + '件' +
+          (product.imageUrl ? badge('代表画像あり', 'good') : badge('代表画像なし', 'warn')) +
+          (extraCount > 0 ? badge('ほか' + extraCount + '件', '') : '') +
+        '</div>' +
+        '<div class="image-grid">' + visibleUrls.map((url) => renderImageCandidate(url, product.imageUrl === url)).join('') + '</div>' +
+      '</section>';
+    }
+
+    function renderImageCandidate(url, isPrimary) {
+      return '<figure class="image-candidate">' +
+        '<img src="' + escapeAttribute(url) + '" loading="lazy" referrerpolicy="no-referrer" alt="商品画像候補" />' +
+        '<footer>' +
+          '<div class="badges">' + (isPrimary ? badge('代表', 'good') : badge('候補', '')) + '</div>' +
+          '<div class="image-url" title="' + escapeAttribute(url) + '">' + escapeHtml(shortenUrl(url)) + '</div>' +
+          '<button type="button" data-copy-url="' + escapeAttribute(url) + '">URLコピー</button>' +
+        '</footer>' +
+      '</figure>';
+    }
+
+    function uniqueUrls(values) {
+      return Array.from(new Set((values || []).filter((value) => typeof value === 'string' && /^https?:\\/\\//.test(value))));
+    }
+
+    function shortenUrl(url) {
+      return url.replace(/^https?:\\/\\//, '').slice(0, 52);
     }
 
     function badge(text, tone) {
@@ -318,12 +413,25 @@ function buildReviewPage(products: ProductMaster[]): string {
       URL.revokeObjectURL(url);
     }
 
+    async function copyImageUrl(url) {
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        window.prompt('画像URLをコピーしてください', url);
+      }
+    }
+
     function normalize(value) {
       return String(value || '').normalize('NFKC').toLowerCase().replace(/[\\s\\-_/・,，.。()（）[\\]【】"'“”]/g, '');
     }
 
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/\\x60/g, '&#96;');
     }
   </script>
 </body>

@@ -9,6 +9,7 @@ import { unitLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
+import { getInventoryCatIds } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { formatDisplayDate } from '@/utils/date';
@@ -39,7 +40,19 @@ export default function PurchaseHistoryScreen() {
     [items],
   );
   const catNames = useMemo(() => new Map(cats.map((cat) => [cat.id, cat.name])), [cats]);
-  const itemCatIds = useMemo(() => new Map(items.map((item) => [item.id, item.catId])), [items]);
+  const itemCatNames = useMemo(
+    () =>
+      new Map(
+        items.map((item) => [
+          item.id,
+          getInventoryCatIds(item)
+            .map((catId) => catNames.get(catId))
+            .filter(Boolean)
+            .join('・'),
+        ]),
+      ),
+    [catNames, items],
+  );
   const monthlyTotal = history
     .filter((entry) => entry.price && isSameMonth(parseISO(entry.purchasedAt), new Date()))
     .reduce((sum, entry) => sum + (entry.price ?? 0), 0);
@@ -63,7 +76,7 @@ export default function PurchaseHistoryScreen() {
               <Text style={styles.date}>{formatDisplayDate(entry.purchasedAt)}</Text>
               <Text style={styles.name}>{itemNames.get(entry.inventoryItemId) ?? '削除済みの商品'}</Text>
               <Text style={styles.catName}>
-                {catNames.get(itemCatIds.get(entry.inventoryItemId) ?? '') ?? '猫プロフィール未設定'}
+                {itemCatNames.get(entry.inventoryItemId) || '猫プロフィール未設定'}
               </Text>
               <Text style={styles.detail}>
                 {entry.amount}

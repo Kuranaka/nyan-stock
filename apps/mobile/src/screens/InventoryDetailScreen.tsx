@@ -13,6 +13,7 @@ import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import {
   calculatePurchaseFrequencyDays,
+  getInventoryCatIds,
   calculateRemainingDays,
   calculateRemainingPercent,
   getInventoryStatus,
@@ -38,21 +39,23 @@ export default function InventoryDetailScreen() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [showReplenish, setShowReplenish] = useState(false);
   const [replenishDate, setReplenishDate] = useState(todayIso());
-  const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
-  const [shopName, setShopName] = useState('');
   const [memo, setMemo] = useState('');
   const [showStockEdit, setShowStockEdit] = useState(false);
   const [editPurchaseDate, setEditPurchaseDate] = useState(todayIso());
+  const [editPrice, setEditPrice] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editDailyUsage, setEditDailyUsage] = useState('');
   const [editLastingDays, setEditLastingDays] = useState('');
+  const [editMemo, setEditMemo] = useState('');
 
   const resetStockEditFields = (nextItem: InventoryItem) => {
     setEditPurchaseDate(nextItem.purchaseDate);
+    setEditPrice(nextItem.price?.toString() ?? '');
     setEditAmount(String(nextItem.amount));
     setEditDailyUsage(nextItem.dailyUsage?.toString() ?? '');
     setEditLastingDays(nextItem.lastingDays?.toString() ?? '');
+    setEditMemo(nextItem.memo ?? '');
   };
 
   const load = useCallback(async () => {
@@ -61,7 +64,6 @@ export default function InventoryDetailScreen() {
     setItem(next);
     setCats(nextCats);
     if (next) {
-      setAmount(String(next.amount));
       resetStockEditFields(next);
     }
   }, [id]);
@@ -85,7 +87,12 @@ export default function InventoryDetailScreen() {
   const percent = calculateRemainingPercent(item);
   const purchaseFrequencyDays = calculatePurchaseFrequencyDays(item);
   const status = getInventoryStatus(item);
-  const catName = cats.find((cat) => cat.id === item.catId)?.name;
+  const contentAmountLabel = item.amount > 0 ? `${item.amount}${unitLabels[item.unit]}` : '未設定';
+  const remainingStockLabel = formatRemainingStockValue(item, percent);
+  const catNames = getInventoryCatIds(item)
+    .map((catId) => cats.find((cat) => cat.id === catId)?.name)
+    .filter(Boolean)
+    .join('・');
   const estimationLabel =
     item.estimationMode === 'purchase_frequency'
       ? '購入頻度から自動計算'
@@ -115,10 +122,28 @@ export default function InventoryDetailScreen() {
     ]);
   };
 
+  const openReplenish = () => {
+    setReplenishDate(todayIso());
+    setPrice(item.price?.toString() ?? '');
+    setMemo('');
+    setShowReplenish(true);
+  };
+
+  const closeReplenish = () => {
+    setShowReplenish(false);
+    setPrice('');
+    setMemo('');
+  };
+
   const submitReplenish = () => {
-    const amountNumber = parseOptionalNumber(amount);
-    if (!amountNumber || amountNumber <= 0) {
-      Alert.alert('入力を確認してください', '内容量は0より大きくしてください。');
+    const replenishAmount = getReplenishAmount(item);
+    const priceNumber = parseOptionalNumber(price);
+    if ((!item.estimationMode || item.estimationMode === 'usage') && replenishAmount <= 0) {
+      Alert.alert('入力を確認してください', '設定済みの内容量が0以下です。残量・計算設定から内容量を確認してください。');
+      return;
+    }
+    if (price.trim() && (priceNumber === undefined || priceNumber < 0)) {
+      Alert.alert('入力を確認してください', '価格は0以上の数字で入力してください。');
       return;
     }
     if (item.estimationMode === 'lasting_days') {
@@ -127,8 +152,8 @@ export default function InventoryDetailScreen() {
         `${formatDisplayDate(replenishDate)}の補充として記録します。残っている日数をどう扱いますか？`,
         [
           { text: 'キャンセル', style: 'cancel' },
-          { text: '残りに足す', onPress: () => void saveReplenish(true, amountNumber, 'add_remaining') },
-          { text: '周期に戻す', onPress: () => void saveReplenish(true, amountNumber, 'reset_cycle') },
+          { text: '残りに足す', onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'add_remaining') },
+          { text: '周期に戻す', onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'reset_cycle') },
         ],
       );
       return;
@@ -136,13 +161,34 @@ export default function InventoryDetailScreen() {
 
     Alert.alert('補充を保存しますか？', `${formatDisplayDate(replenishDate)}の補充として記録します。`, [
       { text: 'キャンセル', style: 'cancel' },
-      { text: '保存する', onPress: () => void saveReplenish(true, amountNumber) },
+      { text: '保存する', onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber) },
     ]);
+  };
+
+  const confirmPriceAndSaveReplenish = (
+    amountNumber: number,
+    priceNumber: number | undefined,
+    lastingDaysReplenishMode: LastingDaysReplenishMode = 'add_remaining',
+  ) => {
+    if (priceNumber !== item.price) {
+      Alert.alert(
+        '商品価格を更新しますか？',
+        `補充価格を${priceNumber === undefined ? '未入力' : `${priceNumber.toLocaleString()}円`}で記録します。商品に設定済みの価格も更新しますか？`,
+        [
+          { text: '更新しない', onPress: () => void saveReplenish(true, amountNumber, priceNumber, false, lastingDaysReplenishMode) },
+          { text: '更新する', onPress: () => void saveReplenish(true, amountNumber, priceNumber, true, lastingDaysReplenishMode) },
+        ],
+      );
+      return;
+    }
+    void saveReplenish(true, amountNumber, priceNumber, false, lastingDaysReplenishMode);
   };
 
   const saveReplenish = async (
     resetOpenedDate: boolean,
     amountNumber: number,
+    priceNumber: number | undefined,
+    shouldUpdateItemPrice: boolean,
     lastingDaysReplenishMode: LastingDaysReplenishMode = 'add_remaining',
   ) => {
     const history: PurchaseHistory = {
@@ -151,30 +197,41 @@ export default function InventoryDetailScreen() {
       purchasedAt: replenishDate,
       amount: amountNumber,
       unit: item.unit,
-      price: parseOptionalNumber(price),
-      shopName: shopName.trim() || undefined,
+      price: priceNumber,
       memo: memo.trim() || undefined,
       createdAt: nowIso(),
     };
     const settings = await getSettings();
-    const nextItem = await replenishInventoryItem(item, history, resetOpenedDate, lastingDaysReplenishMode);
+    const itemForReplenish: InventoryItem = shouldUpdateItemPrice
+      ? {
+          ...item,
+          price: priceNumber,
+        }
+      : item;
+    const nextItem = await replenishInventoryItem(itemForReplenish, history, resetOpenedDate, lastingDaysReplenishMode);
     const items = await getInventoryItems();
     await scheduleInventoryNotifications(items, settings);
     setItem(nextItem);
-    setShowReplenish(false);
-    setPrice('');
-    setShopName('');
-    setMemo('');
+    closeReplenish();
     resetStockEditFields(nextItem);
   };
 
   const saveStockEdit = async () => {
+    const priceNumber = parseOptionalNumber(editPrice);
     const amountNumber = parseOptionalNumber(editAmount);
     const dailyUsageNumber = parseOptionalNumber(editDailyUsage);
     const lastingDaysNumber = parseOptionalNumber(editLastingDays);
 
+    if (editPrice.trim() && (priceNumber === undefined || priceNumber < 0)) {
+      Alert.alert('入力を確認してください', '価格は0以上の数字で入力してください。');
+      return;
+    }
+    if (editAmount.trim() && (amountNumber === undefined || amountNumber < 0)) {
+      Alert.alert('入力を確認してください', '内容量・残量は0以上の数字で入力してください。');
+      return;
+    }
     if ((!item.estimationMode || item.estimationMode === 'usage') && (!amountNumber || amountNumber <= 0)) {
-      Alert.alert('入力を確認してください', '残量は0より大きくしてください。');
+      Alert.alert('入力を確認してください', '内容量・残量は0より大きくしてください。');
       return;
     }
     if ((!item.estimationMode || item.estimationMode === 'usage') && (!dailyUsageNumber || dailyUsageNumber <= 0)) {
@@ -188,11 +245,13 @@ export default function InventoryDetailScreen() {
 
     const nextItem: InventoryItem = {
       ...item,
-      amount: !item.estimationMode || item.estimationMode === 'usage' ? amountNumber ?? item.amount : item.amount,
+      price: priceNumber,
+      amount: item.estimationMode === 'purchase_frequency' ? item.amount : amountNumber ?? 0,
       dailyUsage: !item.estimationMode || item.estimationMode === 'usage' ? dailyUsageNumber : item.dailyUsage,
       lastingDays: item.estimationMode === 'lasting_days' ? lastingDaysNumber : item.lastingDays,
       purchaseDate: editPurchaseDate,
-      estimatedEndDate: undefined,
+      estimatedEndDate: item.estimationMode === 'purchase_frequency' ? item.estimatedEndDate : undefined,
+      memo: editMemo.trim() || undefined,
       updatedAt: nowIso(),
     };
     await saveInventoryItem(nextItem);
@@ -270,102 +329,137 @@ export default function InventoryDetailScreen() {
           ) : null}
           <View style={styles.titleWrap}>
             <Text style={styles.title}>{item.name}</Text>
-            <Text style={styles.sub}>{catName ? `${catName} ・ ${categoryLabels[item.category]}` : categoryLabels[item.category]}</Text>
+            <Text style={styles.sub}>{catNames ? `${catNames} ・ ${categoryLabels[item.category]}` : categoryLabels[item.category]}</Text>
           </View>
           <StatusBadge status={status} />
         </View>
         <View style={styles.metrics}>
           <Metric label="残り日数" value={remainingDays === undefined ? '未計算' : `${Math.max(0, remainingDays)}日`} />
-          <Metric label="残量" value={percent === undefined ? '--%' : `${percent}%`} />
+          <Metric label="残量" value={remainingStockLabel} />
         </View>
       </AppCard>
 
       <AppCard style={styles.card}>
-        <Info label="購入日" value={formatDisplayDate(item.purchaseDate)} />
-        <Info label="推定終了日" value={formatDisplayDate(item.estimatedEndDate)} />
-        <Info label="残り日数の計算方法" value={estimationLabel} />
-        {item.estimationMode === 'lasting_days' ? (
-          <Info label="使い切る日数" value={item.lastingDays === undefined ? '未設定' : `${item.lastingDays}日`} />
-        ) : null}
-        {item.estimationMode === 'purchase_frequency' ? (
+        <View style={styles.infoHeader}>
+          <Text style={styles.sectionTitle}>商品情報</Text>
+          <AppButton
+            title={showStockEdit ? 'キャンセル' : '編集'}
+            variant="secondary"
+            onPress={
+              showStockEdit
+                ? () => {
+                    resetStockEditFields(item);
+                    setShowStockEdit(false);
+                  }
+                : openStockEdit
+            }
+            style={styles.editButton}
+          />
+        </View>
+        {showStockEdit ? (
           <>
-            <Info label="現在の購入頻度" value={purchaseFrequencyDays === undefined ? '未計算' : `${purchaseFrequencyDays}日ごと`} />
-            <AppButton
-              title="使い切る日数方式に切り替える"
-              variant="secondary"
-              disabled={purchaseFrequencyDays === undefined}
-              onPress={switchToLastingDays}
+            <AppTextInput label="価格" value={editPrice} onChangeText={setEditPrice} keyboardType="numeric" />
+            <DatePickerField
+              label="購入日"
+              value={editPurchaseDate}
+              onChange={setEditPurchaseDate}
+              requirement="required"
             />
-          </>
-        ) : null}
-        {shouldShowDailyUsage ? (
-          <Info
-            label="消費ペース"
-            value={item.dailyUsage ? `${item.dailyUsage}${unitLabels[item.unit]}/日` : '未設定'}
-          />
-        ) : null}
-        <Info label="メモ" value={item.memo || '未入力'} />
-      </AppCard>
-
-      {showStockEdit ? (
-        <AppCard style={styles.card}>
-          <Text style={styles.sectionTitle}>残量・計算設定</Text>
-          <DatePickerField
-            label="購入日"
-            value={editPurchaseDate}
-            onChange={setEditPurchaseDate}
-            requirement="required"
-          />
-          {!item.estimationMode || item.estimationMode === 'usage' ? (
-            <>
+            {item.estimationMode !== 'purchase_frequency' ? (
+              <>
+                <AppTextInput
+                  label={`内容量・残量（${unitLabels[item.unit]}）`}
+                  value={editAmount}
+                  onChangeText={setEditAmount}
+                  keyboardType="decimal-pad"
+                />
+                <AppTextInput
+                  label={`消費ペース（${unitLabels[item.unit]}/日）`}
+                  value={editDailyUsage}
+                  onChangeText={setEditDailyUsage}
+                  keyboardType="decimal-pad"
+                />
+              </>
+            ) : null}
+            {item.estimationMode === 'lasting_days' ? (
               <AppTextInput
-                label={`残量（${unitLabels[item.unit]}）`}
-                value={editAmount}
-                onChangeText={setEditAmount}
-                keyboardType="decimal-pad"
+                label="使い切る日数"
+                value={editLastingDays}
+                onChangeText={setEditLastingDays}
+                keyboardType="numeric"
               />
-              <AppTextInput
-                label={`1日あたりの消費量（${unitLabels[item.unit]}/日）`}
-                value={editDailyUsage}
-                onChangeText={setEditDailyUsage}
-                keyboardType="decimal-pad"
-              />
-            </>
-          ) : null}
-          {item.estimationMode === 'lasting_days' ? (
+            ) : null}
+            {item.estimationMode === 'purchase_frequency' ? (
+              <Text style={styles.affiliate}>購入頻度は補充履歴から自動計算するため、ここでは価格・購入日・メモを変更できます。</Text>
+            ) : null}
             <AppTextInput
-              label="使い切る日数"
-              value={editLastingDays}
-              onChangeText={setEditLastingDays}
-              keyboardType="numeric"
+              label="メモ"
+              value={editMemo}
+              onChangeText={setEditMemo}
+              multiline
+              placeholder="メモ"
+              style={styles.memo}
             />
-          ) : null}
-          {item.estimationMode === 'purchase_frequency' ? (
-            <Text style={styles.affiliate}>補充履歴から自動計算するため、ここでは購入日のみ変更できます。</Text>
-          ) : null}
-          <View style={styles.inlineActions}>
-            <AppButton title="保存" onPress={() => void saveStockEdit()} style={styles.inlineAction} />
-            <AppButton
-              title="閉じる"
-              variant="secondary"
-              onPress={() => {
-                resetStockEditFields(item);
-                setShowStockEdit(false);
-              }}
-              style={styles.inlineAction}
-            />
-          </View>
-        </AppCard>
-      ) : null}
+            <AppButton title="保存" onPress={() => void saveStockEdit()} />
+          </>
+        ) : (
+          <>
+            <Info label="価格" value={item.price === undefined ? '未入力' : `${item.price.toLocaleString()}円`} />
+            <Info label="購入日" value={formatDisplayDate(item.purchaseDate)} />
+            <Info label="推定終了日" value={formatDisplayDate(item.estimatedEndDate)} />
+            <Info label="残り日数の計算方法" value={estimationLabel} />
+            <Info label="内容量" value={contentAmountLabel} />
+            <Info label="残量" value={remainingStockLabel} />
+            {item.estimationMode === 'lasting_days' ? (
+              <Info label="使い切る日数" value={item.lastingDays === undefined ? '未設定' : `${item.lastingDays}日`} />
+            ) : null}
+            {item.estimationMode === 'purchase_frequency' ? (
+              <>
+                <Info label="現在の購入頻度" value={purchaseFrequencyDays === undefined ? '未計算' : `${purchaseFrequencyDays}日ごと`} />
+                <AppButton
+                  title="使い切る日数方式に切り替える"
+                  variant="secondary"
+                  disabled={purchaseFrequencyDays === undefined}
+                  onPress={switchToLastingDays}
+                />
+              </>
+            ) : null}
+            {shouldShowDailyUsage ? (
+              <Info
+                label="消費ペース"
+                value={item.dailyUsage ? `${item.dailyUsage}${unitLabels[item.unit]}/日` : '未設定'}
+              />
+            ) : null}
+            <Info label="メモ" value={item.memo || '未入力'} />
+          </>
+        )}
+      </AppCard>
 
       <AppCard style={styles.card}>
         <Text style={styles.sectionTitle}>購入する</Text>
         <Text style={styles.affiliate}>リンクにはアフィリエイトが含まれる場合があります</Text>
         <View style={styles.actionGrid}>
-          <AppButton title="Amazonで買う" onPress={() => void buy('amazon')} />
-          <AppButton title="楽天で買う" variant="secondary" onPress={() => void buy('rakuten')} />
-          <AppButton title="Yahooで買う" variant="secondary" onPress={() => void buy('yahoo')} />
-          <AppButton title="その他で買う" variant="secondary" onPress={() => void buy('other')} />
+          <PurchaseButton
+            label="Amazon"
+            configured={Boolean(item.purchaseLinks.amazon)}
+            primary
+            onPress={() => void buy('amazon')}
+          />
+          <PurchaseButton
+            label="楽天"
+            configured={Boolean(item.purchaseLinks.rakuten)}
+            onPress={() => void buy('rakuten')}
+          />
+          <PurchaseButton
+            label="Yahoo"
+            configured={Boolean(item.purchaseLinks.yahoo)}
+            onPress={() => void buy('yahoo')}
+          />
+          <PurchaseButton
+            label="その他"
+            configured={Boolean(item.purchaseLinks.other)}
+            onPress={() => void buy('other')}
+          />
         </View>
       </AppCard>
 
@@ -378,17 +472,20 @@ export default function InventoryDetailScreen() {
             onChange={setReplenishDate}
             requirement="required"
           />
-          <AppTextInput label="内容量" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
+          {!item.estimationMode || item.estimationMode === 'usage' ? (
+            <Text style={styles.affiliate}>
+              内容量は設定済みの{item.amount}
+              {unitLabels[item.unit]}で記録します。
+            </Text>
+          ) : null}
           <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
-          <AppTextInput label="購入先" value={shopName} onChangeText={setShopName} />
           <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
           <AppButton title="補充を保存" onPress={submitReplenish} />
-          <AppButton title="閉じる" variant="secondary" onPress={() => setShowReplenish(false)} />
+          <AppButton title="閉じる" variant="secondary" onPress={closeReplenish} />
         </AppCard>
       ) : null}
 
-      <AppButton title="在庫を補充した" onPress={() => setShowReplenish(true)} />
-      <AppButton title="残量・計算設定を編集" variant="secondary" onPress={openStockEdit} />
+      <AppButton title="在庫を補充した" onPress={openReplenish} />
       <AppButton
         title="編集"
         variant="secondary"
@@ -415,6 +512,47 @@ function Info({ label, value }: { label: string; value: string }) {
       <Text style={styles.infoValue}>{value}</Text>
     </View>
   );
+}
+
+function PurchaseButton({
+  label,
+  configured,
+  primary,
+  onPress,
+}: {
+  label: string;
+  configured: boolean;
+  primary?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <AppButton
+      title={configured ? `${label}で買う` : `${label} URL未設定`}
+      variant={configured && primary ? 'primary' : 'secondary'}
+      onPress={onPress}
+    />
+  );
+}
+
+function formatRemainingStockValue(item: InventoryItem, percent: number | undefined): string {
+  if (percent === undefined) return '未設定';
+  if (item.estimationMode === 'lasting_days') {
+    if (item.amount > 0) {
+      return `${formatQuantity((item.amount * Math.max(0, percent)) / 100)}${unitLabels[item.unit]}`;
+    }
+    return `${percent}%`;
+  }
+  if (item.amount <= 0) return '未設定';
+  return `${percent}%`;
+}
+
+function formatQuantity(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return String(Math.round(value * 10) / 10);
+}
+
+function getReplenishAmount(item: InventoryItem): number {
+  return item.amount;
 }
 
 function buildPurchasePriceMessage(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): string {
@@ -521,6 +659,17 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     lineHeight: 23,
+  },
+  infoHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  editButton: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   sectionTitle: {
     color: colors.text,

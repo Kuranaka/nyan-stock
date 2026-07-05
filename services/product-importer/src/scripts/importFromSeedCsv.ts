@@ -63,7 +63,7 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
     );
 
     if (!options.dryRun && pendingProducts.length >= options.batchSize) {
-      const saved = await upsertProductMasters(pendingProducts);
+      const saved = await upsertProductMasters(pendingProducts, { dedupe: false });
       console.log(`[import:seed] batch saved=${pendingProducts.length} totalSaved=${saved.length}`);
       pendingProducts = [];
     }
@@ -75,7 +75,7 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
   }
 
   if (pendingProducts.length > 0) {
-    const saved = await upsertProductMasters(pendingProducts);
+    const saved = await upsertProductMasters(pendingProducts, { dedupe: false });
     console.log(`[import:seed] batch saved=${pendingProducts.length} totalSaved=${saved.length}`);
   }
   console.log(`[import:seed] normalized=${normalizedCount}`);

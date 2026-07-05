@@ -160,15 +160,59 @@ export function scoreEnrichmentCandidate(seed: SeedProductSeries, raw: RawProduc
 }
 
 function parseCsv(csv: string): Record<string, string>[] {
-  const rows = csv
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => line.split(','));
+  const rows = parseCsvRows(csv.replace(/^\uFEFF/, '')).filter((row) =>
+    row.some((value) => value.trim().length > 0),
+  );
   const [header = [], ...body] = rows;
   return body.map((row) =>
-    Object.fromEntries(header.map((key, index) => [key, row[index] ?? ''])),
+    Object.fromEntries(header.map((key, index) => [key, row[index]?.trim() ?? ''])),
   );
+}
+
+function parseCsvRows(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < csv.length; index += 1) {
+    const char = csv[index];
+    const next = csv[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      row.push(value);
+      value = '';
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') index += 1;
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = '';
+      continue;
+    }
+
+    value += char;
+  }
+
+  if (value.length > 0 || row.length > 0) {
+    row.push(value);
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 function mapSeedRow(row: Record<string, string>): SeedProductSeries {

@@ -110,7 +110,7 @@ export default function CatProfileScreen() {
     if (!current) return;
     Alert.alert(
       '猫プロフィールを削除しますか？',
-      `${current.name}のプロフィール、在庫、購入履歴を削除します。`,
+      `${current.name}のプロフィールを削除します。この猫だけに紐づく在庫と購入履歴は削除され、共有中の商品は他の猫の在庫として残ります。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {

@@ -25,6 +25,7 @@ import {
   getInventoryItems,
   saveInventoryItem,
 } from '@/features/inventory/inventoryStorage';
+import { getInventoryCatIds } from '@/features/inventory/inventoryLogic';
 import {
   InventoryCategory,
   InventoryEstimationMode,
@@ -48,7 +49,7 @@ import { getSettings, updateSettings } from '@/features/settings/settingsStorage
 import { nowIso, todayIso } from '@/utils/date';
 import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
-type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'url', string>>;
+type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'price' | 'url' | 'imageUrl', string>>;
 type AddMethod = 'master' | 'barcode' | 'manual' | undefined;
 type ProductCategoryFilter = ProductCategory | 'all';
 
@@ -71,10 +72,12 @@ export default function InventoryFormScreen() {
   const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
+  const [targetCatIds, setTargetCatIds] = useState<string[]>([]);
   const [current, setCurrent] = useState<InventoryItem | undefined>();
   const [addMethod, setAddMethod] = useState<AddMethod>('master');
   const [productMasterId, setProductMasterId] = useState<string | undefined>();
   const [imageUrl, setImageUrl] = useState<string | undefined>();
+  const [price, setPrice] = useState('');
   const [name, setName] = useState('');
   const [category, setCategory] = useState<InventoryCategory>('dry_food');
   const [amount, setAmount] = useState('');
@@ -156,6 +159,10 @@ export default function InventoryFormScreen() {
           ? settings.selectedCatId
           : nextCats[0]?.id;
         setSelectedCatId(fallbackCatId);
+        setTargetCatIds((currentIds) => {
+          const validIds = currentIds.filter((catId) => nextCats.some((cat) => cat.id === catId));
+          return validIds.length > 0 ? validIds : fallbackCatId ? [fallbackCatId] : [];
+        });
         if (!id) {
           const brands = await getProductMasterBrands();
           setMasterBrandOptions(brands);
@@ -169,7 +176,9 @@ export default function InventoryFormScreen() {
         setAddMethod('manual');
         setProductMasterId(item.productMasterId);
         setImageUrl(item.imageUrl);
+        setPrice(item.price?.toString() ?? '');
         setSelectedCatId(item.catId);
+        setTargetCatIds(getInventoryCatIds(item));
         setName(item.name);
         setMasterSearchKeyword(item.name);
         setProductSearchKeyword(item.name);
@@ -245,6 +254,20 @@ export default function InventoryFormScreen() {
     );
   };
 
+  const toggleTargetCat = (catId: string) => {
+    setTargetCatIds((currentIds) => {
+      if (currentIds.includes(catId)) {
+        if (currentIds.length === 1) return currentIds;
+        const nextIds = currentIds.filter((currentCatId) => currentCatId !== catId);
+        setSelectedCatId(nextIds[0]);
+        return nextIds;
+      }
+      const nextIds = [...currentIds, catId];
+      setSelectedCatId(nextIds[0]);
+      return nextIds;
+    });
+  };
+
   const changeEstimationMode = (nextMode: InventoryEstimationMode) => {
     setEstimationMode(nextMode);
     setErrors((currentErrors) => ({
@@ -276,7 +299,11 @@ export default function InventoryFormScreen() {
     const amountNumber = parseOptionalNumber(amount);
     const dailyUsageNumber = parseOptionalNumber(dailyUsage);
     const lastingDaysNumber = parseOptionalNumber(lastingDays);
+    const priceNumber = parseOptionalNumber(price);
     if (!name.trim()) nextErrors.name = '商品名は必須です。';
+    if (price.trim() && (priceNumber === undefined || priceNumber < 0)) {
+      nextErrors.price = '価格は0以上の数字で入力してください。';
+    }
     if (estimationMode === 'usage') {
       if (!amountNumber || amountNumber <= 0) nextErrors.amount = '内容量は0より大きくしてください。';
       if (!dailyUsageNumber || dailyUsageNumber <= 0) {
@@ -288,6 +315,9 @@ export default function InventoryFormScreen() {
     }
     if (![amazon, rakuten, yahoo, other].every(isValidOptionalUrl)) {
       nextErrors.url = 'URLは http:// または https:// で始めてください。';
+    }
+    if (!isValidOptionalUrl(imageUrl)) {
+      nextErrors.imageUrl = '画像URLは http:// または https:// で始めてください。';
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -413,6 +443,7 @@ export default function InventoryFormScreen() {
       setProductMasterId(undefined);
       setImageUrl(undefined);
       setName(result.name);
+      if (result.price !== undefined) setPrice(String(result.price));
       setYahoo(result.url);
       setProductSearchKeyword(result.name);
       setErrors((currentErrors) => ({ ...currentErrors, name: undefined, url: undefined }));
@@ -510,6 +541,9 @@ export default function InventoryFormScreen() {
     } else {
       setRakuten(result.url);
     }
+    if (options.includeName && result.price !== undefined) {
+      setPrice(String(result.price));
+    }
     setErrors((currentErrors) => ({
       ...currentErrors,
       name: options.includeName ? undefined : currentErrors.name,
@@ -522,9 +556,11 @@ export default function InventoryFormScreen() {
   };
 
   const save = async () => {
-    if (!validate() || !selectedCatId) return;
+    const primaryCatId = targetCatIds[0] ?? selectedCatId;
+    if (!validate() || !primaryCatId) return;
     const now = nowIso();
     const amountNumber = parseOptionalNumber(amount);
+    const priceNumber = parseOptionalNumber(price);
     const dailyUsageNumber = estimationMode === 'usage' ? parseOptionalNumber(dailyUsage) : undefined;
     const lastingDaysNumber = parseOptionalNumber(lastingDays);
     const estimatedEndDate = estimationMode === 'lasting_days' && lastingDaysNumber
@@ -538,9 +574,11 @@ export default function InventoryFormScreen() {
     };
     await saveInventoryItem({
       id: current?.id ?? createId('item'),
-      catId: selectedCatId,
+      catId: primaryCatId,
+      sharedCatIds: targetCatIds.length > 1 ? targetCatIds.slice(1) : undefined,
       productMasterId,
-      imageUrl,
+      imageUrl: imageUrl?.trim() || undefined,
+      price: priceNumber,
       name: name.trim(),
       category,
       amount: estimationMode === 'usage' ? amountNumber ?? 0 : 0,
@@ -568,7 +606,7 @@ export default function InventoryFormScreen() {
         updatedAt: now,
       });
     }
-    await updateSettings({ selectedCatId });
+    await updateSettings({ selectedCatId: primaryCatId });
     const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
     await scheduleInventoryNotifications(items, settings);
     router.back();
@@ -578,17 +616,20 @@ export default function InventoryFormScreen() {
     <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
       {cats.length > 1 ? (
         <>
-          <FieldLabel label="対象の猫" requirement="required" />
+          <FieldLabel label="対象の猫（複数選択可）" requirement="required" />
           <View style={styles.wrapRow}>
             {cats.map((cat) => (
               <AppButton
                 key={cat.id}
                 title={cat.name}
-                variant={cat.id === selectedCatId ? 'primary' : 'secondary'}
-                onPress={() => setSelectedCatId(cat.id)}
+                variant={targetCatIds.includes(cat.id) ? 'primary' : 'secondary'}
+                onPress={() => toggleTargetCat(cat.id)}
               />
             ))}
           </View>
+          {targetCatIds.length > 1 ? (
+            <Text style={styles.hint}>選択した猫で同じ在庫を共有します。補充や残り日数も共通で更新されます。</Text>
+          ) : null}
         </>
       ) : null}
 
@@ -788,6 +829,25 @@ export default function InventoryFormScreen() {
       }}>
         <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} requirement="required" />
       </View>
+
+      <AppTextInput
+        label="価格"
+        value={price}
+        onChangeText={setPrice}
+        keyboardType="numeric"
+        error={errors.price}
+        requirement="optional"
+      />
+
+      <AppTextInput
+        label="画像URL"
+        value={imageUrl ?? ''}
+        onChangeText={(value) => setImageUrl(value)}
+        keyboardType="url"
+        autoCapitalize="none"
+        error={errors.imageUrl}
+        requirement="optional"
+      />
 
       <FieldLabel label="カテゴリ" requirement="required" />
       <View style={styles.wrapRow}>
