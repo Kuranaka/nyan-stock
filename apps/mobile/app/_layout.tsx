@@ -1,13 +1,43 @@
 import { Stack } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
+import {
+  householdRealtimeEventName,
+  householdRealtimeResubscribeEventName,
+  subscribeToHouseholdRealtime,
+} from '@/features/sync/householdRealtime';
 
 export default function RootLayout() {
   const router = useRouter();
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    const startSubscription = () => {
+      unsubscribe?.();
+      unsubscribe = undefined;
+      void subscribeToHouseholdRealtime(() => {
+        DeviceEventEmitter.emit(householdRealtimeEventName);
+      }).then((nextUnsubscribe) => {
+        unsubscribe = nextUnsubscribe;
+      });
+    };
+
+    startSubscription();
+    const resubscribeListener = DeviceEventEmitter.addListener(
+      householdRealtimeResubscribeEventName,
+      startSubscription,
+    );
+
+    return () => {
+      resubscribeListener.remove();
+      unsubscribe?.();
+    };
+  }, []);
 
   return (
     <View style={styles.app}>

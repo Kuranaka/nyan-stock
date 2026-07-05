@@ -2,7 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 
 import { storageKeys } from '@/features/storageKeys';
-import { getActiveHouseholdSnapshot, updateActiveHouseholdSnapshot } from '@/features/sync/householdSyncService';
+import {
+  clearActiveHouseholdInventoryData,
+  deleteActiveHouseholdInventoryItem,
+  getActiveHouseholdSnapshot,
+  syncActiveHouseholdInventoryAndHistory,
+  upsertActiveHouseholdInventoryItem,
+  upsertActiveHouseholdPurchaseHistory,
+} from '@/features/sync/householdSyncService';
 import { nowIso } from '@/utils/date';
 
 import { calculateEstimatedEndDate, calculateRemainingDays, getInventoryCatIds } from './inventoryLogic';
@@ -29,16 +36,7 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
     updatedAt: nowIso(),
   };
 
-  const snapshot = await updateActiveHouseholdSnapshot((current) => {
-    const nextItems = current.inventoryItems.some((currentItem) => currentItem.id === item.id)
-      ? current.inventoryItems.map((currentItem) => (currentItem.id === item.id ? normalized : currentItem))
-      : [normalized, ...current.inventoryItems];
-    return {
-      ...current,
-      inventoryItems: nextItems,
-    };
-  });
-  if (snapshot) return;
+  if (await upsertActiveHouseholdInventoryItem(normalized)) return;
 
   const items = await getInventoryItems();
   const next = items.some((current) => current.id === item.id)
@@ -48,12 +46,7 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
-  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
-    ...current,
-    inventoryItems: current.inventoryItems.filter((item) => item.id !== id),
-    purchaseHistory: current.purchaseHistory.filter((entry) => entry.inventoryItemId !== id),
-  }));
-  if (snapshot) return;
+  if (await deleteActiveHouseholdInventoryItem(id)) return;
 
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
   await AsyncStorage.setItem(
@@ -67,27 +60,19 @@ export async function deleteInventoryItem(id: string): Promise<void> {
 }
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
-  const snapshot = await updateActiveHouseholdSnapshot((current) => {
-    const nextItems = removeCatFromInventoryItems(current.inventoryItems, catId);
-    const nextItemIds = new Set(nextItems.map((item) => item.id));
-    return {
-      ...current,
-      inventoryItems: nextItems,
-      purchaseHistory: current.purchaseHistory.filter((entry) => nextItemIds.has(entry.inventoryItemId)),
-    };
-  });
-  if (snapshot) return;
-
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
   const nextItems = removeCatFromInventoryItems(items, catId);
   const nextItemIds = new Set(nextItems.map((item) => item.id));
+  const nextHistory = history.filter((entry) => nextItemIds.has(entry.inventoryItemId));
+  if (await syncActiveHouseholdInventoryAndHistory(nextItems, nextHistory)) return;
+
   await AsyncStorage.setItem(
     storageKeys.inventoryItems,
     JSON.stringify(nextItems),
   );
   await AsyncStorage.setItem(
     storageKeys.purchaseHistory,
-    JSON.stringify(history.filter((entry) => nextItemIds.has(entry.inventoryItemId))),
+    JSON.stringify(nextHistory),
   );
 }
 
@@ -100,25 +85,18 @@ export async function getPurchaseHistory(): Promise<PurchaseHistory[]> {
 }
 
 export async function addPurchaseHistory(entry: PurchaseHistory): Promise<void> {
-  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
-    ...current,
-    purchaseHistory: [entry, ...current.purchaseHistory],
-  }));
-  if (snapshot) return;
+  if (await upsertActiveHouseholdPurchaseHistory(entry)) return;
 
   const history = await getPurchaseHistory();
   await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify([entry, ...history]));
 }
 
 export async function updatePurchaseHistoryPrice(id: string, price?: number): Promise<PurchaseHistory[]> {
-  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
-    ...current,
-    purchaseHistory: current.purchaseHistory.map((entry) => (entry.id === id ? { ...entry, price } : entry)),
-  }));
-  if (snapshot) return snapshot.purchaseHistory;
-
   const history = await getPurchaseHistory();
   const nextHistory = history.map((entry) => (entry.id === id ? { ...entry, price } : entry));
+  const changedEntry = nextHistory.find((entry) => entry.id === id);
+  if (changedEntry && (await upsertActiveHouseholdPurchaseHistory(changedEntry))) return nextHistory;
+
   await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
   return nextHistory;
 }
@@ -152,12 +130,7 @@ export async function replenishInventoryItem(
 }
 
 export async function clearInventoryData(): Promise<void> {
-  const snapshot = await updateActiveHouseholdSnapshot((current) => ({
-    ...current,
-    inventoryItems: [],
-    purchaseHistory: [],
-  }));
-  if (snapshot) return;
+  if (await clearActiveHouseholdInventoryData()) return;
 
   await Promise.all([
     AsyncStorage.removeItem(storageKeys.inventoryItems),

@@ -21,6 +21,7 @@ import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
+import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatTodayJapanese } from '@/utils/date';
 
 import OnboardingScreen from './OnboardingScreen';
@@ -63,6 +64,9 @@ export default function HomeScreen() {
       void load();
     }, [load]),
   );
+  useHouseholdSyncEvents(() => {
+    void load();
+  });
 
   const completeOnboarding = async (toProfile: boolean) => {
     await updateSettings({ onboardingCompleted: true });

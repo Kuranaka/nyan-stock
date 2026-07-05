@@ -15,6 +15,7 @@ import { Cat } from '@/features/cats/catTypes';
 import { getInventoryCatIds } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, getPurchaseHistory, updatePurchaseHistoryPrice } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
 
 export default function PurchaseHistoryScreen() {
@@ -25,21 +26,25 @@ export default function PurchaseHistoryScreen() {
   const [editingHistoryId, setEditingHistoryId] = useState<string | undefined>();
   const [editingPrice, setEditingPrice] = useState('');
 
+  const load = useCallback(async () => {
+    const [nextHistory, nextItems, nextCats] = await Promise.all([
+      getPurchaseHistory(),
+      getInventoryItems(),
+      getCats(),
+    ]);
+    setHistory(nextHistory);
+    setItems(nextItems);
+    setCats(nextCats);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      async function load() {
-        const [nextHistory, nextItems, nextCats] = await Promise.all([
-          getPurchaseHistory(),
-          getInventoryItems(),
-          getCats(),
-        ]);
-        setHistory(nextHistory);
-        setItems(nextItems);
-        setCats(nextCats);
-      }
       void load();
-    }, []),
+    }, [load]),
   );
+  useHouseholdSyncEvents(() => {
+    void load();
+  });
 
   const itemNames = useMemo(
     () => new Map(items.map((item) => [item.id, item.name])),

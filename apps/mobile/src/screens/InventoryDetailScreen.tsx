@@ -31,6 +31,7 @@ import { getPurchasePriceComparison, openPurchaseUrl, ShopType } from '@/feature
 import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings } from '@/features/settings/settingsStorage';
+import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate, nowIso, todayIso } from '@/utils/date';
 import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
 
@@ -103,6 +104,9 @@ export default function InventoryDetailScreen() {
       void load();
     }, [load]),
   );
+  useHouseholdSyncEvents(() => {
+    void load();
+  });
 
   useEffect(() => {
     if (!showReplenish && action !== 'purchase') return;

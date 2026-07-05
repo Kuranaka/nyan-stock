@@ -1,7 +1,7 @@
 import { convertRawProductToProductMaster } from '../normalizers/normalizeProduct.js';
 import { searchRakutenItemsByKeyword } from '../providers/rakuten.js';
 import { searchYahooItemsByKeyword } from '../providers/yahoo.js';
-import { upsertProductMasters } from '../repositories/productRepository.js';
+import { loadProductMasters, upsertProductMasters } from '../repositories/productRepository.js';
 import {
   buildSeedSearchKeyword,
   createSeedProductMaster,
@@ -10,6 +10,7 @@ import {
   mergeSeedProductWithCandidates,
   scoreEnrichmentCandidate,
 } from '../seedProducts.js';
+import { ProductMaster } from '../types.js';
 
 type ImportOptions = {
   limit?: number;
@@ -21,8 +22,10 @@ type ImportOptions = {
 
 export async function importFromSeedCsv(options = parseOptions(process.argv.slice(2))): Promise<void> {
   const seedProducts = await loadSeedProductSeries();
+  const existingProducts = options.dryRun ? [] : await loadProductMasters();
+  const existingById = new Map(existingProducts.map((product) => [product.id, product]));
   const targets = seedProducts.slice(options.offset ?? 0, options.limit ? (options.offset ?? 0) + options.limit : undefined);
-  let pendingProducts = [];
+  let pendingProducts: ProductMaster[] = [];
   let normalizedCount = 0;
 
   console.log(
@@ -48,7 +51,8 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
     });
     const seedProduct = createSeedProductMaster(seed);
     const enriched = mergeSeedProductWithCandidates(seedProduct, enrichmentCandidates);
-    pendingProducts.push(enriched);
+    const reviewedSafeProduct = mergeImportedProductWithExistingReview(enriched, existingById.get(enriched.id));
+    pendingProducts.push(reviewedSafeProduct);
     normalizedCount += 1;
 
     const best = enrichmentCandidates.sort((a, b) => b.score - a.score)[0];
@@ -56,9 +60,10 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
       [
         `[import:seed] candidates rakuten=${rakuten.length} yahoo=${yahoo.length}`,
         `bestScore=${best?.score ?? 0}`,
-        `jan=${enriched.janCode ? 'yes' : 'no'}`,
-        `image=${enriched.imageUrl ? 'yes' : 'no'}`,
-        `links=${Object.keys(enriched.purchaseLinks ?? {}).filter((key) => Boolean(enriched.purchaseLinks?.[key as keyof typeof enriched.purchaseLinks])).join('/') || 'none'}`,
+        `jan=${reviewedSafeProduct.janCode ? 'yes' : 'no'}`,
+        `image=${reviewedSafeProduct.imageUrl ? 'yes' : 'no'}`,
+        `links=${Object.keys(reviewedSafeProduct.purchaseLinks ?? {}).filter((key) => Boolean(reviewedSafeProduct.purchaseLinks?.[key as keyof typeof reviewedSafeProduct.purchaseLinks])).join('/') || 'none'}`,
+        `reviewPreserved=${existingById.has(enriched.id) ? 'yes' : 'no'}`,
       ].join(' '),
     );
 
@@ -79,6 +84,41 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
     console.log(`[import:seed] batch saved=${pendingProducts.length} totalSaved=${saved.length}`);
   }
   console.log(`[import:seed] normalized=${normalizedCount}`);
+}
+
+function mergeImportedProductWithExistingReview(
+  incoming: ProductMaster,
+  existing: ProductMaster | undefined,
+): ProductMaster {
+  if (!existing) return incoming;
+
+  const purchaseLinks = {
+    amazon: existing.purchaseLinks?.amazon ?? incoming.purchaseLinks?.amazon,
+    rakuten: existing.purchaseLinks?.rakuten ?? incoming.purchaseLinks?.rakuten,
+    yahoo: existing.purchaseLinks?.yahoo ?? incoming.purchaseLinks?.yahoo,
+    official: existing.purchaseLinks?.official ?? incoming.purchaseLinks?.official,
+  };
+  const packageImageUrls = Array.from(
+    new Set(
+      [
+        existing.imageUrl,
+        incoming.imageUrl,
+        ...(existing.packageImageUrls ?? []),
+        ...(incoming.packageImageUrls ?? []),
+      ].filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  return {
+    ...incoming,
+    category: existing.category,
+    imageUrl: existing.imageUrl ?? incoming.imageUrl,
+    packageImageUrls,
+    purchaseLinks,
+    asin: existing.asin ?? incoming.asin,
+    isVerified: existing.isVerified || incoming.isVerified,
+    confidence: existing.isVerified ? Math.max(existing.confidence, incoming.confidence) : incoming.confidence,
+  };
 }
 
 function parseOptions(args: string[]): ImportOptions {

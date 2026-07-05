@@ -3,8 +3,10 @@ import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTy
 
 export type HouseholdSyncState = {
   householdId: string;
+  inviteCode?: string;
   joinedAt: string;
   createdBy?: string;
+  joinedBy?: string;
   lastPulledAt?: string;
   lastPushedAt?: string;
 };

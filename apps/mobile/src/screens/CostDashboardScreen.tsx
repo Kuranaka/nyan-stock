@@ -18,6 +18,7 @@ import {
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inventoryStorage';
 import { InventoryCategory, InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 
 const allCatsFilter = 'all';
 const chartColors = ['#D99A4E', '#4E9F3D', '#F0A202', '#6C8AE4', '#D9534F', '#8A6BBE', '#3AA6A6', '#A86421'];
@@ -30,21 +31,25 @@ export default function CostDashboardScreen() {
   const [history, setHistory] = useState<PurchaseHistory[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string>(allCatsFilter);
 
+  const load = useCallback(async () => {
+    const [nextCats, nextItems, nextHistory] = await Promise.all([
+      getCats(),
+      getInventoryItems(),
+      getPurchaseHistory(),
+    ]);
+    setCats(nextCats);
+    setItems(nextItems);
+    setHistory(nextHistory);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      async function load() {
-        const [nextCats, nextItems, nextHistory] = await Promise.all([
-          getCats(),
-          getInventoryItems(),
-          getPurchaseHistory(),
-        ]);
-        setCats(nextCats);
-        setItems(nextItems);
-        setHistory(nextHistory);
-      }
       void load();
-    }, []),
+    }, [load]),
   );
+  useHouseholdSyncEvents(() => {
+    void load();
+  });
 
   const catNames = useMemo(() => new Map(cats.map((cat) => [cat.id, cat.name])), [cats]);
   const visibleItems = useMemo(

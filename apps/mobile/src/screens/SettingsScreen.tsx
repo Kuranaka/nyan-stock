@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, DeviceEventEmitter, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -11,6 +11,7 @@ import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
 import { clearAuthSession, getAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
+import { signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
@@ -23,8 +24,10 @@ import {
   pullCurrentHouseholdSnapshot,
   pushCurrentHouseholdSnapshot,
 } from '@/features/sync/householdSyncService';
-import { getHouseholdSyncState } from '@/features/sync/householdSyncStorage';
+import { clearHouseholdSyncState, getHouseholdSyncState } from '@/features/sync/householdSyncStorage';
 import { HouseholdSyncState } from '@/features/sync/householdSyncTypes';
+import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
+import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
 
 export default function SettingsScreen() {
@@ -55,6 +58,9 @@ export default function SettingsScreen() {
       void load();
     }, [load]),
   );
+  useHouseholdSyncEvents(() => {
+    void load();
+  });
 
   const persist = async (patch: Partial<AppSettings>) => {
     if (!settings) return;
@@ -106,14 +112,21 @@ export default function SettingsScreen() {
   };
 
   const signOut = () => {
-    Alert.alert('ログアウトしますか？', '在庫データは端末内に残ります。', [
+    Alert.alert('ログアウトしますか？', 'この端末の共有参加も解除します。Supabase側の共有データは削除されません。', [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: 'ログアウト',
         style: 'destructive',
         onPress: async () => {
-          await clearAuthSession();
+          try {
+            await signOutSupabaseAuth();
+          } catch {
+            await clearAuthSession();
+          }
+          await clearHouseholdSyncState();
           setAuthSession(undefined);
+          setSyncState(undefined);
+          DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
         },
       },
     ]);
@@ -127,8 +140,14 @@ export default function SettingsScreen() {
     setSyncBusy(true);
     try {
       const nextState = await action();
+      const nextAuthSession = await getAuthSession();
       setSyncState(nextState);
-      Alert.alert(successTitle, successMessage?.(nextState));
+      setAuthSession(nextAuthSession);
+      DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
+      const message = successMessage?.(nextState);
+      const guestMessage =
+        nextAuthSession?.provider === 'guest' ? 'ゲストとして共有に参加しました。このゲストはこの端末に紐づきます。' : undefined;
+      Alert.alert(successTitle, [message, guestMessage].filter(Boolean).join('\n\n') || undefined);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
       Alert.alert('共有に失敗しました', message);
@@ -141,7 +160,7 @@ export default function SettingsScreen() {
     void runSyncAction(
       '共有コードを作成しました',
       createHouseholdSyncSpace,
-      (state) => `このコードを共有したい相手に渡してください。\n${state.householdId}`,
+      (state) => `このコードを共有したい相手に渡してください。\n${state.inviteCode ?? state.householdId}`,
     );
   };
 
@@ -169,7 +188,7 @@ export default function SettingsScreen() {
         onPress: () => {
           void runSyncAction('共有スペースに参加しました', () => joinHouseholdSyncSpace(joinCode), (state) => {
             setJoinCode('');
-            return `共有コード: ${state.householdId}`;
+            return `共有コード: ${state.inviteCode ?? state.householdId}`;
           });
         },
       },
@@ -179,8 +198,28 @@ export default function SettingsScreen() {
   const shareHouseholdCode = () => {
     if (!syncState) return;
     void Share.share({
-      message: `にゃんストックの共有コード: ${syncState.householdId}`,
+      message: `にゃんストックの共有コード: ${syncState.inviteCode ?? syncState.householdId}`,
     });
+  };
+
+  const leaveSharedSpace = () => {
+    Alert.alert(
+      '共有を解除しますか？',
+      'この端末だけ共有スペースから外します。端末内の現在のデータとSupabase側の共有データは削除されません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '解除する',
+          style: 'destructive',
+          onPress: async () => {
+            await clearHouseholdSyncState();
+            setSyncState(undefined);
+            DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
+            Alert.alert('共有を解除しました', '別の共有コードで再参加できます。');
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -190,15 +229,18 @@ export default function SettingsScreen() {
         {authSession ? (
           <>
             <Text style={styles.note}>
-              {authProviderLabels[authSession.provider]}でログイン中
+              {authSession.provider === 'guest' ? 'ゲストで利用中' : `${authProviderLabels[authSession.provider]}でログイン中`}
               {authSession.name ? `：${authSession.name}` : ''}
             </Text>
             {authSession.email ? <Text style={styles.note}>{authSession.email}</Text> : null}
+            {authSession.provider === 'guest' ? (
+              <Text style={styles.note}>このゲストは端末に紐づきます。アプリ削除や端末変更では復元できない場合があります。</Text>
+            ) : null}
             <AppButton title="ログアウト" variant="secondary" onPress={signOut} />
           </>
         ) : (
           <>
-            <Text style={styles.note}>GoogleまたはAppleでログインできます。共有データは下の共有設定で管理します。</Text>
+            <Text style={styles.note}>GoogleまたはAppleでログインできます。未ログインでも共有操作時にゲストとして参加できます。</Text>
             <SignInButtons onSignedIn={setAuthSession} />
           </>
         )}
@@ -216,7 +258,11 @@ export default function SettingsScreen() {
           <>
             <View style={styles.codeBox}>
               <Text style={styles.codeLabel}>共有コード</Text>
-              <Text style={styles.codeText}>{syncState.householdId}</Text>
+              <Text style={styles.codeText}>{syncState.inviteCode ?? syncState.householdId}</Text>
+              {syncState.inviteCode ? <Text style={styles.codeNote}>スペースID: {syncState.householdId}</Text> : null}
+              {syncState.joinedBy ? (
+                <Text style={styles.codeNote}>参加アカウント: {syncState.joinedBy}</Text>
+              ) : null}
               {syncState.lastPushedAt ? (
                 <Text style={styles.codeNote}>最終保存: {formatDisplayDate(syncState.lastPushedAt)}</Text>
               ) : null}
@@ -240,6 +286,12 @@ export default function SettingsScreen() {
               variant="secondary"
               disabled={syncBusy || !isHouseholdSyncConfigured()}
               onPress={pullSharedData}
+            />
+            <AppButton
+              title="この端末だけ共有を解除"
+              variant="danger"
+              disabled={syncBusy}
+              onPress={leaveSharedSpace}
             />
           </>
         ) : (
@@ -425,6 +477,7 @@ const todoItems = [
 ];
 
 const authProviderLabels = {
+  guest: 'ゲスト',
   google: 'Google',
   apple: 'Apple',
 } satisfies Record<AuthSession['provider'], string>;

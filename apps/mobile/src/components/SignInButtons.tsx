@@ -6,13 +6,13 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { AppButton } from '@/components/AppButton';
 import { colors } from '@/constants/colors';
-import { saveAuthSession } from '@/features/auth/authStorage';
 import {
   createGoogleAuthSession,
   googleClientIds,
   hasAnyGoogleClientId,
 } from '@/features/auth/googleAuth';
 import { AuthSession } from '@/features/auth/authTypes';
+import { signInWithAppleIdToken, signInWithGoogleIdToken } from '@/features/auth/supabaseAuth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -46,15 +46,26 @@ export function SignInButtons({ onSignedIn }: Props) {
   useEffect(() => {
     if (response?.type === 'success') {
       const accessToken = response.authentication?.accessToken ?? response.params.access_token;
+      const idToken = getGoogleIdToken(response.authentication, response.params);
       if (!accessToken) {
         Alert.alert('Googleログインに失敗しました', 'アクセストークンを取得できませんでした。');
         setBusyProvider(undefined);
         return;
       }
+      if (!idToken) {
+        Alert.alert('Googleログインに失敗しました', '共有権限に必要なIDトークンを取得できませんでした。もう一度ログインしてください。');
+        setBusyProvider(undefined);
+        return;
+      }
 
       void createGoogleAuthSession(accessToken)
-        .then(async (session) => {
-          await saveAuthSession(session);
+        .then(async (profile) => {
+          const session = await signInWithGoogleIdToken(idToken, {
+            providerUserId: profile.providerUserId,
+            email: profile.email,
+            name: profile.name,
+            photoUrl: profile.photoUrl,
+          });
           onSignedIn?.(session);
         })
         .catch((error: unknown) => {
@@ -102,14 +113,11 @@ export function SignInButtons({ onSignedIn }: Props) {
       const formattedName = credential.fullName
         ? AppleAuthentication.formatFullName(credential.fullName)
         : undefined;
-      const session: AuthSession = {
-        provider: 'apple',
-        providerUserId: credential.user,
-        email: credential.email ?? undefined,
-        name: formattedName || undefined,
-        signedInAt: new Date().toISOString(),
-      };
-      await saveAuthSession(session);
+      if (!credential.identityToken) {
+        Alert.alert('Appleログインに失敗しました', '共有権限に必要なIDトークンを取得できませんでした。もう一度ログインしてください。');
+        return;
+      }
+      const session = await signInWithAppleIdToken(credential.identityToken, credential, formattedName);
       onSignedIn?.(session);
     } catch (error: unknown) {
       const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : undefined;
@@ -145,7 +153,7 @@ export function SignInButtons({ onSignedIn }: Props) {
           onPress={() => undefined}
         />
       )}
-      <Text style={styles.caption}>ログインしても在庫データはこの端末内に保存されます。</Text>
+      <Text style={styles.caption}>ログインすると共有同期の権限がこのアカウントに紐づきます。</Text>
     </View>
   );
 }
@@ -165,3 +173,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+function getGoogleIdToken(authentication: unknown, params: Record<string, string>): string | undefined {
+  if (authentication && typeof authentication === 'object' && 'idToken' in authentication) {
+    const idToken = (authentication as { idToken?: unknown }).idToken;
+    if (typeof idToken === 'string') return idToken;
+  }
+  return params.id_token;
+}
