@@ -136,8 +136,14 @@ function joinList(values: Array<string | undefined> | undefined): string {
 }
 
 function csvEscape(value: string): string {
-  if (!/[",\n\r]/.test(value)) return value;
-  return `"${value.replace(/"/g, '""')}"`;
+  const safeValue = escapeSpreadsheetFormula(value);
+  if (!/[",\n\r]/.test(safeValue)) return safeValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+}
+
+function escapeSpreadsheetFormula(value: string): string {
+  if (!/^[=+\-@\t\r\n]/.test(value)) return value;
+  return `'${value}`;
 }
 
 void main();

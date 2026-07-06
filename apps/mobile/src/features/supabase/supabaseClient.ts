@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseAuthFlowType = process.env.EXPO_PUBLIC_SUPABASE_AUTH_FLOW_TYPE === 'pkce' ? 'pkce' : 'implicit';
+const supabaseAuthFlowType = process.env.EXPO_PUBLIC_SUPABASE_AUTH_FLOW_TYPE === 'implicit' ? 'implicit' : 'pkce';
 
 export const supabase =
   supabaseUrl && supabaseAnonKey

@@ -91,25 +91,13 @@ export async function completeSupabaseOAuthCallback(
 
 async function completeOAuthCallback(callbackUrl: string): Promise<Session> {
   const client = requireSupabaseClient();
+  assertTrustedOAuthCallbackUrl(callbackUrl);
   const params = getCallbackParams(callbackUrl);
   const code = params.get('code');
   if (code) {
     const { data, error } = await client.auth.exchangeCodeForSession(code);
     if (error || !data.session) {
       throw new Error('Supabaseログインセッションを作成できませんでした。');
-    }
-    return data.session;
-  }
-
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-  if (accessToken && refreshToken) {
-    const { data, error } = await client.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    if (error || !data.session) {
-      throw new Error('Supabaseログインセッションを保存できませんでした。');
     }
     return data.session;
   }
@@ -167,6 +155,28 @@ function getCallbackParams(callbackUrl: string): URLSearchParams {
   return params;
 }
 
+function assertTrustedOAuthCallbackUrl(callbackUrl: string): void {
+  const callback = new URL(callbackUrl);
+  const isTrusted = getAllowedOAuthRedirectUrls().some((allowedUrl) => {
+    const allowed = new URL(allowedUrl);
+    return (
+      callback.protocol === allowed.protocol &&
+      callback.hostname === allowed.hostname &&
+      callback.port === allowed.port &&
+      normalizePathname(callback.pathname) === normalizePathname(allowed.pathname)
+    );
+  });
+
+  if (!isTrusted) {
+    throw new Error('Supabaseログインの戻り先を確認できませんでした。');
+  }
+}
+
+function normalizePathname(pathname: string): string {
+  const normalized = pathname.replace(/\/+$/, '');
+  return normalized || '/';
+}
+
 function logOAuthStartUrl(authUrl: string): void {
   try {
     const url = new URL(authUrl);
@@ -199,4 +209,8 @@ function getOAuthRedirectUrl(): string {
       scheme: 'nyanstock',
     })
   );
+}
+
+function getAllowedOAuthRedirectUrls(): string[] {
+  return Array.from(new Set([getOAuthRedirectUrl(), 'nyanstock://auth/callback'].filter(Boolean)));
 }

@@ -30,11 +30,13 @@ Deno.serve(async (request) => {
   }
 
   const cleanupSecret = Deno.env.get('ICON_CLEANUP_SECRET');
-  if (cleanupSecret) {
-    const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-    if (token !== cleanupSecret) {
-      return json({ error: 'unauthorized' }, 401);
-    }
+  if (!cleanupSecret) {
+    return json({ error: 'missing_cleanup_secret' }, 500);
+  }
+
+  const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (token !== cleanupSecret) {
+    return json({ error: 'unauthorized' }, 401);
   }
 
   try {

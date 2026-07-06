@@ -1,6 +1,8 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
+import { ensureSupabaseSessionForSharing } from '@/features/auth/supabaseAuth';
+
 type IconKind = 'cats' | 'products';
 type IconOwnerKind = 'cat' | 'inventory_item';
 
@@ -54,6 +56,7 @@ export function hasIconUploadStorage(): boolean {
 
 export async function saveIconReference(ownerKind: IconOwnerKind, ownerId: string, iconUrl?: string): Promise<void> {
   if (!supabaseUrl || !supabaseAnonKey) return;
+  const { userId, headers } = await getIconAuthContext();
   const storagePath = iconUrl ? getIconStoragePath(iconUrl) : undefined;
   if (!storagePath) {
     await clearIconReference(ownerKind, ownerId);
@@ -63,14 +66,14 @@ export async function saveIconReference(ownerKind: IconOwnerKind, ownerId: strin
   const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/icon_references`, {
     method: 'POST',
     headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      ...headers,
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates',
     },
     body: JSON.stringify({
       owner_kind: ownerKind,
       owner_id: ownerId,
+      owner_user_id: userId,
       bucket_id: iconBucket,
       storage_path: storagePath,
       updated_at: new Date().toISOString(),
@@ -84,15 +87,13 @@ export async function saveIconReference(ownerKind: IconOwnerKind, ownerId: strin
 
 export async function clearIconReference(ownerKind: IconOwnerKind, ownerId: string): Promise<void> {
   if (!supabaseUrl || !supabaseAnonKey) return;
+  const { userId, headers } = await getIconAuthContext();
   const endpoint = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1/icon_references?owner_kind=eq.${encodeURIComponent(
     ownerKind,
-  )}&owner_id=eq.${encodeURIComponent(ownerId)}`;
+  )}&owner_id=eq.${encodeURIComponent(ownerId)}&owner_user_id=eq.${encodeURIComponent(userId)}`;
   const response = await fetch(endpoint, {
     method: 'DELETE',
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -105,14 +106,14 @@ async function uploadIcon(uri: string, options: PickAndUploadIconOptions): Promi
     throw new Error('アイコン保存先のSupabase設定がありません。');
   }
 
-  const path = buildIconPath(options);
+  const { userId, headers } = await getIconAuthContext();
+  const path = buildIconPath(options, userId);
   const blob = await (await fetch(uri)).blob();
   const endpoint = `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/${iconBucket}/${path}`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      ...headers,
       'Content-Type': 'image/jpeg',
     },
     body: blob,
@@ -139,9 +140,23 @@ async function buildUploadErrorMessage(response: Response): Promise<string> {
   return `アイコン画像のアップロードに失敗しました。（${response.status}${detail ? `: ${detail}` : ''}）`;
 }
 
-function buildIconPath({ kind, ownerId }: PickAndUploadIconOptions): string {
+async function getIconAuthContext(): Promise<{ userId: string; headers: Record<string, string> }> {
+  if (!supabaseAnonKey) {
+    throw new Error('アイコン保存先のSupabase設定がありません。');
+  }
+  const session = await ensureSupabaseSessionForSharing();
+  return {
+    userId: session.user.id,
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  };
+}
+
+function buildIconPath({ kind, ownerId }: PickAndUploadIconOptions, userId: string): string {
   const safeOwnerId = ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `${kind}/${safeOwnerId}/${Date.now()}.jpg`;
+  return `${kind}/${userId}/${safeOwnerId}/${Date.now()}.jpg`;
 }
 
 function getIconStoragePath(iconUrl: string): string | undefined {

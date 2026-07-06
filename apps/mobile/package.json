@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "web:clear": "expo start --web --clear",
     "lint": "eslint . --ext .ts,.tsx",
+    "security:validate": "node scripts/validate-security-hardening.mjs",
     "smoke:sync": "node scripts/smoke-household-sync.mjs",
     "format": "prettier --write ."
   },
