@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, DeviceEventEmitter, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -112,7 +113,7 @@ export default function SettingsScreen() {
   };
 
   const signOut = () => {
-    Alert.alert('ログアウトしますか？', 'この端末の共有参加も解除します。Supabase側の共有データは削除されません。', [
+    Alert.alert('ログアウトしますか？', 'この端末の共有参加も解除します。クラウド側の共有データは削除されません。', [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: 'ログアウト',
@@ -157,6 +158,14 @@ export default function SettingsScreen() {
   };
 
   const createSharedSpace = () => {
+    if (!isSignedInAccount(authSession)) {
+      Alert.alert(
+        'ログインが必要です',
+        '家族や他アカウントに渡す共有コードを作成するには、GoogleまたはAppleでログインしてください。共有コードで参加するだけならゲストでも利用できます。',
+      );
+      return;
+    }
+
     void runSyncAction(
       '共有コードを作成しました',
       createHouseholdSyncSpace,
@@ -202,10 +211,20 @@ export default function SettingsScreen() {
     });
   };
 
+  const copyHouseholdCode = async () => {
+    if (!syncState) return;
+    try {
+      await Clipboard.setStringAsync(syncState.inviteCode ?? syncState.householdId);
+      Alert.alert('コピーしました', '共有コードをクリップボードにコピーしました。');
+    } catch {
+      Alert.alert('コピーできませんでした', '共有コードを選択してコピーしてください。');
+    }
+  };
+
   const leaveSharedSpace = () => {
     Alert.alert(
       '共有を解除しますか？',
-      'この端末だけ共有スペースから外します。端末内の現在のデータとSupabase側の共有データは削除されません。',
+      'この端末だけ共有スペースから外します。端末内の現在のデータとクラウド側の共有データは削除されません。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -240,7 +259,7 @@ export default function SettingsScreen() {
           </>
         ) : (
           <>
-            <Text style={styles.note}>GoogleまたはAppleでログインできます。未ログインでも共有操作時にゲストとして参加できます。</Text>
+            <Text style={styles.note}>GoogleまたはAppleでログインできます。</Text>
             <SignInButtons onSignedIn={setAuthSession} />
           </>
         )}
@@ -249,7 +268,7 @@ export default function SettingsScreen() {
       <AppCard style={styles.card}>
         <Text style={styles.title}>家族・他アカウントと共有</Text>
         <Text style={styles.note}>
-          共有コードで参加すると、猫プロフィール、在庫、購入履歴はSupabase側を保存先として参照・更新します。
+          共有コードで参加すると、猫プロフィール、在庫、購入履歴はクラウド側を保存先として参照・更新します。
         </Text>
         {!isHouseholdSyncConfigured() ? (
           <Text style={styles.warningText}>Supabase URLとAnon Keyを設定すると共有を使えます。</Text>
@@ -259,7 +278,6 @@ export default function SettingsScreen() {
             <View style={styles.codeBox}>
               <Text style={styles.codeLabel}>共有コード</Text>
               <Text style={styles.codeText}>{syncState.inviteCode ?? syncState.householdId}</Text>
-              {syncState.inviteCode ? <Text style={styles.codeNote}>スペースID: {syncState.householdId}</Text> : null}
               {syncState.joinedBy ? (
                 <Text style={styles.codeNote}>参加アカウント: {syncState.joinedBy}</Text>
               ) : null}
@@ -271,21 +289,15 @@ export default function SettingsScreen() {
               ) : null}
             </View>
             <AppButton
+              title="共有コードをコピー"
+              disabled={syncBusy}
+              onPress={() => void copyHouseholdCode()}
+            />
+            <AppButton
               title="共有コードを送る"
               variant="secondary"
               disabled={syncBusy}
               onPress={shareHouseholdCode}
-            />
-            <AppButton
-              title="今すぐSupabaseに保存"
-              disabled={syncBusy || !isHouseholdSyncConfigured()}
-              onPress={pushSharedData}
-            />
-            <AppButton
-              title="Supabaseから再読み込み"
-              variant="secondary"
-              disabled={syncBusy || !isHouseholdSyncConfigured()}
-              onPress={pullSharedData}
             />
             <AppButton
               title="この端末だけ共有を解除"
@@ -301,6 +313,9 @@ export default function SettingsScreen() {
               disabled={syncBusy || !isHouseholdSyncConfigured()}
               onPress={createSharedSpace}
             />
+            {!isSignedInAccount(authSession) ? (
+              <Text style={styles.note}>共有コードを作成するには、先にGoogleまたはAppleでログインしてください。</Text>
+            ) : null}
             <AppTextInput
               label="共有コード"
               value={joinCode}
@@ -350,6 +365,22 @@ export default function SettingsScreen() {
         <Text style={styles.title}>開発用データ</Text>
         <Text style={styles.note}>動作確認用のプロフィールと在庫を端末内に追加します。</Text>
         <AppButton title="サンプルデータを追加" variant="secondary" onPress={addSeedData} />
+        {syncState ? (
+          <>
+            <Text style={styles.note}>同期確認用の手動操作です。</Text>
+            <AppButton
+              title="今すぐクラウドに保存"
+              disabled={syncBusy || !isHouseholdSyncConfigured()}
+              onPress={pushSharedData}
+            />
+            <AppButton
+              title="クラウドから再読み込み"
+              variant="secondary"
+              disabled={syncBusy || !isHouseholdSyncConfigured()}
+              onPress={pullSharedData}
+            />
+          </>
+        ) : null}
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -368,7 +399,7 @@ export default function SettingsScreen() {
       <AppCard>
         <Text style={styles.title}>アプリ情報</Text>
         <Text style={styles.note}>にゃんストック 1.0.0</Text>
-        <Text style={styles.note}>共有スペース参加後の在庫データはSupabase側に保存します。</Text>
+        <Text style={styles.note}>共有スペース参加後の在庫データはクラウド側に保存します。</Text>
       </AppCard>
     </ScrollView>
   );
@@ -467,6 +498,7 @@ const styles = StyleSheet.create({
 
 const todoItems = [
   { label: 'Google / Appleログイン', status: '任意ログインに対応済み', done: true },
+  { label: 'Xログイン', status: '実装下地あり。今は非表示・未使用' },
   { label: '共有コードによるクラウド共有', status: 'Supabase参照・保存に対応済み', done: true },
   { label: 'リアルタイム同期、自動マージ', status: '初期版では未対応' },
   { label: 'EC API連携、商品検索', status: 'Supabase Edge Function経由の検索に対応済み', done: true },
@@ -480,4 +512,9 @@ const authProviderLabels = {
   guest: 'ゲスト',
   google: 'Google',
   apple: 'Apple',
+  x: 'X',
 } satisfies Record<AuthSession['provider'], string>;
+
+function isSignedInAccount(session: AuthSession | undefined): boolean {
+  return session?.provider === 'google' || session?.provider === 'apple';
+}

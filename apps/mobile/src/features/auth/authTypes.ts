@@ -1,4 +1,4 @@
-export type AuthProvider = 'guest' | 'google' | 'apple';
+export type AuthProvider = 'guest' | 'google' | 'apple' | 'x';
 
 export type AuthSession = {
   provider: AuthProvider;

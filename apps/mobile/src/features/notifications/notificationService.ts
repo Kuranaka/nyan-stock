@@ -6,16 +6,22 @@ import { calculateEstimatedEndDate } from '@/features/inventory/inventoryLogic';
 import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { AppSettings } from '@/features/settings/settingsTypes';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+const canUseNativeNotifications = Platform.OS !== 'web';
+
+if (canUseNativeNotifications) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (!canUseNativeNotifications) return false;
+
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
 
@@ -28,6 +34,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export async function cancelAllInventoryNotifications(): Promise<void> {
+  if (!canUseNativeNotifications) return;
+
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
@@ -35,9 +43,10 @@ export async function scheduleInventoryNotifications(
   items: InventoryItem[],
   settings: AppSettings,
 ): Promise<void> {
+  if (!canUseNativeNotifications) return;
+
   await cancelAllInventoryNotifications();
   if (!settings.notificationsEnabled) return;
-  if (Platform.OS === 'web') return;
 
   const hasPermission = await requestNotificationPermission();
   if (!hasPermission) return;

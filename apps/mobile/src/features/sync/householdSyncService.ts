@@ -69,7 +69,7 @@ export async function isRemoteHouseholdDataActive(): Promise<boolean> {
 }
 
 export async function createHouseholdSyncSpace(): Promise<HouseholdSyncState> {
-  await ensureSupabaseSessionForSharing();
+  await requireSignedInAccountForHouseholdCreation();
   const { household_id: householdId, invite_code: inviteCode } = await createRemoteHouseholdWithOwner();
   const state: HouseholdSyncState = {
     householdId,
@@ -81,6 +81,18 @@ export async function createHouseholdSyncSpace(): Promise<HouseholdSyncState> {
   await saveHouseholdSyncState(state);
   await pushLocalSnapshotToHousehold(state);
   return (await getHouseholdSyncState()) ?? state;
+}
+
+async function requireSignedInAccountForHouseholdCreation(): Promise<void> {
+  const authSession = await getCurrentAuthSession();
+  if (!authSession || authSession.provider === 'guest') {
+    throw new Error('共有コードを作成するにはGoogleまたはAppleでログインしてください。共有コードで参加する場合はゲストでも利用できます。');
+  }
+
+  const supabaseSession = await getSupabaseSession();
+  if (!supabaseSession) {
+    throw new Error('共有コードを作成するにはGoogleまたはAppleでログインしてください。');
+  }
 }
 
 export async function joinHouseholdSyncSpace(householdIdInput: string): Promise<HouseholdSyncState> {
@@ -363,6 +375,7 @@ async function createRemoteHouseholdWithOwner(): Promise<HouseholdMembershipResu
   const client = requireSupabaseClient();
   const { data, error } = await client.rpc('create_household_with_owner');
   if (error) {
+    logSupabaseRpcError('create_household_with_owner', error);
     throw new Error('共有スペースを作成できませんでした。Supabaseの共有権限設定を確認してください。');
   }
   return parseMembershipResult(data, '共有スペースを作成できませんでした。');
@@ -374,6 +387,7 @@ async function joinRemoteHouseholdByInviteCode(inviteCode: string): Promise<Hous
     p_invite_code: inviteCode,
   });
   if (error) {
+    logSupabaseRpcError('join_household_by_invite_code', error);
     throw new Error('共有スペースに参加できませんでした。共有コードを確認してください。');
   }
   return parseMembershipResult(data, '共有スペースに参加できませんでした。');
@@ -383,9 +397,27 @@ async function getOrCreateAccountHousehold(): Promise<HouseholdMembershipResult>
   const client = requireSupabaseClient();
   const { data, error } = await client.rpc('get_or_create_account_household');
   if (error) {
+    logSupabaseRpcError('get_or_create_account_household', error);
+    if (error.code === '23514') {
+      throw new Error(
+        'ログインアカウントの共有スペースを準備できませんでした。Supabaseのhouseholds制約更新マイグレーションを適用してください。',
+      );
+    }
     throw new Error('ログインアカウントの共有スペースを準備できませんでした。Supabaseの共有権限設定を確認してください。');
   }
   return parseMembershipResult(data, 'ログインアカウントの共有スペースを準備できませんでした。');
+}
+
+function logSupabaseRpcError(
+  rpcName: string,
+  error: { code?: string; details?: string; hint?: string; message?: string },
+): void {
+  console.warn(`[sync] ${rpcName} failed`, {
+    code: error.code,
+    details: error.details,
+    hint: error.hint,
+    message: error.message,
+  });
 }
 
 function parseMembershipResult(data: unknown, fallbackMessage: string): HouseholdMembershipResult {
@@ -552,21 +584,21 @@ async function upsertHousehold(
   updatedBy?: string,
 ): Promise<void> {
   const body = JSON.stringify({
-    household_id: householdId,
     updated_at: updatedAt,
     updated_by: updatedBy,
   });
-  const response = await fetch(`${getRestEndpoint(householdsTable)}?on_conflict=household_id`, {
-    method: 'POST',
+  const response = await fetch(`${getRestEndpoint(householdsTable)}?household_id=eq.${encodeURIComponent(householdId)}`, {
+    method: 'PATCH',
     headers: {
       ...(await getSupabaseHeaders()),
       'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
+      Prefer: 'return=minimal',
     },
     body,
   });
 
   if (!response.ok) {
+    await logSupabaseRestError('update household', response);
     throw new Error('共有スペースを保存できませんでした。');
   }
 }
@@ -597,6 +629,7 @@ async function upsertEntityRow<T>(
   });
 
   if (!response.ok) {
+    await logSupabaseRestError(`upsert ${tableName}`, response);
     throw new Error('共有データを保存できませんでした。');
   }
 }
@@ -656,8 +689,27 @@ async function syncEntityRows<T>(
   });
 
   if (!response.ok) {
+    await logSupabaseRestError(`sync ${tableName}`, response);
     throw new Error('共有データを保存できませんでした。');
   }
+}
+
+async function logSupabaseRestError(operation: string, response: Response): Promise<void> {
+  let body: unknown;
+  try {
+    body = await response.clone().json();
+  } catch {
+    try {
+      body = await response.clone().text();
+    } catch {
+      body = undefined;
+    }
+  }
+  console.warn(`[sync] ${operation} failed`, {
+    body,
+    status: response.status,
+    statusText: response.statusText,
+  });
 }
 
 function getRecordUpdatedAt(record: unknown): string | undefined {

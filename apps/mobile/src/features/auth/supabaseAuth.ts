@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import * as Linking from 'expo-linking';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
 import { clearAuthSession, getAuthSession, saveAuthSession } from './authStorage';
@@ -60,7 +60,7 @@ export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<
   const redirectTo = getOAuthRedirectUrl();
   console.log('[auth] Supabase OAuth redirect URL:', redirectTo);
   const { data, error } = await client.auth.signInWithOAuth({
-    provider,
+    provider: supabaseOAuthProviders[provider],
     options: {
       redirectTo,
       skipBrowserRedirect: true,
@@ -69,14 +69,22 @@ export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<
   if (error || !data.url) {
     throw new Error(`${authProviderLabels[provider]}ログインを開始できませんでした。SupabaseのProvider設定を確認してください。`);
   }
+  logOAuthStartUrl(data.url);
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== 'success') {
     throw new Error(`${authProviderLabels[provider]}ログインがキャンセルされました。`);
   }
 
-  const supabaseSession = await completeOAuthCallback(result.url);
-  const session = createAuthSessionFromSupabaseSession(supabaseSession, provider);
+  return completeSupabaseOAuthCallback(result.url, provider);
+}
+
+export async function completeSupabaseOAuthCallback(
+  callbackUrl: string,
+  fallbackProvider?: OAuthProvider,
+): Promise<AuthSession> {
+  const supabaseSession = await completeOAuthCallback(callbackUrl);
+  const session = createAuthSessionFromSupabaseSession(supabaseSession, fallbackProvider);
   await saveAuthSession(session);
   return session;
 }
@@ -141,7 +149,8 @@ function createAuthSessionFromSupabaseSession(session: Session, fallbackProvider
 }
 
 function getAuthProvider(value: unknown): AuthProvider | undefined {
-  if (value === 'google' || value === 'apple') return value;
+  if (value === 'google' || value === 'apple' || value === 'x') return value;
+  if (value === 'twitter') return 'x';
   if (value === 'anonymous') return 'guest';
   return undefined;
 }
@@ -158,14 +167,36 @@ function getCallbackParams(callbackUrl: string): URLSearchParams {
   return params;
 }
 
+function logOAuthStartUrl(authUrl: string): void {
+  try {
+    const url = new URL(authUrl);
+    console.log('[auth] Supabase OAuth host:', url.host);
+    console.log('[auth] Supabase OAuth redirect_to:', url.searchParams.get('redirect_to'));
+  } catch {
+    console.log('[auth] Supabase OAuth URL could not be parsed.');
+  }
+}
+
 const authProviderLabels = {
   google: 'Google',
   apple: 'Apple',
+  x: 'X',
 } satisfies Record<OAuthProvider, string>;
 
+const supabaseOAuthProviders = {
+  google: 'google',
+  apple: 'apple',
+  x: 'twitter',
+} satisfies Record<OAuthProvider, 'google' | 'apple' | 'twitter'>;
+
 function getOAuthRedirectUrl(): string {
+  const configuredRedirectUrl = process.env.EXPO_PUBLIC_SUPABASE_AUTH_REDIRECT_URL?.trim();
   return (
-    process.env.EXPO_PUBLIC_SUPABASE_AUTH_REDIRECT_URL ??
-    Linking.createURL('auth/callback')
+    configuredRedirectUrl ||
+    makeRedirectUri({
+      native: 'nyanstock://auth/callback',
+      path: 'auth/callback',
+      scheme: 'nyanstock',
+    })
   );
 }

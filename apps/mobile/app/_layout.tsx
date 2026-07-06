@@ -74,6 +74,7 @@ export default function RootLayout() {
           <Stack.Screen name="privacy" options={{ title: 'プライバシーポリシー' }} />
           <Stack.Screen name="terms" options={{ title: '利用規約' }} />
           <Stack.Screen name="affiliate" options={{ title: 'アフィリエイトについて' }} />
+          <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         </Stack>
       </View>
       <AdBanner />

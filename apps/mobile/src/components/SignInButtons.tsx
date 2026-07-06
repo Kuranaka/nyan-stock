@@ -74,20 +74,19 @@ export function SignInButtons({ onSignedIn }: Props) {
       {appleAvailable ? (
         <AppleAuthentication.AppleAuthenticationButton
           buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
           cornerRadius={14}
           style={styles.appleButton}
           onPress={() => void signInWithApple()}
         />
       ) : (
         <AppButton
-          title={Platform.OS === 'ios' ? 'Appleで続ける' : 'Appleで続ける（iOSのみ）'}
+          title={Platform.OS === 'ios' ? 'Appleでログイン' : 'Appleでログイン（iOSのみ）'}
           variant="secondary"
           disabled
           onPress={() => undefined}
         />
       )}
-      <Text style={styles.caption}>ログインすると共有同期の権限がこのアカウントに紐づきます。</Text>
     </View>
   );
 }
@@ -140,12 +139,6 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.86,
     transform: [{ scale: 0.98 }],
-  },
-  caption: {
-    color: colors.subText,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
   },
 });
 
