@@ -12,7 +12,7 @@ export function AdBanner() {
     <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="広告とアフィリエイトについて"
+        accessibilityLabel="広告について"
         onPress={() => router.push('/affiliate')}
         style={({ pressed }) => [styles.banner, pressed && styles.bannerPressed]}
       >
@@ -24,7 +24,7 @@ export function AdBanner() {
             おすすめ猫用品の広告枠
           </Text>
           <Text style={styles.note} numberOfLines={1}>
-            タップで広告・アフィリエイト表示について確認
+            タップで広告表示について確認
           </Text>
         </View>
       </Pressable>

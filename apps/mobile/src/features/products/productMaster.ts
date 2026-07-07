@@ -45,7 +45,7 @@ export const productCategoryLabels: Record<ProductCategory, string> = {
   cat_litter: '猫砂',
   toilet_sheet: 'トイレシート',
   supplement: 'サプリ',
-  medicine: '薬',
+  medicine: '療養食',
   care: 'ケア用品',
   other: 'その他',
 };

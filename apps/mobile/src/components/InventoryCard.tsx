@@ -56,8 +56,6 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail }: Props
         <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
       </View>
 
-      <Text style={styles.affiliate}>商品リンクにはアフィリエイトリンクが含まれる場合があります。</Text>
-
       <View style={styles.actions}>
         <AppButton title="購入する" onPress={onPurchase} style={styles.action} />
         <AppButton title="補充した" variant="secondary" onPress={onReplenish} style={styles.action} />
@@ -121,10 +119,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
     backgroundColor: colors.primary,
-  },
-  affiliate: {
-    color: colors.subText,
-    fontSize: 11,
   },
   actions: {
     flexDirection: 'row',

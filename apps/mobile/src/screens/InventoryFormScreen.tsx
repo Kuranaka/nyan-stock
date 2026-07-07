@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, parseISO } from 'date-fns';
 import { Href } from 'expo-router';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
 import { AppButton } from '@/components/AppButton';
@@ -48,11 +49,38 @@ import { ProductCategory, ProductMaster } from '@/features/products/productTypes
 import { saveUserProductSuggestion } from '@/features/products/userProductSuggestionStorage';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { nowIso, todayIso } from '@/utils/date';
-import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
+import {
+  createId,
+  isValidOptionalAmazonUrl,
+  isValidOptionalRakutenUrl,
+  isValidOptionalUrl,
+  isValidOptionalYahooShoppingUrl,
+  parseOptionalNumber,
+} from '@/utils/validation';
 
 type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'price' | 'url' | 'imageUrl', string>>;
 type AddMethod = 'master' | 'barcode' | 'manual' | undefined;
 type ProductCategoryFilter = ProductCategory | 'all';
+type FormSnapshot = {
+  targetCatIds: string[];
+  productMasterId?: string;
+  imageUrl?: string;
+  price: string;
+  name: string;
+  category: InventoryCategory;
+  amount: string;
+  unit: InventoryUnit;
+  purchaseDate: string;
+  dailyUsage: string;
+  lastingDays: string;
+  estimationMode: InventoryEstimationMode;
+  notifyBeforeDays: number[];
+  amazon: string;
+  rakuten: string;
+  yahoo: string;
+  other: string;
+  memo: string;
+};
 
 const masterResultLimit = 20;
 const visibleBrandLimit = 8;
@@ -66,10 +94,12 @@ const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] 
 
 export default function InventoryFormScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id, barcode, scannedAt } = useLocalSearchParams<{ id?: string; barcode?: string; scannedAt?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const nameFieldYRef = useRef(0);
-  const purchaseDateFieldYRef = useRef(0);
+  const initialFormSnapshotRef = useRef<FormSnapshot | undefined>(undefined);
+  const allowNextRemoveRef = useRef(false);
   const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
   const [draftItemId] = useState(() => createId('item'));
   const [cats, setCats] = useState<Cat[]>([]);
@@ -86,7 +116,6 @@ export default function InventoryFormScreen() {
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<InventoryUnit>('g');
   const [purchaseDate, setPurchaseDate] = useState(todayIso());
-  const [purchaseDatePickerOpenSignal, setPurchaseDatePickerOpenSignal] = useState(0);
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
   const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
@@ -119,6 +148,7 @@ export default function InventoryFormScreen() {
   const [productSearchMessage, setProductSearchMessage] = useState('');
   const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [productSearchError, setProductSearchError] = useState('');
+  const [formInitialized, setFormInitialized] = useState(false);
 
   const scrollToNameField = useCallback(() => {
     setTimeout(() => {
@@ -129,19 +159,104 @@ export default function InventoryFormScreen() {
     }, 100);
   }, []);
 
-  const scrollToPurchaseDateField = useCallback(() => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(purchaseDateFieldYRef.current - 12, 0),
-        animated: true,
-      });
-      setPurchaseDatePickerOpenSignal((currentSignal) => currentSignal + 1);
-    }, 250);
-  }, []);
+  const formSnapshot = useMemo<FormSnapshot>(
+    () => ({
+      targetCatIds,
+      productMasterId,
+      imageUrl,
+      price,
+      name,
+      category,
+      amount,
+      unit,
+      purchaseDate,
+      dailyUsage,
+      lastingDays,
+      estimationMode,
+      notifyBeforeDays,
+      amazon,
+      rakuten,
+      yahoo,
+      other,
+      memo,
+    }),
+    [
+      amazon,
+      amount,
+      category,
+      dailyUsage,
+      estimationMode,
+      imageUrl,
+      lastingDays,
+      memo,
+      name,
+      notifyBeforeDays,
+      other,
+      price,
+      productMasterId,
+      purchaseDate,
+      rakuten,
+      targetCatIds,
+      unit,
+      yahoo,
+    ],
+  );
+
+  const hasUnsavedChanges = useMemo(() => {
+    const initialSnapshot = initialFormSnapshotRef.current;
+    if (!formInitialized || !initialSnapshot) return false;
+    return JSON.stringify(initialSnapshot) !== JSON.stringify(formSnapshot);
+  }, [formInitialized, formSnapshot]);
+
+  const confirmDiscardChanges = useCallback(
+    (onDiscard: () => void) => {
+      if (!hasUnsavedChanges) {
+        onDiscard();
+        return;
+      }
+      Alert.alert('編集内容を破棄しますか？', '保存していない編集内容は消えます。', [
+        { text: '戻る', style: 'cancel' },
+        {
+          text: '破棄する',
+          style: 'destructive',
+          onPress: onDiscard,
+        },
+      ]);
+    },
+    [hasUnsavedChanges],
+  );
+
+  const goBackWithDiscardConfirmation = useCallback(() => {
+    confirmDiscardChanges(() => {
+      allowNextRemoveRef.current = true;
+      router.back();
+    });
+  }, [confirmDiscardChanges, router]);
+
+  useEffect(() => {
+    if (!formInitialized || initialFormSnapshotRef.current) return;
+    initialFormSnapshotRef.current = formSnapshot;
+  }, [formInitialized, formSnapshot]);
+
+  useEffect(() => {
+    return navigation.addListener(
+      'beforeRemove',
+      (event: EventArg<'beforeRemove', true, { action: NavigationAction }>) => {
+        if (allowNextRemoveRef.current || !hasUnsavedChanges) return;
+        event.preventDefault();
+        confirmDiscardChanges(() => {
+          allowNextRemoveRef.current = true;
+          navigation.dispatch(event.data.action);
+        });
+      },
+    );
+  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
 
   useFocusEffect(
     useCallback(() => {
       async function load() {
+        initialFormSnapshotRef.current = undefined;
+        setFormInitialized(false);
         const settings = await getSettings();
         let nextCats = await getCats();
         if (nextCats.length === 0) {
@@ -171,10 +286,14 @@ export default function InventoryFormScreen() {
           setMasterBrandOptions(brands);
           setMasterSearchResults([]);
           setMasterSearchMessage('');
+          setFormInitialized(true);
           return;
         }
         const item = await getInventoryItem(id);
-        if (!item) return;
+        if (!item) {
+          setFormInitialized(true);
+          return;
+        }
         setCurrent(item);
         setAddMethod('manual');
         setProductMasterId(item.productMasterId);
@@ -198,6 +317,7 @@ export default function InventoryFormScreen() {
         setYahoo(item.purchaseLinks.yahoo ?? '');
         setOther(item.purchaseLinks.other ?? '');
         setMemo(item.memo ?? '');
+        setFormInitialized(true);
       }
       void load();
   }, [id]),
@@ -316,8 +436,14 @@ export default function InventoryFormScreen() {
     if (estimationMode === 'lasting_days' && (!lastingDaysNumber || lastingDaysNumber <= 0)) {
       nextErrors.lastingDays = '使い切る日数は0より大きくしてください。';
     }
-    if (![amazon, rakuten, yahoo, other].every(isValidOptionalUrl)) {
-      nextErrors.url = 'URLは http:// または https:// で始めてください。';
+    if (!isValidOptionalAmazonUrl(amazon)) {
+      nextErrors.url = 'Amazon URLにはAmazonのURLを入力してください。';
+    } else if (!isValidOptionalRakutenUrl(rakuten)) {
+      nextErrors.url = '楽天 URLには楽天のURLを入力してください。';
+    } else if (!isValidOptionalYahooShoppingUrl(yahoo)) {
+      nextErrors.url = 'Yahoo URLにはYahooショッピングのURLを入力してください。';
+    } else if (!isValidOptionalUrl(other)) {
+      nextErrors.url = 'その他URLは http:// または https:// で始めてください。';
     }
     if (!isValidOptionalUrl(imageUrl)) {
       nextErrors.imageUrl = '画像URLは http:// または https:// で始めてください。';
@@ -438,8 +564,8 @@ export default function InventoryFormScreen() {
     setShowMasterCategoryOptions(false);
     setShowMasterBrandOptions(false);
     setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
-    scrollToPurchaseDateField();
-  }, [scrollToPurchaseDateField]);
+    scrollToNameField();
+  }, [scrollToNameField]);
 
   const applyYahooBarcodeResult = useCallback(
     (result: RakutenSearchResult, options: { showAlert: boolean } = { showAlert: true }) => {
@@ -634,6 +760,7 @@ export default function InventoryFormScreen() {
     await updateSettings({ selectedCatId: primaryCatId });
     const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
     await scheduleInventoryNotifications(items, settings);
+    allowNextRemoveRef.current = true;
     router.back();
   };
 
@@ -808,7 +935,6 @@ export default function InventoryFormScreen() {
               {barcodeSearchMessage ? <Text style={styles.resultSummary}>{barcodeSearchMessage}</Text> : null}
               {barcodeYahooResults.length > 0 ? (
                 <>
-                  <Text style={styles.affiliate}>Yahooショッピングの候補リンクにはアフィリエイトが含まれる場合があります。</Text>
                   {barcodeYahooResults.map((result) => (
                     <View key={result.id} style={styles.searchResult}>
                       <Text style={styles.resultName}>{result.name}</Text>
@@ -856,15 +982,6 @@ export default function InventoryFormScreen() {
       </View>
 
       <AppTextInput
-        label="価格"
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="numeric"
-        error={errors.price}
-        requirement="optional"
-      />
-
-      <AppTextInput
         label="画像URL"
         value={imageUrl ?? ''}
         onChangeText={(value) => setImageUrl(value)}
@@ -904,17 +1021,12 @@ export default function InventoryFormScreen() {
         ))}
       </View>
 
-      <View onLayout={(event) => {
-        purchaseDateFieldYRef.current = event.nativeEvent.layout.y;
-      }}>
-        <DatePickerField
-          label="購入日"
-          value={purchaseDate}
-          onChange={setPurchaseDate}
-          requirement="required"
-          openSignal={purchaseDatePickerOpenSignal}
-        />
-      </View>
+      <DatePickerField
+        label="購入日"
+        value={purchaseDate}
+        onChange={setPurchaseDate}
+        requirement="required"
+      />
 
       <AppCard style={styles.searchCard}>
         <FieldLabel label="残り日数の計算方法" requirement="required" />
@@ -1042,6 +1154,7 @@ export default function InventoryFormScreen() {
                 }}
               />
             </View>
+            <Text style={styles.hint}>Amazonでの検索は今後対応予定です。</Text>
             <AppTextInput
               label={`${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}で検索`}
               value={productSearchKeyword}
@@ -1088,18 +1201,22 @@ export default function InventoryFormScreen() {
         ) : null}
       </AppCard>
 
+      <AppTextInput
+        label="価格"
+        value={price}
+        onChangeText={setPrice}
+        keyboardType="numeric"
+        error={errors.price}
+        requirement="optional"
+      />
+
       <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} requirement="optional" />
 
       <AppButton title="保存する" onPress={() => void save()} />
       <AppButton
         title="キャンセル"
         variant="secondary"
-        onPress={() => {
-          Alert.alert('入力を破棄しますか？', undefined, [
-            { text: '戻る', style: 'cancel' },
-            { text: '破棄する', style: 'destructive', onPress: () => router.back() },
-          ]);
-        }}
+        onPress={goBackWithDiscardConfirmation}
       />
     </ScrollView>
   );

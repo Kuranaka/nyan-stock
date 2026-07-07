@@ -103,18 +103,19 @@ export function mergeSeedProductWithCandidates(
   const ranked = [...candidates].sort((a, b) => b.score - a.score);
   const usable = ranked.filter((candidate) => candidate.score >= 30);
   const sources = mergeSources(seedProduct.sources, usable.flatMap((candidate) => candidate.product.sources));
+  const rakuten = firstProviderProduct(usable, 'rakuten');
+  const yahoo = firstProviderProduct(usable, 'yahoo');
+  const adoptedProducts = [rakuten, yahoo].filter((product): product is ProductMaster => Boolean(product));
   const packageImageUrls = Array.from(
     new Set(
       [
         ...(seedProduct.packageImageUrls ?? []),
-        ...usable.flatMap((candidate) => candidate.product.packageImageUrls ?? []),
+        ...adoptedProducts.flatMap((product) => product.packageImageUrls ?? []),
       ].filter(Boolean),
     ),
   );
-  const rakuten = firstProviderProduct(usable, 'rakuten');
-  const yahoo = firstProviderProduct(usable, 'yahoo');
   const janSource = usable.find((candidate) => candidate.product.janCode)?.product;
-  const imageSource = usable.find((candidate) => candidate.product.imageUrl)?.product;
+  const imageSource = adoptedProducts.find((product) => product.imageUrl);
   const amountSource = usable.find((candidate) => candidate.product.amount !== undefined && candidate.product.unit)?.product;
 
   const merged: ProductMaster = {

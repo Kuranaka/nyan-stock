@@ -6,7 +6,7 @@ export const categoryLabels: Record<InventoryCategory, string> = {
   treat: 'おやつ',
   cat_litter: '猫砂',
   supplement: 'サプリ',
-  medicine: '薬',
+  medicine: '療養食',
   care: 'ケア用品',
   other: 'その他',
 };

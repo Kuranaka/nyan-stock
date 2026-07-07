@@ -34,12 +34,17 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
 
   for (const [index, seed] of targets.entries()) {
     const keyword = buildSeedSearchKeyword(seed);
+    const requiredNameParts = [seed.brandName, seed.productName].filter((value) => value.trim().length > 0);
     console.log(`[import:seed] ${index + 1}/${targets.length} ${seed.productId}: ${keyword}`);
 
     const rakuten =
-      options.provider === 'both' || options.provider === 'rakuten' ? await searchRakutenItemsByKeyword(keyword) : [];
+      options.provider === 'both' || options.provider === 'rakuten'
+        ? await searchRakutenItemsByKeyword(keyword, { requiredNameParts })
+        : [];
     const yahoo =
-      options.provider === 'both' || options.provider === 'yahoo' ? await searchYahooItemsByKeyword(keyword) : [];
+      options.provider === 'both' || options.provider === 'yahoo'
+        ? await searchYahooItemsByKeyword(keyword, { requiredNameParts })
+        : [];
     const rawCandidates = [...rakuten, ...yahoo];
     const enrichmentCandidates: EnrichmentCandidate[] = rawCandidates.map((raw) => {
       const product = convertRawProductToProductMaster(raw);
@@ -98,12 +103,12 @@ function mergeImportedProductWithExistingReview(
     yahoo: existing.purchaseLinks?.yahoo ?? incoming.purchaseLinks?.yahoo,
     official: existing.purchaseLinks?.official ?? incoming.purchaseLinks?.official,
   };
+  const imageUrl = existing.imageUrl ?? incoming.imageUrl;
   const packageImageUrls = Array.from(
     new Set(
       [
-        existing.imageUrl,
+        imageUrl,
         incoming.imageUrl,
-        ...(existing.packageImageUrls ?? []),
         ...(incoming.packageImageUrls ?? []),
       ].filter((value): value is string => Boolean(value)),
     ),
@@ -112,7 +117,7 @@ function mergeImportedProductWithExistingReview(
   return {
     ...incoming,
     category: existing.category,
-    imageUrl: existing.imageUrl ?? incoming.imageUrl,
+    imageUrl,
     packageImageUrls,
     purchaseLinks,
     asin: existing.asin ?? incoming.asin,

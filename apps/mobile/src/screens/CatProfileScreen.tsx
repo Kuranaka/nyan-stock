@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -22,9 +23,22 @@ const genderOptions: { label: string; value: CatGender }[] = [
   { label: '不明', value: 'unknown' },
 ];
 
+type CatProfileSnapshot = {
+  profileId?: string;
+  name: string;
+  birthday: string;
+  weight: string;
+  gender: CatGender;
+  iconUrl?: string;
+  memo: string;
+};
+
 export default function CatProfileScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const initialProfileSnapshotRef = useRef<CatProfileSnapshot | undefined>(undefined);
+  const allowNextRemoveRef = useRef(false);
   const [cats, setCats] = useState<Cat[]>([]);
   const [current, setCurrent] = useState<Cat | undefined>();
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -36,16 +50,91 @@ export default function CatProfileScreen() {
   const [iconUrl, setIconUrl] = useState<string | undefined>();
   const [iconUploading, setIconUploading] = useState(false);
   const [memo, setMemo] = useState('');
+  const [formInitialized, setFormInitialized] = useState(false);
+
+  const profileSnapshot = useMemo<CatProfileSnapshot>(
+    () => ({
+      profileId: current?.id,
+      name,
+      birthday,
+      weight,
+      gender,
+      iconUrl,
+      memo,
+    }),
+    [birthday, current?.id, gender, iconUrl, memo, name, weight],
+  );
+
+  const hasUnsavedChanges = useMemo(() => {
+    const initialSnapshot = initialProfileSnapshotRef.current;
+    if (!formInitialized || !initialSnapshot) return false;
+    return JSON.stringify(initialSnapshot) !== JSON.stringify(profileSnapshot);
+  }, [formInitialized, profileSnapshot]);
+
+  const confirmDiscardChanges = useCallback(
+    (onDiscard: () => void) => {
+      if (!hasUnsavedChanges) {
+        onDiscard();
+        return;
+      }
+      Alert.alert('編集内容を破棄しますか？', '保存していない編集内容は消えます。', [
+        { text: '戻る', style: 'cancel' },
+        {
+          text: '破棄する',
+          style: 'destructive',
+          onPress: onDiscard,
+        },
+      ]);
+    },
+    [hasUnsavedChanges],
+  );
+
+  const goBackWithDiscardConfirmation = useCallback(() => {
+    confirmDiscardChanges(() => {
+      allowNextRemoveRef.current = true;
+      router.back();
+    });
+  }, [confirmDiscardChanges, router]);
+
+  useEffect(() => {
+    if (!formInitialized || initialProfileSnapshotRef.current) return;
+    initialProfileSnapshotRef.current = profileSnapshot;
+  }, [formInitialized, profileSnapshot]);
+
+  useEffect(() => {
+    return navigation.addListener(
+      'beforeRemove',
+      (event: EventArg<'beforeRemove', true, { action: NavigationAction }>) => {
+        if (allowNextRemoveRef.current || !hasUnsavedChanges) return;
+        event.preventDefault();
+        confirmDiscardChanges(() => {
+          allowNextRemoveRef.current = true;
+          navigation.dispatch(event.data.action);
+        });
+      },
+    );
+  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
 
   const resetForm = useCallback(() => {
+    const nextDraftCatId = createId('cat');
     setCurrent(undefined);
-    setDraftCatId(createId('cat'));
+    setDraftCatId(nextDraftCatId);
     setName('');
     setBirthday('');
     setWeight('');
     setGender('unknown');
     setIconUrl(undefined);
     setMemo('');
+    initialProfileSnapshotRef.current = {
+      profileId: undefined,
+      name: '',
+      birthday: '',
+      weight: '',
+      gender: 'unknown',
+      iconUrl: undefined,
+      memo: '',
+    };
+    setFormInitialized(true);
   }, []);
 
   const fillForm = useCallback((cat: Cat) => {
@@ -57,6 +146,16 @@ export default function CatProfileScreen() {
     setGender(cat.gender);
     setIconUrl(cat.iconUrl);
     setMemo(cat.memo ?? '');
+    initialProfileSnapshotRef.current = {
+      profileId: cat.id,
+      name: cat.name,
+      birthday: cat.birthday ?? '',
+      weight: cat.weight?.toString() ?? '',
+      gender: cat.gender,
+      iconUrl: cat.iconUrl,
+      memo: cat.memo ?? '',
+    };
+    setFormInitialized(true);
   }, []);
 
   const load = useCallback(async () => {
@@ -258,7 +357,7 @@ export default function CatProfileScreen() {
         requirement="optional"
       />
       <AppButton title="保存する" onPress={() => void save()} />
-      <AppButton title="閉じる" variant="secondary" onPress={() => router.back()} />
+      <AppButton title="閉じる" variant="secondary" onPress={goBackWithDiscardConfirmation} />
       {current ? (
         <AppCard style={styles.dangerZone}>
           <Text style={styles.dangerZoneTitle}>削除</Text>

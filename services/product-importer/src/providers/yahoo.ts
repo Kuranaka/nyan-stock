@@ -1,6 +1,7 @@
 import { config, delay, warnMissingEnv } from '../config.js';
 import { normalizeJanCode } from '../normalizers/normalizeJanCode.js';
 import { RawProduct } from '../types.js';
+import { filterProductResultNames } from './searchResultFilter.js';
 
 type YahooItem = {
   code?: string;
@@ -40,8 +41,15 @@ let yahooRequestQueue = Promise.resolve();
 let lastYahooRequestStartedAt = 0;
 let yahooBlockedUntil = 0;
 
-export async function searchYahooItemsByKeyword(keyword: string): Promise<RawProduct[]> {
-  return searchYahooItems({ query: keyword });
+type ProductSearchOptions = {
+  requiredNameParts?: string[];
+};
+
+export async function searchYahooItemsByKeyword(
+  keyword: string,
+  options: ProductSearchOptions = {},
+): Promise<RawProduct[]> {
+  return searchYahooItems({ query: keyword, requiredNameParts: options.requiredNameParts });
 }
 
 export async function searchYahooItemsByJanCode(janCode: string): Promise<RawProduct[]> {
@@ -53,7 +61,11 @@ export async function searchYahooItemsByJanCode(janCode: string): Promise<RawPro
   return searchYahooItems({ janCode: normalizedJanCode });
 }
 
-async function searchYahooItems(params: { query?: string; janCode?: string }): Promise<RawProduct[]> {
+async function searchYahooItems(params: {
+  query?: string;
+  janCode?: string;
+  requiredNameParts?: string[];
+}): Promise<RawProduct[]> {
   if (!config.yahooClientId) {
     warnMissingEnv('yahoo', ['YAHOO_CLIENT_ID']);
     console.warn('[yahoo] Skipping Yahoo import because YAHOO_CLIENT_ID is required.');
@@ -83,8 +95,11 @@ async function searchYahooItems(params: { query?: string; janCode?: string }): P
   if (hits.length === 0) {
     console.warn(`[yahoo] 0 items. response keys: ${Object.keys(body).join(', ')}`);
   }
-  const products = hits
-    .filter((item) => Boolean(item.code && item.name))
+  const products = filterProductResultNames(
+    hits.filter((item) => Boolean(item.code && item.name)),
+    (item) => item.name,
+    { requiredNameParts: params.requiredNameParts },
+  )
     .map((item) => ({
       provider: 'yahoo' as const,
       externalId: item.code ?? '',

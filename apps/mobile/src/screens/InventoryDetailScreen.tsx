@@ -27,13 +27,22 @@ import {
   saveInventoryItem,
 } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
-import { getPurchasePriceComparison, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
+import { openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
 import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings } from '@/features/settings/settingsStorage';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate, nowIso, todayIso } from '@/utils/date';
-import { createId, isValidOptionalUrl, parseOptionalNumber } from '@/utils/validation';
+import {
+  createId,
+  isValidOptionalAmazonUrl,
+  isValidOptionalRakutenUrl,
+  isValidOptionalUrl,
+  isValidOptionalYahooShoppingUrl,
+  parseOptionalNumber,
+} from '@/utils/validation';
+
+type PurchaseLinkErrors = Partial<Record<ShopType, string>>;
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -42,7 +51,10 @@ export default function InventoryDetailScreen() {
   const replenishCardYRef = useRef(0);
   const purchaseCardYRef = useRef(0);
   const historyCardYRef = useRef(0);
+  const hasScrolledToActionRef = useRef(false);
   const [item, setItem] = useState<InventoryItem | undefined>();
+  const [loading, setLoading] = useState(true);
+  const [showMissingMessage, setShowMissingMessage] = useState(false);
   const [cats, setCats] = useState<Cat[]>([]);
   const [showReplenish, setShowReplenish] = useState(false);
   const [showHistoryAdd, setShowHistoryAdd] = useState(false);
@@ -65,6 +77,7 @@ export default function InventoryDetailScreen() {
   const [editRakutenUrl, setEditRakutenUrl] = useState('');
   const [editYahooUrl, setEditYahooUrl] = useState('');
   const [editOtherUrl, setEditOtherUrl] = useState('');
+  const [purchaseLinkErrors, setPurchaseLinkErrors] = useState<PurchaseLinkErrors>({});
 
   const resetStockEditFields = (nextItem: InventoryItem) => {
     setEditPurchaseDate(nextItem.purchaseDate);
@@ -83,19 +96,28 @@ export default function InventoryDetailScreen() {
   };
 
   const load = useCallback(async () => {
-    if (!id) return;
-    const [next, nextCats] = await Promise.all([getInventoryItem(id), getCats()]);
-    setItem(next);
-    setCats(nextCats);
-    if (next) {
-      resetStockEditFields(next);
-      resetPurchaseLinkFields(next);
-      if (action === 'replenish') {
-        setReplenishDate(todayIso());
-        setPrice(next.price?.toString() ?? '');
-        setMemo('');
-        setShowReplenish(true);
+    setLoading(true);
+    setShowMissingMessage(false);
+    try {
+      if (!id) {
+        setItem(undefined);
+        return;
       }
+      const [next, nextCats] = await Promise.all([getInventoryItem(id), getCats()]);
+      setItem(next);
+      setCats(nextCats);
+      if (next) {
+        resetStockEditFields(next);
+        resetPurchaseLinkFields(next);
+        if (action === 'replenish') {
+          setReplenishDate(todayIso());
+          setPrice(next.price?.toString() ?? '');
+          setMemo('');
+          setShowReplenish(true);
+        }
+      }
+    } finally {
+      setLoading(false);
     }
   }, [action, id]);
 
@@ -109,19 +131,47 @@ export default function InventoryDetailScreen() {
   });
 
   useEffect(() => {
-    if (!showReplenish && action !== 'purchase') return;
-    const timeout = setTimeout(() => {
-      const targetY = action === 'purchase' ? purchaseCardYRef.current : replenishCardYRef.current;
+    hasScrolledToActionRef.current = false;
+  }, [action, id]);
+
+  const scrollToActionTarget = useCallback(() => {
+    if (hasScrolledToActionRef.current) return;
+    if (action !== 'purchase' && action !== 'replenish') return;
+    if (action === 'replenish' && !showReplenish) return;
+    const targetY = action === 'purchase' ? purchaseCardYRef.current : replenishCardYRef.current;
+    if (targetY <= 0) return;
+    hasScrolledToActionRef.current = true;
+    setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 12), animated: true });
     }, 120);
-    return () => clearTimeout(timeout);
   }, [action, showReplenish]);
+
+  useEffect(() => {
+    scrollToActionTarget();
+  }, [scrollToActionTarget]);
+
+  useEffect(() => {
+    if (loading || item) {
+      setShowMissingMessage(false);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setShowMissingMessage(true);
+    }, 700);
+    return () => clearTimeout(timeout);
+  }, [item, loading]);
 
   if (!item) {
     return (
       <View style={styles.center}>
-        <Text style={styles.missing}>商品が見つかりません。</Text>
-        <AppButton title="戻る" onPress={() => router.back()} />
+        {showMissingMessage ? (
+          <>
+            <Text style={styles.missing}>商品が見つかりません。</Text>
+            <AppButton title="戻る" onPress={() => router.back()} />
+          </>
+        ) : (
+          <Text style={styles.missing}>読み込んでいます...</Text>
+        )}
       </View>
     );
   }
@@ -289,9 +339,9 @@ export default function InventoryDetailScreen() {
     const settings = await getSettings();
     const itemForReplenish: InventoryItem = shouldUpdateItemPrice
       ? {
-          ...item,
-          price: priceNumber,
-        }
+        ...item,
+        price: priceNumber,
+      }
       : item;
     const nextItem = await replenishInventoryItem(itemForReplenish, history, resetOpenedDate, lastingDaysReplenishMode);
     const items = await getInventoryItems();
@@ -380,13 +430,27 @@ export default function InventoryDetailScreen() {
 
   const openPurchaseLinkEdit = () => {
     resetPurchaseLinkFields(item);
+    setPurchaseLinkErrors({});
     setShowPurchaseLinkEdit(true);
   };
 
   const savePurchaseLinks = async () => {
-    const urls = [editAmazonUrl, editRakutenUrl, editYahooUrl, editOtherUrl];
-    if (urls.some((url) => !isValidOptionalUrl(url.trim() || undefined))) {
-      Alert.alert('入力を確認してください', 'URLは http:// または https:// で始めてください。');
+    const nextErrors: PurchaseLinkErrors = {};
+    if (!isValidOptionalAmazonUrl(editAmazonUrl.trim() || undefined)) {
+      nextErrors.amazon = 'AmazonのURLを入力してください。';
+    }
+    if (!isValidOptionalRakutenUrl(editRakutenUrl.trim() || undefined)) {
+      nextErrors.rakuten = '楽天のURLを入力してください。';
+    }
+    if (!isValidOptionalYahooShoppingUrl(editYahooUrl.trim() || undefined)) {
+      nextErrors.yahoo = 'YahooショッピングのURLを入力してください。';
+    }
+    if (!isValidOptionalUrl(editOtherUrl.trim() || undefined)) {
+      nextErrors.other = 'URLは http:// または https:// で始めてください。';
+    }
+    setPurchaseLinkErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      Alert.alert('入力を確認してください', '各ストアに合ったURLを入力してください。');
       return;
     }
     const nextItem: InventoryItem = {
@@ -402,6 +466,7 @@ export default function InventoryDetailScreen() {
     await saveInventoryItem(nextItem);
     setItem(nextItem);
     resetPurchaseLinkFields(nextItem);
+    setPurchaseLinkErrors({});
     setShowPurchaseLinkEdit(false);
   };
 
@@ -441,21 +506,6 @@ export default function InventoryDetailScreen() {
   };
 
   const buy = async (shop: ShopType) => {
-    if (shop === 'rakuten' || shop === 'yahoo') {
-      const prices = await getPurchasePriceComparison(item);
-      const message = buildPurchasePriceMessage(prices);
-      const buttons = buildPurchasePageButtons(item);
-      if (buttons.length === 1) {
-        Alert.alert('URLが未登録です', '編集画面から楽天またはYahooのURLを登録できます。');
-        return;
-      }
-      Alert.alert(
-        hasAnyPrice(prices) ? '現在価格を確認しました' : '価格を確認できませんでした',
-        `${message}\nどの購入ページを開きますか？`,
-        buttons,
-      );
-      return;
-    }
     const opened = await openPurchaseUrl(item, shop);
     if (!opened) Alert.alert('URLが未登録です', '編集画面から購入URLを登録できます。');
   };
@@ -500,9 +550,9 @@ export default function InventoryDetailScreen() {
             onPress={
               showStockEdit
                 ? () => {
-                    resetStockEditFields(item);
-                    setShowStockEdit(false);
-                  }
+                  resetStockEditFields(item);
+                  setShowStockEdit(false);
+                }
                 : openStockEdit
             }
             style={styles.editButton}
@@ -542,7 +592,7 @@ export default function InventoryDetailScreen() {
               />
             ) : null}
             {item.estimationMode === 'purchase_frequency' ? (
-              <Text style={styles.affiliate}>購入頻度は補充履歴から自動計算するため、ここでは価格・購入日・メモを変更できます。</Text>
+              <Text style={styles.hint}>購入頻度は補充履歴から自動計算するため、ここでは価格・購入日・メモを変更できます。</Text>
             ) : null}
             <AppTextInput
               label="メモ"
@@ -590,6 +640,7 @@ export default function InventoryDetailScreen() {
       <View
         onLayout={(event) => {
           purchaseCardYRef.current = event.nativeEvent.layout.y;
+          scrollToActionTarget();
         }}
       >
         <AppCard style={styles.card}>
@@ -601,44 +652,62 @@ export default function InventoryDetailScreen() {
               onPress={
                 showPurchaseLinkEdit
                   ? () => {
-                      resetPurchaseLinkFields(item);
-                      setShowPurchaseLinkEdit(false);
-                    }
+                    resetPurchaseLinkFields(item);
+                    setPurchaseLinkErrors({});
+                    setShowPurchaseLinkEdit(false);
+                  }
                   : openPurchaseLinkEdit
               }
               style={styles.editButton}
             />
           </View>
           <Text style={styles.affiliate}>リンクにはアフィリエイトが含まれる場合があります</Text>
+          <Text style={styles.hint}>ストアによって内容量や味などが異なる場合がございます。</Text>
           {showPurchaseLinkEdit ? (
             <>
               <AppTextInput
                 label="Amazon URL"
                 value={editAmazonUrl}
-                onChangeText={setEditAmazonUrl}
+                onChangeText={(value) => {
+                  setEditAmazonUrl(value);
+                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, amazon: undefined }));
+                }}
                 keyboardType="url"
                 autoCapitalize="none"
+                error={purchaseLinkErrors.amazon}
               />
               <AppTextInput
                 label="楽天 URL"
                 value={editRakutenUrl}
-                onChangeText={setEditRakutenUrl}
+                onChangeText={(value) => {
+                  setEditRakutenUrl(value);
+                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, rakuten: undefined }));
+                }}
                 keyboardType="url"
                 autoCapitalize="none"
+                error={purchaseLinkErrors.rakuten}
               />
               <AppTextInput
                 label="Yahoo URL"
                 value={editYahooUrl}
-                onChangeText={setEditYahooUrl}
+                onChangeText={(value) => {
+                  setEditYahooUrl(value);
+                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, yahoo: undefined }));
+                }}
                 keyboardType="url"
                 autoCapitalize="none"
+                error={purchaseLinkErrors.yahoo}
               />
               <AppTextInput
                 label="その他URL"
                 value={editOtherUrl}
-                onChangeText={setEditOtherUrl}
+                onChangeText={(value) => {
+                  setEditOtherUrl(value);
+                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, other: undefined }));
+                }}
                 keyboardType="url"
                 autoCapitalize="none"
+                error={purchaseLinkErrors.other}
               />
               <AppButton title="URLを保存" onPress={() => void savePurchaseLinks()} />
             </>
@@ -674,6 +743,7 @@ export default function InventoryDetailScreen() {
         <View
           onLayout={(event) => {
             replenishCardYRef.current = event.nativeEvent.layout.y;
+            scrollToActionTarget();
           }}
         >
           <AppCard style={styles.card}>
@@ -785,32 +855,6 @@ function formatQuantity(value: number): string {
 
 function getReplenishAmount(item: InventoryItem): number {
   return item.amount;
-}
-
-function buildPurchasePriceMessage(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): string {
-  const rakuten = prices.rakuten?.price !== undefined ? `${prices.rakuten.price.toLocaleString()}円` : '取得できませんでした';
-  const yahoo = prices.yahoo?.price !== undefined ? `${prices.yahoo.price.toLocaleString()}円` : '取得できませんでした';
-  return `楽天: ${rakuten}\nYahoo: ${yahoo}`;
-}
-
-function hasAnyPrice(prices: Awaited<ReturnType<typeof getPurchasePriceComparison>>): boolean {
-  return prices.rakuten?.price !== undefined || prices.yahoo?.price !== undefined;
-}
-
-function buildPurchasePageButtons(item: InventoryItem) {
-  const buttons: { text: string; style?: 'cancel'; onPress?: () => void }[] = [
-    { text: 'キャンセル', style: 'cancel' },
-  ];
-  const shops: { shop: ShopType; label: string }[] = [
-    { shop: 'rakuten', label: '楽天を開く' },
-    { shop: 'yahoo', label: 'Yahooを開く' },
-  ];
-  shops.forEach(({ shop, label }) => {
-    if (item.purchaseLinks[shop]) {
-      buttons.push({ text: label, onPress: () => void openPurchaseUrl(item, shop) });
-    }
-  });
-  return buttons;
 }
 
 const styles = StyleSheet.create({
@@ -962,6 +1006,11 @@ const styles = StyleSheet.create({
   affiliate: {
     color: colors.subText,
     fontSize: 12,
+  },
+  hint: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
   },
   actionGrid: {
     gap: 10,

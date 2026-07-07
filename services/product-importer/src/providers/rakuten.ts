@@ -1,5 +1,6 @@
 import { config, delay, warnMissingEnv } from '../config.js';
 import { RawProduct } from '../types.js';
+import { filterProductResultNames } from './searchResultFilter.js';
 
 type RakutenItem = {
   itemCode?: string;
@@ -23,7 +24,14 @@ type RakutenResponse = {
 const RAKUTEN_ITEM_SEARCH_ENDPOINT =
   'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701';
 
-export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawProduct[]> {
+type ProductSearchOptions = {
+  requiredNameParts?: string[];
+};
+
+export async function searchRakutenItemsByKeyword(
+  keyword: string,
+  options: ProductSearchOptions = {},
+): Promise<RawProduct[]> {
   const missing = [
     !config.rakutenApplicationId ? 'RAKUTEN_APPLICATION_ID' : undefined,
     !config.rakutenAccessKey ? 'RAKUTEN_ACCESS_KEY' : undefined,
@@ -65,8 +73,11 @@ export async function searchRakutenItemsByKeyword(keyword: string): Promise<RawP
     if (items.length === 0) {
       console.warn(`[rakuten] 0 items for keyword "${keyword}". response keys: ${Object.keys(body).join(', ')}`);
     }
-    return items
-      .filter((item): item is RakutenItem => Boolean(item?.itemCode && item.itemName))
+    return filterProductResultNames(
+      items.filter((item): item is RakutenItem => Boolean(item?.itemCode && item.itemName)),
+      (item) => item.itemName,
+      options,
+    )
       .map((item) => ({
         provider: 'rakuten',
         externalId: item.itemCode ?? '',

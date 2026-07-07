@@ -361,40 +361,44 @@ export default function SettingsScreen() {
         <AppButton title="データ初期化" variant="danger" onPress={resetData} />
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>開発用データ</Text>
-        <Text style={styles.note}>動作確認用のプロフィールと在庫を端末内に追加します。</Text>
-        <AppButton title="サンプルデータを追加" variant="secondary" onPress={addSeedData} />
-        {syncState ? (
-          <>
-            <Text style={styles.note}>同期確認用の手動操作です。</Text>
-            <AppButton
-              title="今すぐクラウドに保存"
-              disabled={syncBusy || !isHouseholdSyncConfigured()}
-              onPress={pushSharedData}
-            />
-            <AppButton
-              title="クラウドから再読み込み"
-              variant="secondary"
-              disabled={syncBusy || !isHouseholdSyncConfigured()}
-              onPress={pullSharedData}
-            />
-          </>
-        ) : null}
-      </AppCard>
+      {__DEV__ ? (
+        <>
+          <AppCard style={styles.card}>
+            <Text style={styles.title}>開発用データ</Text>
+            <Text style={styles.note}>動作確認用のプロフィールと在庫を端末内に追加します。</Text>
+            <AppButton title="サンプルデータを追加" variant="secondary" onPress={addSeedData} />
+            {syncState ? (
+              <>
+                <Text style={styles.note}>同期確認用の手動操作です。</Text>
+                <AppButton
+                  title="今すぐクラウドに保存"
+                  disabled={syncBusy || !isHouseholdSyncConfigured()}
+                  onPress={pushSharedData}
+                />
+                <AppButton
+                  title="クラウドから再読み込み"
+                  variant="secondary"
+                  disabled={syncBusy || !isHouseholdSyncConfigured()}
+                  onPress={pullSharedData}
+                />
+              </>
+            ) : null}
+          </AppCard>
 
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>未実装・TODO</Text>
-        {todoItems.map((item) => (
-          <View key={item.label} style={styles.todoRow}>
-            <Text style={styles.todoDot}>•</Text>
-            <View style={styles.todoBody}>
-              <Text style={styles.todoText}>{item.label}</Text>
-              <Text style={[styles.todoStatus, item.done && styles.todoStatusDone]}>{item.status}</Text>
-            </View>
-          </View>
-        ))}
-      </AppCard>
+          <AppCard style={styles.card}>
+            <Text style={styles.title}>未実装・TODO</Text>
+            {todoItems.map((item) => (
+              <View key={item.label} style={styles.todoRow}>
+                <Text style={styles.todoDot}>•</Text>
+                <View style={styles.todoBody}>
+                  <Text style={styles.todoText}>{item.label}</Text>
+                  <Text style={[styles.todoStatus, item.done && styles.todoStatusDone]}>{item.status}</Text>
+                </View>
+              </View>
+            ))}
+          </AppCard>
+        </>
+      ) : null}
 
       <AppCard>
         <Text style={styles.title}>アプリ情報</Text>

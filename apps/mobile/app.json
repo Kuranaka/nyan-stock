@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "nyan-stock",
+    "name": "にゃんストック",
     "slug": "nyan-stock",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,14 +16,16 @@
     "ios": {
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "bundleIdentifier": "com.example.nyanstock",
+      "bundleIdentifier": "com.nyanstock.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "JANコードを読み取り、猫用品の在庫登録を補助するためにカメラを使用します。",
         "NSPhotoLibraryUsageDescription": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。"
       }
     },
     "android": {
-      "package": "com.example.nyanstock",
+      "package": "com.nyanstock.app",
+      "versionCode": 1,
       "permissions": ["CAMERA"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
