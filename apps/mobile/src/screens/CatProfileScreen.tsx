@@ -245,7 +245,7 @@ export default function CatProfileScreen() {
     if (!current) return;
     Alert.alert(
       '猫プロフィールを削除しますか？',
-      `${current.name}のプロフィールを削除します。この猫だけに紐づく在庫と購入履歴は削除され、共有中の商品は他の猫の在庫として残ります。`,
+      `${current.name}のプロフィールを削除します。この猫だけに紐づく在庫は削除され、購入履歴は残ります。共有中の商品は他の猫の在庫として残ります。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -361,7 +361,7 @@ export default function CatProfileScreen() {
       {current ? (
         <AppCard style={styles.dangerZone}>
           <Text style={styles.dangerZoneTitle}>削除</Text>
-          <Text style={styles.dangerZoneText}>この猫だけに紐づく在庫と購入履歴を削除します。</Text>
+          <Text style={styles.dangerZoneText}>この猫だけに紐づく在庫を削除します。購入履歴は残ります。</Text>
           <AppButton title="この猫を削除" variant="danger" onPress={remove} />
         </AppCard>
       ) : null}

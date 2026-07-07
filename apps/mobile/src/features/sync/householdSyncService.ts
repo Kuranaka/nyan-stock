@@ -267,21 +267,11 @@ export async function deleteActiveHouseholdInventoryItem(id: string): Promise<bo
 
   const now = nowIso();
   const updatedBy = await getCurrentUserLabel();
-  const historyRows = await fetchEntityRows<PurchaseHistory>(householdPurchaseHistoryTable, state.householdId);
-  const itemHistoryIds = historyRows
-    .filter((row) => row.payload.inventoryItemId === id)
-    .map((row) => row.id);
   await Promise.all([
     upsertHousehold(state.householdId, now, updatedBy),
     deleteEntityRow(householdInventoryItemsTable, state.householdId, id),
-    ...itemHistoryIds.map((historyId) =>
-      deleteEntityRow(householdPurchaseHistoryTable, state.householdId, historyId),
-    ),
   ]);
   await patchLocalCache(storageKeys.inventoryItems, (items: InventoryItem[]) => items.filter((item) => item.id !== id));
-  await patchLocalCache(storageKeys.purchaseHistory, (history: PurchaseHistory[]) =>
-    history.filter((entry) => entry.inventoryItemId !== id),
-  );
   await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
@@ -302,6 +292,23 @@ export async function upsertActiveHouseholdPurchaseHistory(entry: PurchaseHistor
       : [entry, ...history],
   );
   await saveHouseholdSyncState({ ...state, lastPushedAt: updatedAt });
+  return true;
+}
+
+export async function deleteActiveHouseholdPurchaseHistory(id: string): Promise<boolean> {
+  const state = await getActiveState();
+  if (!state) return false;
+
+  const now = nowIso();
+  const updatedBy = await getCurrentUserLabel();
+  await Promise.all([
+    upsertHousehold(state.householdId, now, updatedBy),
+    deleteEntityRow(householdPurchaseHistoryTable, state.householdId, id),
+  ]);
+  await patchLocalCache(storageKeys.purchaseHistory, (history: PurchaseHistory[]) =>
+    history.filter((entry) => entry.id !== id),
+  );
+  await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
 

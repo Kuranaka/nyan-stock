@@ -5,6 +5,7 @@ import { storageKeys } from '@/features/storageKeys';
 import {
   clearActiveHouseholdInventoryData,
   deleteActiveHouseholdInventoryItem,
+  deleteActiveHouseholdPurchaseHistory,
   getActiveHouseholdSnapshot,
   syncActiveHouseholdInventoryAndHistory,
   upsertActiveHouseholdInventoryItem,
@@ -64,31 +65,21 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
 export async function deleteInventoryItem(id: string): Promise<void> {
   if (await deleteActiveHouseholdInventoryItem(id)) {
     cachedInventoryItems = cachedInventoryItems?.filter((item) => item.id !== id);
-    cachedPurchaseHistory = cachedPurchaseHistory?.filter((entry) => entry.inventoryItemId !== id);
     return;
   }
 
-  const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
-  await AsyncStorage.setItem(
-    storageKeys.inventoryItems,
-    JSON.stringify(items.filter((item) => item.id !== id)),
-  );
-  cachedInventoryItems = items.filter((item) => item.id !== id);
-  await AsyncStorage.setItem(
-    storageKeys.purchaseHistory,
-    JSON.stringify(history.filter((entry) => entry.inventoryItemId !== id)),
-  );
-  cachedPurchaseHistory = history.filter((entry) => entry.inventoryItemId !== id);
+  const items = await getInventoryItems();
+  const nextItems = items.filter((item) => item.id !== id);
+  cachedInventoryItems = nextItems;
+  await AsyncStorage.setItem(storageKeys.inventoryItems, JSON.stringify(nextItems));
 }
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
   const nextItems = removeCatFromInventoryItems(items, catId);
-  const nextItemIds = new Set(nextItems.map((item) => item.id));
-  const nextHistory = history.filter((entry) => nextItemIds.has(entry.inventoryItemId));
   cachedInventoryItems = nextItems;
-  cachedPurchaseHistory = nextHistory;
-  if (await syncActiveHouseholdInventoryAndHistory(nextItems, nextHistory)) return;
+  cachedPurchaseHistory = history;
+  if (await syncActiveHouseholdInventoryAndHistory(nextItems, history)) return;
 
   await AsyncStorage.setItem(
     storageKeys.inventoryItems,
@@ -96,7 +87,7 @@ export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
   );
   await AsyncStorage.setItem(
     storageKeys.purchaseHistory,
-    JSON.stringify(nextHistory),
+    JSON.stringify(history),
   );
 }
 
@@ -132,6 +123,16 @@ export async function updatePurchaseHistoryPrice(id: string, price?: number): Pr
   if (changedEntry && (await upsertActiveHouseholdPurchaseHistory(changedEntry))) return nextHistory;
 
   cachedPurchaseHistory = nextHistory;
+  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
+  return nextHistory;
+}
+
+export async function deletePurchaseHistory(id: string): Promise<PurchaseHistory[]> {
+  const history = await getPurchaseHistory();
+  const nextHistory = history.filter((entry) => entry.id !== id);
+  cachedPurchaseHistory = nextHistory;
+  if (await deleteActiveHouseholdPurchaseHistory(id)) return nextHistory;
+
   await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
   return nextHistory;
 }

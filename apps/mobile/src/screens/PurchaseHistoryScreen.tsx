@@ -13,7 +13,7 @@ import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import { getInventoryCatIds } from '@/features/inventory/inventoryLogic';
-import { getInventoryItems, getPurchaseHistory, updatePurchaseHistoryPrice } from '@/features/inventory/inventoryStorage';
+import { deletePurchaseHistory, getInventoryItems, getPurchaseHistory, updatePurchaseHistoryPrice } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
@@ -100,6 +100,21 @@ export default function PurchaseHistoryScreen() {
     cancelEditingPrice();
   }
 
+  function confirmDeleteHistory(entry: PurchaseHistory) {
+    Alert.alert('購入履歴を削除しますか？', `${formatDisplayDate(entry.purchasedAt)}の購入履歴を削除します。`, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除する',
+        style: 'destructive',
+        onPress: async () => {
+          const nextHistory = await deletePurchaseHistory(entry.id);
+          setHistory(nextHistory);
+          if (editingHistoryId === entry.id) cancelEditingPrice();
+        },
+      },
+    ]);
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <AppCard style={styles.summaryCard}>
@@ -132,12 +147,20 @@ export default function PurchaseHistoryScreen() {
               <View style={styles.entryHeader}>
                 <Text style={styles.date}>{formatDisplayDate(entry.purchasedAt)}</Text>
                 {editingHistoryId === entry.id ? null : (
-                  <AppButton
-                    title="編集"
-                    variant="secondary"
-                    onPress={() => startEditingPrice(entry)}
-                    style={styles.editButton}
-                  />
+                  <View style={styles.entryActions}>
+                    <AppButton
+                      title="編集"
+                      variant="secondary"
+                      onPress={() => startEditingPrice(entry)}
+                      style={styles.editButton}
+                    />
+                    <AppButton
+                      title="削除"
+                      variant="danger"
+                      onPress={() => confirmDeleteHistory(entry)}
+                      style={styles.editButton}
+                    />
+                  </View>
                 )}
               </View>
               <Text style={styles.name}>{itemNames.get(entry.inventoryItemId) ?? '削除済みの商品'}</Text>
@@ -241,6 +264,10 @@ const styles = StyleSheet.create({
     minHeight: 36,
     paddingHorizontal: 14,
     paddingVertical: 7,
+  },
+  entryActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   name: {
     color: colors.text,

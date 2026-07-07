@@ -49,19 +49,24 @@ type PurchaseLinkErrors = Partial<Record<ShopType, string>>;
 export default function InventoryDetailScreen() {
   const router = useRouter();
   const { id, action } = useLocalSearchParams<{ id: string; action?: string }>();
+  const initialItem = id ? getCachedInventoryItem(id) : undefined;
   const scrollViewRef = useRef<ScrollView>(null);
   const replenishCardYRef = useRef(0);
   const purchaseCardYRef = useRef(0);
   const historyCardYRef = useRef(0);
+  const bottomActionsYRef = useRef(0);
   const hasScrolledToActionRef = useRef(false);
-  const [item, setItem] = useState<InventoryItem | undefined>(() => (id ? getCachedInventoryItem(id) : undefined));
+  const shouldScrollToReplenishRef = useRef(false);
+  const shouldScrollToHistoryRef = useRef(false);
+  const [item, setItem] = useState<InventoryItem | undefined>(() => initialItem);
   const [loading, setLoading] = useState(true);
   const [showMissingMessage, setShowMissingMessage] = useState(false);
   const [cats, setCats] = useState<Cat[]>(() => getCachedCats());
-  const [showReplenish, setShowReplenish] = useState(false);
+  const [showReplenish, setShowReplenish] = useState(action === 'replenish');
+  const [savingReplenish, setSavingReplenish] = useState(false);
   const [showHistoryAdd, setShowHistoryAdd] = useState(false);
   const [replenishDate, setReplenishDate] = useState(todayIso());
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState(action === 'replenish' ? initialItem?.price?.toString() ?? '' : '');
   const [memo, setMemo] = useState('');
   const [historyDate, setHistoryDate] = useState(todayIso());
   const [historyPrice, setHistoryPrice] = useState('');
@@ -140,12 +145,12 @@ export default function InventoryDetailScreen() {
     if (hasScrolledToActionRef.current) return;
     if (action !== 'purchase' && action !== 'replenish') return;
     if (action === 'replenish' && !showReplenish) return;
-    const targetY = action === 'purchase' ? purchaseCardYRef.current : replenishCardYRef.current;
+    const targetY = action === 'purchase' ? purchaseCardYRef.current : bottomActionsYRef.current + replenishCardYRef.current;
     if (targetY <= 0) return;
     hasScrolledToActionRef.current = true;
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 12), animated: true });
-    }, 120);
+    });
   }, [action, showReplenish]);
 
   useEffect(() => {
@@ -227,7 +232,7 @@ export default function InventoryDetailScreen() {
   };
 
   const remove = () => {
-    Alert.alert('削除しますか？', `${item.name}と関連する購入履歴を削除します。`, [
+    Alert.alert('削除しますか？', `${item.name}を削除します。購入履歴は残ります。`, [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '削除する',
@@ -247,6 +252,7 @@ export default function InventoryDetailScreen() {
     setReplenishDate(todayIso());
     setPrice(item.price?.toString() ?? '');
     setMemo('');
+    shouldScrollToReplenishRef.current = true;
     setShowReplenish(true);
   };
 
@@ -260,10 +266,8 @@ export default function InventoryDetailScreen() {
     setHistoryDate(todayIso());
     setHistoryPrice(item.price?.toString() ?? '');
     setHistoryMemo('');
+    shouldScrollToHistoryRef.current = true;
     setShowHistoryAdd(true);
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: Math.max(0, historyCardYRef.current - 12), animated: true });
-    }, 120);
   };
 
   const closeHistoryAdd = () => {
@@ -273,6 +277,7 @@ export default function InventoryDetailScreen() {
   };
 
   const submitReplenish = () => {
+    if (savingReplenish) return;
     const replenishAmount = getReplenishAmount(item);
     const priceNumber = parseOptionalNumber(price);
     if ((!item.estimationMode || item.estimationMode === 'usage') && replenishAmount <= 0) {
@@ -307,6 +312,7 @@ export default function InventoryDetailScreen() {
     priceNumber: number | undefined,
     lastingDaysReplenishMode: LastingDaysReplenishMode = 'add_remaining',
   ) => {
+    if (savingReplenish) return;
     if (priceNumber !== item.price) {
       Alert.alert(
         '商品価格を更新しますか？',
@@ -328,30 +334,38 @@ export default function InventoryDetailScreen() {
     shouldUpdateItemPrice: boolean,
     lastingDaysReplenishMode: LastingDaysReplenishMode = 'add_remaining',
   ) => {
-    const history: PurchaseHistory = {
-      id: createId('history'),
-      inventoryItemId: item.id,
-      purchasedAt: replenishDate,
-      amount: amountNumber,
-      unit: item.unit,
-      price: priceNumber,
-      memo: memo.trim() || undefined,
-      createdAt: nowIso(),
-    };
-    const settings = await getSettings();
-    const itemForReplenish: InventoryItem = shouldUpdateItemPrice
-      ? {
-        ...item,
+    if (savingReplenish) return;
+    setSavingReplenish(true);
+    try {
+      const history: PurchaseHistory = {
+        id: createId('history'),
+        inventoryItemId: item.id,
+        purchasedAt: replenishDate,
+        amount: amountNumber,
+        unit: item.unit,
         price: priceNumber,
-      }
-      : item;
-    const nextItem = await replenishInventoryItem(itemForReplenish, history, resetOpenedDate, lastingDaysReplenishMode);
-    const items = await getInventoryItems();
-    await scheduleInventoryNotifications(items, settings);
-    setItem(nextItem);
-    closeReplenish();
-    resetStockEditFields(nextItem);
-    await recordReviewEligibleAction('replenish_save');
+        memo: memo.trim() || undefined,
+        createdAt: nowIso(),
+      };
+      const settings = await getSettings();
+      const itemForReplenish: InventoryItem = shouldUpdateItemPrice
+        ? {
+          ...item,
+          price: priceNumber,
+        }
+        : item;
+      const nextItem = await replenishInventoryItem(itemForReplenish, history, resetOpenedDate, lastingDaysReplenishMode);
+      const items = await getInventoryItems();
+      await scheduleInventoryNotifications(items, settings);
+      setItem(nextItem);
+      closeReplenish();
+      resetStockEditFields(nextItem);
+      await recordReviewEligibleAction('replenish_save');
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingReplenish(false);
+    }
   };
 
   const submitPastPurchaseHistory = () => {
@@ -743,59 +757,78 @@ export default function InventoryDetailScreen() {
         </AppCard>
       </View>
 
-      {showReplenish ? (
-        <View
-          onLayout={(event) => {
-            replenishCardYRef.current = event.nativeEvent.layout.y;
-            scrollToActionTarget();
-          }}
-        >
-          <AppCard style={styles.card}>
-            <Text style={styles.sectionTitle}>補充内容</Text>
-            <DatePickerField
-              label="補充日"
-              value={replenishDate}
-              onChange={setReplenishDate}
-              requirement="required"
-            />
-            <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
-            <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
-            <AppButton title="補充を保存" onPress={submitReplenish} />
-            <AppButton title="閉じる" variant="secondary" onPress={closeReplenish} />
-          </AppCard>
-        </View>
-      ) : null}
-
-      {showHistoryAdd ? (
-        <View
-          onLayout={(event) => {
-            historyCardYRef.current = event.nativeEvent.layout.y;
-          }}
-        >
-          <AppCard style={styles.card}>
-            <Text style={styles.sectionTitle}>過去の購入履歴</Text>
-            <DatePickerField
-              label="購入日"
-              value={historyDate}
-              onChange={setHistoryDate}
-              requirement="required"
-            />
-            <AppTextInput label="価格" value={historyPrice} onChangeText={setHistoryPrice} keyboardType="numeric" />
-            <AppTextInput label="メモ" value={historyMemo} onChangeText={setHistoryMemo} multiline style={styles.memo} />
-            <AppButton title="購入履歴を追加" onPress={submitPastPurchaseHistory} />
-            <AppButton title="閉じる" variant="secondary" onPress={closeHistoryAdd} />
-          </AppCard>
-        </View>
-      ) : null}
-
-      <View style={styles.bottomActions}>
+      <View
+        style={styles.bottomActions}
+        onLayout={(event) => {
+          bottomActionsYRef.current = event.nativeEvent.layout.y;
+        }}
+      >
         <AppButton title="在庫を補充した" onPress={openReplenish} />
+        {showReplenish ? (
+          <View
+            onLayout={(event) => {
+              replenishCardYRef.current = event.nativeEvent.layout.y;
+              scrollToActionTarget();
+              if (!shouldScrollToReplenishRef.current) return;
+              shouldScrollToReplenishRef.current = false;
+              requestAnimationFrame(() => {
+                scrollViewRef.current?.scrollTo({
+                  y: Math.max(0, bottomActionsYRef.current + replenishCardYRef.current - 12),
+                  animated: true,
+                });
+              });
+            }}
+          >
+            <AppCard style={styles.card}>
+              <Text style={styles.sectionTitle}>補充内容</Text>
+              <DatePickerField
+                label="補充日"
+                value={replenishDate}
+                onChange={setReplenishDate}
+                requirement="required"
+              />
+              <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
+              <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
+              <AppButton title={savingReplenish ? '保存中...' : '補充を保存'} loading={savingReplenish} onPress={submitReplenish} />
+              <AppButton title="閉じる" variant="secondary" disabled={savingReplenish} onPress={closeReplenish} />
+            </AppCard>
+          </View>
+        ) : null}
         <AppButton title="過去の購入履歴を追加" variant="secondary" onPress={openHistoryAdd} />
+        {showHistoryAdd ? (
+          <View
+            onLayout={(event) => {
+              historyCardYRef.current = event.nativeEvent.layout.y;
+              if (!shouldScrollToHistoryRef.current) return;
+              shouldScrollToHistoryRef.current = false;
+              requestAnimationFrame(() => {
+                scrollViewRef.current?.scrollTo({
+                  y: Math.max(0, bottomActionsYRef.current + historyCardYRef.current - 12),
+                  animated: true,
+                });
+              });
+            }}
+          >
+            <AppCard style={styles.card}>
+              <Text style={styles.sectionTitle}>過去の購入履歴</Text>
+              <DatePickerField
+                label="購入日"
+                value={historyDate}
+                onChange={setHistoryDate}
+                requirement="required"
+              />
+              <AppTextInput label="価格" value={historyPrice} onChangeText={setHistoryPrice} keyboardType="numeric" />
+              <AppTextInput label="メモ" value={historyMemo} onChangeText={setHistoryMemo} multiline style={styles.memo} />
+              <AppButton title="購入履歴を追加" onPress={submitPastPurchaseHistory} />
+              <AppButton title="閉じる" variant="secondary" onPress={closeHistoryAdd} />
+            </AppCard>
+          </View>
+        ) : null}
       </View>
 
       <AppCard style={styles.dangerZone}>
         <Text style={styles.dangerZoneTitle}>削除</Text>
-        <Text style={styles.dangerZoneText}>商品と関連する購入履歴を削除します。</Text>
+        <Text style={styles.dangerZoneText}>商品だけを削除します。購入履歴は購入履歴画面から削除できます。</Text>
         <AppButton title="この商品を削除" variant="danger" onPress={remove} />
       </AppCard>
     </ScrollView>

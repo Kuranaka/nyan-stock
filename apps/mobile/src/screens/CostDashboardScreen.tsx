@@ -60,6 +60,7 @@ export default function CostDashboardScreen() {
     [items, selectedCatId],
   );
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems]);
+  const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const costRows = useMemo(
     () =>
       visibleItems
@@ -79,6 +80,14 @@ export default function CostDashboardScreen() {
     .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
     .filter((entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
     .reduce((sum, entry) => sum + (entry.price ?? 0), 0);
+  const actualBreakdown = useMemo(
+    () => buildActualBreakdown(history, visibleItemIds, itemById),
+    [history, itemById, visibleItemIds],
+  );
+  const monthlyActualMissingPriceCount = history
+    .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
+    .filter((entry) => entry.price === undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
+    .length;
   const yearlyEstimate = monthlyEstimate * 12;
   const categoryBreakdown = useMemo(() => buildCategoryBreakdown(costRows), [costRows]);
 
@@ -127,6 +136,30 @@ export default function CostDashboardScreen() {
           <Summary label="価格未入力" value={`${missingPriceCount}件`} tone="warning" />
           <Summary label="周期未計算" value={`${missingCycleCount}件`} tone="warning" />
         </View>
+      </AppCard>
+
+      <AppCard style={styles.card}>
+        <Text style={styles.sectionTitle}>今月の実績内訳</Text>
+        {actualBreakdown.length > 0 ? (
+          <View style={styles.actualList}>
+            {actualBreakdown.map((row) => (
+              <View key={row.inventoryItemId} style={styles.actualRow}>
+                <View style={styles.actualBody}>
+                  <Text style={styles.actualName}>{row.item.name}</Text>
+                  <Text style={styles.actualMeta}>
+                    {[categoryLabels[row.item.category], getCatLabel(row.item, catNames), `${row.count}件`].filter(Boolean).join(' ・ ')}
+                  </Text>
+                </View>
+                <Text style={styles.actualAmount}>{row.total.toLocaleString()}円</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.note}>今月の価格入力済みの購入履歴はまだありません。</Text>
+        )}
+        {monthlyActualMissingPriceCount > 0 ? (
+          <Text style={styles.note}>価格未入力の購入履歴 {monthlyActualMissingPriceCount}件は実績から除外しています。</Text>
+        ) : null}
       </AppCard>
 
       {categoryBreakdown.length > 0 ? (
@@ -194,6 +227,13 @@ type CategoryBreakdownRow = {
   color: string;
 };
 
+type ActualBreakdownRow = {
+  inventoryItemId: string;
+  item: InventoryItem;
+  count: number;
+  total: number;
+};
+
 function CostDonutChart({ rows, total }: { rows: CategoryBreakdownRow[]; total: number }) {
   return (
     <View style={styles.chartWrap}>
@@ -241,6 +281,30 @@ function buildCategoryBreakdown(rows: CostRow[]): CategoryBreakdownRow[] {
       amount,
       color: chartColors[index % chartColors.length],
     }));
+}
+
+function buildActualBreakdown(
+  history: PurchaseHistory[],
+  visibleItemIds: Set<string>,
+  itemById: Map<string, InventoryItem>,
+): ActualBreakdownRow[] {
+  const rows = new Map<string, ActualBreakdownRow>();
+  history
+    .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
+    .filter((entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
+    .forEach((entry) => {
+      const item = itemById.get(entry.inventoryItemId);
+      if (!item) return;
+      const current = rows.get(entry.inventoryItemId);
+      rows.set(entry.inventoryItemId, {
+        inventoryItemId: entry.inventoryItemId,
+        item,
+        count: (current?.count ?? 0) + 1,
+        total: (current?.total ?? 0) + (entry.price ?? 0),
+      });
+    });
+
+  return Array.from(rows.values()).sort((a, b) => b.total - a.total);
 }
 
 function getDonutSegmentColor(rows: CategoryBreakdownRow[], total: number, index: number): string {
@@ -398,6 +462,37 @@ const styles = StyleSheet.create({
   legendValue: {
     color: colors.subText,
     fontSize: 12,
+    textAlign: 'right',
+  },
+  actualList: {
+    gap: 10,
+  },
+  actualRow: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingBottom: 10,
+  },
+  actualBody: {
+    flex: 1,
+    gap: 4,
+  },
+  actualName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  actualMeta: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  actualAmount: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '900',
     textAlign: 'right',
   },
   list: {

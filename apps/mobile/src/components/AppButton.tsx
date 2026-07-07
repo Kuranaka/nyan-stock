@@ -1,4 +1,4 @@
-import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { colors } from '@/constants/colors';
 
@@ -9,24 +9,32 @@ type Props = {
   onPress: () => void;
   variant?: Variant;
   disabled?: boolean;
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function AppButton({ title, onPress, variant = 'primary', disabled, style }: Props) {
+export function AppButton({ title, onPress, variant = 'primary', disabled, loading, style }: Props) {
+  const isDisabled = disabled || loading;
+  const indicatorColor = variant === 'primary' ? colors.card : colors.text;
+
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={disabled}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      disabled={isDisabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
         styles[variant],
-        disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
+        isDisabled && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
         style,
       ]}
     >
-      <Text style={[styles.text, variant !== 'primary' && styles.secondaryText]}>{title}</Text>
+      <View style={styles.content}>
+        {loading ? <ActivityIndicator color={indicatorColor} size="small" /> : null}
+        <Text style={[styles.text, variant !== 'primary' && styles.secondaryText]}>{title}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -62,6 +70,12 @@ const styles = StyleSheet.create({
   pressed: {
     transform: [{ scale: 0.98 }],
     opacity: 0.86,
+  },
+  content: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
   },
   text: {
     color: colors.card,
