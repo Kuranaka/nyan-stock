@@ -15,17 +15,29 @@ import { nowIso } from '@/utils/date';
 import { calculateEstimatedEndDate, calculateRemainingDays, getInventoryCatIds } from './inventoryLogic';
 import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from './inventoryTypes';
 
+let cachedInventoryItems: InventoryItem[] | undefined;
+let cachedPurchaseHistory: PurchaseHistory[] | undefined;
+
 export async function getInventoryItems(): Promise<InventoryItem[]> {
   const snapshot = await getActiveHouseholdSnapshot();
-  if (snapshot) return snapshot.inventoryItems;
+  if (snapshot) {
+    cachedInventoryItems = snapshot.inventoryItems;
+    return snapshot.inventoryItems;
+  }
 
   const raw = await AsyncStorage.getItem(storageKeys.inventoryItems);
-  return raw ? (JSON.parse(raw) as InventoryItem[]) : [];
+  const items = raw ? (JSON.parse(raw) as InventoryItem[]) : [];
+  cachedInventoryItems = items;
+  return items;
 }
 
 export async function getInventoryItem(id: string): Promise<InventoryItem | undefined> {
   const items = await getInventoryItems();
   return items.find((item) => item.id === id);
+}
+
+export function getCachedInventoryItem(id: string): InventoryItem | undefined {
+  return cachedInventoryItems?.find((item) => item.id === id);
 }
 
 export async function saveInventoryItem(item: InventoryItem): Promise<void> {
@@ -36,27 +48,37 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
     updatedAt: nowIso(),
   };
 
-  if (await upsertActiveHouseholdInventoryItem(normalized)) return;
+  if (await upsertActiveHouseholdInventoryItem(normalized)) {
+    cachedInventoryItems = upsertCachedInventoryItem(cachedInventoryItems, normalized);
+    return;
+  }
 
   const items = await getInventoryItems();
   const next = items.some((current) => current.id === item.id)
     ? items.map((current) => (current.id === item.id ? normalized : current))
     : [normalized, ...items];
+  cachedInventoryItems = next;
   await AsyncStorage.setItem(storageKeys.inventoryItems, JSON.stringify(next));
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
-  if (await deleteActiveHouseholdInventoryItem(id)) return;
+  if (await deleteActiveHouseholdInventoryItem(id)) {
+    cachedInventoryItems = cachedInventoryItems?.filter((item) => item.id !== id);
+    cachedPurchaseHistory = cachedPurchaseHistory?.filter((entry) => entry.inventoryItemId !== id);
+    return;
+  }
 
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
   await AsyncStorage.setItem(
     storageKeys.inventoryItems,
     JSON.stringify(items.filter((item) => item.id !== id)),
   );
+  cachedInventoryItems = items.filter((item) => item.id !== id);
   await AsyncStorage.setItem(
     storageKeys.purchaseHistory,
     JSON.stringify(history.filter((entry) => entry.inventoryItemId !== id)),
   );
+  cachedPurchaseHistory = history.filter((entry) => entry.inventoryItemId !== id);
 }
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
@@ -64,6 +86,8 @@ export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
   const nextItems = removeCatFromInventoryItems(items, catId);
   const nextItemIds = new Set(nextItems.map((item) => item.id));
   const nextHistory = history.filter((entry) => nextItemIds.has(entry.inventoryItemId));
+  cachedInventoryItems = nextItems;
+  cachedPurchaseHistory = nextHistory;
   if (await syncActiveHouseholdInventoryAndHistory(nextItems, nextHistory)) return;
 
   await AsyncStorage.setItem(
@@ -78,17 +102,27 @@ export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
 
 export async function getPurchaseHistory(): Promise<PurchaseHistory[]> {
   const snapshot = await getActiveHouseholdSnapshot();
-  if (snapshot) return snapshot.purchaseHistory;
+  if (snapshot) {
+    cachedPurchaseHistory = snapshot.purchaseHistory;
+    return snapshot.purchaseHistory;
+  }
 
   const raw = await AsyncStorage.getItem(storageKeys.purchaseHistory);
-  return raw ? (JSON.parse(raw) as PurchaseHistory[]) : [];
+  const history = raw ? (JSON.parse(raw) as PurchaseHistory[]) : [];
+  cachedPurchaseHistory = history;
+  return history;
 }
 
 export async function addPurchaseHistory(entry: PurchaseHistory): Promise<void> {
-  if (await upsertActiveHouseholdPurchaseHistory(entry)) return;
+  if (await upsertActiveHouseholdPurchaseHistory(entry)) {
+    cachedPurchaseHistory = [entry, ...(cachedPurchaseHistory ?? [])];
+    return;
+  }
 
   const history = await getPurchaseHistory();
-  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify([entry, ...history]));
+  const nextHistory = [entry, ...history];
+  cachedPurchaseHistory = nextHistory;
+  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
 }
 
 export async function updatePurchaseHistoryPrice(id: string, price?: number): Promise<PurchaseHistory[]> {
@@ -97,6 +131,7 @@ export async function updatePurchaseHistoryPrice(id: string, price?: number): Pr
   const changedEntry = nextHistory.find((entry) => entry.id === id);
   if (changedEntry && (await upsertActiveHouseholdPurchaseHistory(changedEntry))) return nextHistory;
 
+  cachedPurchaseHistory = nextHistory;
   await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
   return nextHistory;
 }
@@ -130,12 +165,21 @@ export async function replenishInventoryItem(
 }
 
 export async function clearInventoryData(): Promise<void> {
+  cachedInventoryItems = undefined;
+  cachedPurchaseHistory = undefined;
   if (await clearActiveHouseholdInventoryData()) return;
 
   await Promise.all([
     AsyncStorage.removeItem(storageKeys.inventoryItems),
     AsyncStorage.removeItem(storageKeys.purchaseHistory),
   ]);
+}
+
+function upsertCachedInventoryItem(items: InventoryItem[] | undefined, item: InventoryItem): InventoryItem[] {
+  if (!items) return [item];
+  return items.some((current) => current.id === item.id)
+    ? items.map((current) => (current.id === item.id ? item : current))
+    : [item, ...items];
 }
 
 function removeCatFromInventoryItems(items: InventoryItem[], catId: string): InventoryItem[] {

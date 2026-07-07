@@ -9,7 +9,7 @@ import { DatePickerField } from '@/components/DatePickerField';
 import { StatusBadge } from '@/components/StatusBadge';
 import { categoryLabels, unitLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
-import { getCats } from '@/features/cats/catStorage';
+import { getCachedCats, getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import {
   calculatePurchaseFrequencyDays,
@@ -20,6 +20,7 @@ import {
 } from '@/features/inventory/inventoryLogic';
 import {
   addPurchaseHistory,
+  getCachedInventoryItem,
   deleteInventoryItem,
   getInventoryItem,
   getInventoryItems,
@@ -30,6 +31,7 @@ import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from '@/feat
 import { openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
 import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { recordReviewEligibleAction } from '@/features/review/reviewPrompt';
 import { getSettings } from '@/features/settings/settingsStorage';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate, nowIso, todayIso } from '@/utils/date';
@@ -52,10 +54,10 @@ export default function InventoryDetailScreen() {
   const purchaseCardYRef = useRef(0);
   const historyCardYRef = useRef(0);
   const hasScrolledToActionRef = useRef(false);
-  const [item, setItem] = useState<InventoryItem | undefined>();
+  const [item, setItem] = useState<InventoryItem | undefined>(() => (id ? getCachedInventoryItem(id) : undefined));
   const [loading, setLoading] = useState(true);
   const [showMissingMessage, setShowMissingMessage] = useState(false);
-  const [cats, setCats] = useState<Cat[]>([]);
+  const [cats, setCats] = useState<Cat[]>(() => getCachedCats());
   const [showReplenish, setShowReplenish] = useState(false);
   const [showHistoryAdd, setShowHistoryAdd] = useState(false);
   const [replenishDate, setReplenishDate] = useState(todayIso());
@@ -349,6 +351,7 @@ export default function InventoryDetailScreen() {
     setItem(nextItem);
     closeReplenish();
     resetStockEditFields(nextItem);
+    await recordReviewEligibleAction('replenish_save');
   };
 
   const submitPastPurchaseHistory = () => {
@@ -508,6 +511,7 @@ export default function InventoryDetailScreen() {
   const buy = async (shop: ShopType) => {
     const opened = await openPurchaseUrl(item, shop);
     if (!opened) Alert.alert('URLが未登録です', '編集画面から購入URLを登録できます。');
+    if (opened) await recordReviewEligibleAction('purchase_open');
   };
 
   return (

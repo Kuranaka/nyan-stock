@@ -15,6 +15,7 @@ import { AuthSession } from '@/features/auth/authTypes';
 import { getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { resetReviewPromptState, showReviewPromptForDebug } from '@/features/review/reviewPrompt';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
@@ -110,6 +111,11 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const resetReviewPrompt = async () => {
+    await resetReviewPromptState();
+    Alert.alert('リセットしました', 'レビュー案内の表示状態をリセットしました。');
   };
 
   const signOut = () => {
@@ -367,6 +373,9 @@ export default function SettingsScreen() {
             <Text style={styles.title}>開発用データ</Text>
             <Text style={styles.note}>動作確認用のプロフィールと在庫を端末内に追加します。</Text>
             <AppButton title="サンプルデータを追加" variant="secondary" onPress={addSeedData} />
+            <Text style={styles.note}>レビュー案内の動作確認用です。本番ビルドには表示されません。</Text>
+            <AppButton title="レビュー案内をテスト表示" variant="secondary" onPress={showReviewPromptForDebug} />
+            <AppButton title="レビュー案内をリセット" variant="secondary" onPress={() => void resetReviewPrompt()} />
             {syncState ? (
               <>
                 <Text style={styles.note}>同期確認用の手動操作です。</Text>
