@@ -25,6 +25,8 @@ export default function PurchaseHistoryScreen() {
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
   const [editingHistoryId, setEditingHistoryId] = useState<string | undefined>();
   const [editingPrice, setEditingPrice] = useState('');
+  const [savingHistoryPrice, setSavingHistoryPrice] = useState(false);
+  const [deletingHistoryId, setDeletingHistoryId] = useState<string | undefined>();
 
   const load = useCallback(async () => {
     const [nextHistory, nextItems, nextCats] = await Promise.all([
@@ -81,12 +83,13 @@ export default function PurchaseHistoryScreen() {
   }
 
   function cancelEditingPrice() {
+    if (savingHistoryPrice) return;
     setEditingHistoryId(undefined);
     setEditingPrice('');
   }
 
   async function saveEditingPrice() {
-    if (!editingHistoryId) return;
+    if (!editingHistoryId || savingHistoryPrice) return;
     const normalizedPrice = editingPrice.trim();
     const parsedPrice = normalizedPrice ? Number(normalizedPrice) : undefined;
 
@@ -95,21 +98,40 @@ export default function PurchaseHistoryScreen() {
       return;
     }
 
-    const nextHistory = await updatePurchaseHistoryPrice(editingHistoryId, parsedPrice);
-    setHistory(nextHistory);
-    cancelEditingPrice();
+    setSavingHistoryPrice(true);
+    try {
+      const nextHistory = await updatePurchaseHistoryPrice(editingHistoryId, parsedPrice);
+      setHistory(nextHistory);
+      setEditingHistoryId(undefined);
+      setEditingPrice('');
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingHistoryPrice(false);
+    }
   }
 
   function confirmDeleteHistory(entry: PurchaseHistory) {
+    if (deletingHistoryId) return;
     Alert.alert('購入履歴を削除しますか？', `${formatDisplayDate(entry.purchasedAt)}の購入履歴を削除します。`, [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '削除する',
         style: 'destructive',
         onPress: async () => {
-          const nextHistory = await deletePurchaseHistory(entry.id);
-          setHistory(nextHistory);
-          if (editingHistoryId === entry.id) cancelEditingPrice();
+          setDeletingHistoryId(entry.id);
+          try {
+            const nextHistory = await deletePurchaseHistory(entry.id);
+            setHistory(nextHistory);
+            if (editingHistoryId === entry.id) {
+              setEditingHistoryId(undefined);
+              setEditingPrice('');
+            }
+          } catch (error) {
+            Alert.alert('削除できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+          } finally {
+            setDeletingHistoryId(undefined);
+          }
         },
       },
     ]);
@@ -155,8 +177,9 @@ export default function PurchaseHistoryScreen() {
                       style={styles.editButton}
                     />
                     <AppButton
-                      title="削除"
+                      title={deletingHistoryId === entry.id ? '削除中...' : '削除'}
                       variant="danger"
+                      loading={deletingHistoryId === entry.id}
                       onPress={() => confirmDeleteHistory(entry)}
                       style={styles.editButton}
                     />
@@ -181,8 +204,19 @@ export default function PurchaseHistoryScreen() {
                     placeholder="例：1280"
                   />
                   <View style={styles.editActions}>
-                    <AppButton title="キャンセル" variant="ghost" onPress={cancelEditingPrice} style={styles.editAction} />
-                    <AppButton title="保存" onPress={() => void saveEditingPrice()} style={styles.editAction} />
+                    <AppButton
+                      title="キャンセル"
+                      variant="ghost"
+                      disabled={savingHistoryPrice}
+                      onPress={cancelEditingPrice}
+                      style={styles.editAction}
+                    />
+                    <AppButton
+                      title={savingHistoryPrice ? '保存中...' : '保存'}
+                      loading={savingHistoryPrice}
+                      onPress={() => void saveEditingPrice()}
+                      style={styles.editAction}
+                    />
                   </View>
                 </View>
               ) : (

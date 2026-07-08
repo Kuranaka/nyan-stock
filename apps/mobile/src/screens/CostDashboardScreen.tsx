@@ -84,6 +84,16 @@ export default function CostDashboardScreen() {
     () => buildActualBreakdown(history, visibleItemIds, itemById),
     [history, itemById, visibleItemIds],
   );
+  const actualChartRows = useMemo(
+    () =>
+      actualBreakdown.map((row, index) => ({
+        id: row.inventoryItemId,
+        label: `${row.item.name}・${row.count}件`,
+        amount: row.total,
+        color: chartColors[index % chartColors.length],
+      })).filter((row) => row.amount > 0),
+    [actualBreakdown],
+  );
   const monthlyActualMissingPriceCount = history
     .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
     .filter((entry) => entry.price === undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
@@ -140,20 +150,8 @@ export default function CostDashboardScreen() {
 
       <AppCard style={styles.card}>
         <Text style={styles.sectionTitle}>今月の実績内訳</Text>
-        {actualBreakdown.length > 0 ? (
-          <View style={styles.actualList}>
-            {actualBreakdown.map((row) => (
-              <View key={row.inventoryItemId} style={styles.actualRow}>
-                <View style={styles.actualBody}>
-                  <Text style={styles.actualName}>{row.item.name}</Text>
-                  <Text style={styles.actualMeta}>
-                    {[categoryLabels[row.item.category], getCatLabel(row.item, catNames), `${row.count}件`].filter(Boolean).join(' ・ ')}
-                  </Text>
-                </View>
-                <Text style={styles.actualAmount}>{row.total.toLocaleString()}円</Text>
-              </View>
-            ))}
-          </View>
+        {actualChartRows.length > 0 ? (
+          <CostDonutChart rows={actualChartRows} total={monthlyActual} centerLabel="今月実績" />
         ) : (
           <Text style={styles.note}>今月の価格入力済みの購入履歴はまだありません。</Text>
         )}
@@ -165,7 +163,7 @@ export default function CostDashboardScreen() {
       {categoryBreakdown.length > 0 ? (
         <AppCard style={styles.card}>
           <Text style={styles.sectionTitle}>カテゴリ別の月額内訳</Text>
-          <CostDonutChart rows={categoryBreakdown} total={monthlyEstimate} />
+          <CostDonutChart rows={categoryBreakdown} total={monthlyEstimate} centerLabel="月額目安" />
         </AppCard>
       ) : null}
 
@@ -220,8 +218,8 @@ type CostRow = {
   monthlyCost: number | undefined;
 };
 
-type CategoryBreakdownRow = {
-  category: InventoryCategory;
+type DonutChartRow = {
+  id: string;
   label: string;
   amount: number;
   color: string;
@@ -234,7 +232,7 @@ type ActualBreakdownRow = {
   total: number;
 };
 
-function CostDonutChart({ rows, total }: { rows: CategoryBreakdownRow[]; total: number }) {
+function CostDonutChart({ rows, total, centerLabel }: { rows: DonutChartRow[]; total: number; centerLabel: string }) {
   return (
     <View style={styles.chartWrap}>
       <View style={styles.donut}>
@@ -248,12 +246,12 @@ function CostDonutChart({ rows, total }: { rows: CategoryBreakdownRow[]; total: 
         })}
         <View style={styles.donutCenter}>
           <Text style={styles.donutTotal}>{Math.round(total).toLocaleString()}円</Text>
-          <Text style={styles.donutLabel}>月額目安</Text>
+          <Text style={styles.donutLabel}>{centerLabel}</Text>
         </View>
       </View>
       <View style={styles.legend}>
         {rows.map((row) => (
-          <View key={row.category} style={styles.legendRow}>
+          <View key={row.id} style={styles.legendRow}>
             <View style={[styles.legendDot, { backgroundColor: row.color }]} />
             <Text style={styles.legendLabel}>{row.label}</Text>
             <Text style={styles.legendValue}>
@@ -266,7 +264,7 @@ function CostDonutChart({ rows, total }: { rows: CategoryBreakdownRow[]; total: 
   );
 }
 
-function buildCategoryBreakdown(rows: CostRow[]): CategoryBreakdownRow[] {
+function buildCategoryBreakdown(rows: CostRow[]): DonutChartRow[] {
   const totals = new Map<InventoryCategory, number>();
   rows.forEach(({ item, monthlyCost }) => {
     if (monthlyCost === undefined) return;
@@ -276,7 +274,7 @@ function buildCategoryBreakdown(rows: CostRow[]): CategoryBreakdownRow[] {
     .filter(([, amount]) => amount > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([category, amount], index) => ({
-      category,
+      id: category,
       label: categoryLabels[category],
       amount,
       color: chartColors[index % chartColors.length],
@@ -307,7 +305,7 @@ function buildActualBreakdown(
   return Array.from(rows.values()).sort((a, b) => b.total - a.total);
 }
 
-function getDonutSegmentColor(rows: CategoryBreakdownRow[], total: number, index: number): string {
+function getDonutSegmentColor(rows: DonutChartRow[], total: number, index: number): string {
   const ratio = (index + 0.5) / donutSegmentCount;
   let accumulated = 0;
   const row = rows.find((currentRow) => {

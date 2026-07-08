@@ -82,8 +82,9 @@ type FormSnapshot = {
   memo: string;
 };
 
-const masterResultLimit = 20;
+const masterPageSize = 10;
 const visibleBrandLimit = 8;
+const defaultNotifyBeforeDays = [7, 3, 1];
 const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] = [
   { value: 'all', label: 'すべて' },
   ...Object.entries(productCategoryLabels).map(([value, label]) => ({
@@ -98,6 +99,7 @@ export default function InventoryFormScreen() {
   const { id, barcode, scannedAt } = useLocalSearchParams<{ id?: string; barcode?: string; scannedAt?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const nameFieldYRef = useRef(0);
+  const masterResultsYRef = useRef(0);
   const initialFormSnapshotRef = useRef<FormSnapshot | undefined>(undefined);
   const allowNextRemoveRef = useRef(false);
   const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
@@ -119,7 +121,7 @@ export default function InventoryFormScreen() {
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
   const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
-  const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>([]);
+  const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>(defaultNotifyBeforeDays);
   const [amazon, setAmazon] = useState('');
   const [rakuten, setRakuten] = useState('');
   const [yahoo, setYahoo] = useState('');
@@ -135,6 +137,7 @@ export default function InventoryFormScreen() {
   const [masterBrandKeyword, setMasterBrandKeyword] = useState('');
   const [masterBrandExpanded, setMasterBrandExpanded] = useState(false);
   const [masterSearchResults, setMasterSearchResults] = useState<ProductMaster[]>([]);
+  const [masterResultPage, setMasterResultPage] = useState(0);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [masterSearchLoading, setMasterSearchLoading] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
@@ -149,6 +152,7 @@ export default function InventoryFormScreen() {
   const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [productSearchError, setProductSearchError] = useState('');
   const [formInitialized, setFormInitialized] = useState(false);
+  const [savingForm, setSavingForm] = useState(false);
 
   const scrollToNameField = useCallback(() => {
     setTimeout(() => {
@@ -158,6 +162,23 @@ export default function InventoryFormScreen() {
       });
     }, 100);
   }, []);
+
+  const scrollToMasterResults = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(masterResultsYRef.current - 12, 0),
+        animated: true,
+      });
+    });
+  }, []);
+
+  const changeMasterResultPage = useCallback(
+    (nextPage: number) => {
+      setMasterResultPage(nextPage);
+      scrollToMasterResults();
+    },
+    [scrollToMasterResults],
+  );
 
   const formSnapshot = useMemo<FormSnapshot>(
     () => ({
@@ -285,6 +306,7 @@ export default function InventoryFormScreen() {
           const brands = await getProductMasterBrands();
           setMasterBrandOptions(brands);
           setMasterSearchResults([]);
+          setMasterResultPage(0);
           setMasterSearchMessage('');
           setFormInitialized(true);
           return;
@@ -324,24 +346,26 @@ export default function InventoryFormScreen() {
   );
 
   useEffect(() => {
+    if (!formInitialized) return;
     if (addMethod !== 'master') return;
     let isActive = true;
     const timeout = setTimeout(() => {
       async function run() {
-        const keyword = masterSearchKeyword.trim() || name.trim();
+        const keyword = masterSearchKeyword.trim();
         setMasterSearchLoading(true);
         try {
           const results = await findProductsByKeywordAsync(keyword, {
             brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
             category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
-            limit: masterResultLimit,
+            limit: null,
           });
           if (!isActive) return;
           setMasterSearchResults(results);
+          setMasterResultPage(0);
           setMasterSearchMessage(
             results.length === 0
               ? '商品マスタに該当する商品が見つかりませんでした。'
-              : `${results.length}件を表示しています。`,
+              : `${results.length}件の候補が見つかりました。`,
           );
         } finally {
           if (isActive) setMasterSearchLoading(false);
@@ -353,7 +377,7 @@ export default function InventoryFormScreen() {
       isActive = false;
       clearTimeout(timeout);
     };
-  }, [addMethod, masterBrandFilter, masterCategoryFilter, masterSearchKeyword, name]);
+  }, [addMethod, formInitialized, masterBrandFilter, masterCategoryFilter, masterSearchKeyword]);
 
   const visibleBrandOptions = useMemo(() => {
     const normalizedKeyword = masterBrandKeyword.trim().normalize('NFKC').toLowerCase();
@@ -363,6 +387,18 @@ export default function InventoryFormScreen() {
     if (normalizedKeyword || masterBrandExpanded) return filteredBrands;
     return filteredBrands.slice(0, visibleBrandLimit);
   }, [masterBrandExpanded, masterBrandKeyword, masterBrandOptions]);
+
+  const masterTotalPages = Math.max(Math.ceil(masterSearchResults.length / masterPageSize), 1);
+  const masterVisibleResults = useMemo(
+    () => masterSearchResults.slice(masterResultPage * masterPageSize, (masterResultPage + 1) * masterPageSize),
+    [masterResultPage, masterSearchResults],
+  );
+  const masterResultRange = useMemo(() => {
+    if (masterSearchResults.length === 0) return '';
+    const start = masterResultPage * masterPageSize + 1;
+    const end = Math.min(start + masterPageSize - 1, masterSearchResults.length);
+    return `${masterSearchResults.length}件中 ${start}〜${end}件を表示`;
+  }, [masterResultPage, masterSearchResults.length]);
 
   const selectCategory = (next: InventoryCategory) => {
     setCategory(next);
@@ -408,10 +444,11 @@ export default function InventoryFormScreen() {
       const results = await findProductsByKeywordAsync('', {
         category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
         brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
-        limit: masterResultLimit,
+        limit: null,
       });
       setMasterSearchResults(results);
-      setMasterSearchMessage(results.length === 0 ? '' : `${results.length}件を表示しています。`);
+      setMasterResultPage(0);
+      setMasterSearchMessage(results.length === 0 ? '' : `${results.length}件の候補が見つかりました。`);
     } finally {
       setMasterSearchLoading(false);
     }
@@ -502,6 +539,7 @@ export default function InventoryFormScreen() {
       await searchProductMasters({ category: nextCategory, brand: 'all' });
     } else {
       setMasterSearchResults([]);
+      setMasterResultPage(0);
       setMasterSearchMessage('');
     }
   };
@@ -519,7 +557,7 @@ export default function InventoryFormScreen() {
   const searchProductMasters = async (
     overrides: { category?: ProductCategoryFilter; brand?: string; keyword?: string } = {},
   ) => {
-    const keyword = masterSearchKeyword.trim() || name.trim();
+    const keyword = masterSearchKeyword.trim();
     const nextCategory = overrides.category ?? masterCategoryFilter;
     const nextBrand = overrides.brand ?? masterBrandFilter;
     setMasterSearchLoading(true);
@@ -527,14 +565,15 @@ export default function InventoryFormScreen() {
       const results = await findProductsByKeywordAsync(overrides.keyword ?? keyword, {
         brand: nextBrand === 'all' ? undefined : nextBrand,
         category: nextCategory === 'all' ? undefined : nextCategory,
-        limit: masterResultLimit,
+        limit: null,
       });
       setMasterSearchKeyword(overrides.keyword ?? keyword);
       setMasterSearchResults(results);
+      setMasterResultPage(0);
       setMasterSearchMessage(
         results.length === 0
           ? '商品マスタに該当する商品が見つかりませんでした。'
-          : `${results.length}件を表示しています。`,
+          : `${results.length}件の候補が見つかりました。`,
       );
     } finally {
       setMasterSearchLoading(false);
@@ -560,6 +599,7 @@ export default function InventoryFormScreen() {
     setProductSearchKeyword(product.name);
     setAddMethod(undefined);
     setMasterSearchResults([]);
+    setMasterResultPage(0);
     setMasterSearchMessage('');
     setShowMasterCategoryOptions(false);
     setShowMasterBrandOptions(false);
@@ -613,6 +653,7 @@ export default function InventoryFormScreen() {
         setImageUrl(undefined);
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
+        setMasterResultPage(0);
         setBarcodeSearchMessage(
           `JAN ${normalizedBarcode} は商品マスタに見つかりませんでした。Yahooショッピング検索の設定がないため、手入力で登録してください。`,
         );
@@ -636,6 +677,7 @@ export default function InventoryFormScreen() {
         setImageUrl(undefined);
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
+        setMasterResultPage(0);
         setBarcodeSearchMessage(
           `JAN ${normalizedBarcode} は商品マスタとYahooショッピングのどちらにも見つかりませんでした。手入力で登録してください。`,
         );
@@ -645,6 +687,7 @@ export default function InventoryFormScreen() {
         setImageUrl(undefined);
         setMasterSearchKeyword(normalizedBarcode);
         setMasterSearchResults([]);
+        setMasterResultPage(0);
         setBarcodeSearchMessage(
           error instanceof Error
             ? `商品マスタに見つからず、Yahoo検索にも失敗しました: ${error.message}`
@@ -705,6 +748,7 @@ export default function InventoryFormScreen() {
   };
 
   const save = async () => {
+    if (savingForm) return;
     const primaryCatId = targetCatIds[0] ?? selectedCatId;
     if (!validate() || !primaryCatId) return;
     const now = nowIso();
@@ -722,46 +766,53 @@ export default function InventoryFormScreen() {
       other: other.trim() || undefined,
     };
     const itemId = current?.id ?? draftItemId;
-    await saveInventoryItem({
-      id: itemId,
-      catId: primaryCatId,
-      sharedCatIds: targetCatIds.length > 1 ? targetCatIds.slice(1) : undefined,
-      productMasterId,
-      imageUrl: imageUrl?.trim() || undefined,
-      price: priceNumber,
-      name: name.trim(),
-      category,
-      amount: estimationMode === 'usage' ? amountNumber ?? 0 : 0,
-      unit,
-      dailyUsage: dailyUsageNumber,
-      lastingDays: estimationMode === 'lasting_days' ? lastingDaysNumber : undefined,
-      purchaseDate,
-      openedDate: current?.openedDate,
-      estimatedEndDate,
-      estimationMode,
-      notifyBeforeDays,
-      purchaseLinks,
-      memo: memo.trim() || undefined,
-      createdAt: current?.createdAt ?? now,
-      updatedAt: now,
-    });
-    await saveIconReference('inventory_item', itemId, imageUrl?.trim() || undefined);
-    if (!productMasterId && !current) {
-      await saveUserProductSuggestion({
-        id: createId('suggestion'),
+    setSavingForm(true);
+    try {
+      await saveInventoryItem({
+        id: itemId,
+        catId: primaryCatId,
+        sharedCatIds: targetCatIds.length > 1 ? targetCatIds.slice(1) : undefined,
+        productMasterId,
+        imageUrl: imageUrl?.trim() || undefined,
+        price: priceNumber,
         name: name.trim(),
         category,
-        purchaseUrl: purchaseLinks.amazon ?? purchaseLinks.rakuten ?? purchaseLinks.yahoo ?? purchaseLinks.other,
-        status: 'pending',
-        createdAt: now,
+        amount: estimationMode === 'usage' ? amountNumber ?? 0 : 0,
+        unit,
+        dailyUsage: dailyUsageNumber,
+        lastingDays: estimationMode === 'lasting_days' ? lastingDaysNumber : undefined,
+        purchaseDate,
+        openedDate: current?.openedDate,
+        estimatedEndDate,
+        estimationMode,
+        notifyBeforeDays,
+        purchaseLinks,
+        memo: memo.trim() || undefined,
+        createdAt: current?.createdAt ?? now,
         updatedAt: now,
       });
+      await saveIconReference('inventory_item', itemId, imageUrl?.trim() || undefined);
+      if (!productMasterId && !current) {
+        await saveUserProductSuggestion({
+          id: createId('suggestion'),
+          name: name.trim(),
+          category,
+          purchaseUrl: purchaseLinks.amazon ?? purchaseLinks.rakuten ?? purchaseLinks.yahoo ?? purchaseLinks.other,
+          status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+      await updateSettings({ selectedCatId: primaryCatId });
+      const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
+      await scheduleInventoryNotifications(items, settings);
+      allowNextRemoveRef.current = true;
+      router.back();
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingForm(false);
     }
-    await updateSettings({ selectedCatId: primaryCatId });
-    const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
-    await scheduleInventoryNotifications(items, settings);
-    allowNextRemoveRef.current = true;
-    router.back();
   };
 
   return (
@@ -890,7 +941,12 @@ export default function InventoryFormScreen() {
               ) : null}
               {masterSearchLoading ? <Text style={styles.resultSummary}>検索中...</Text> : null}
               {masterSearchMessage ? <Text style={styles.resultSummary}>{masterSearchMessage}</Text> : null}
-              {masterSearchResults.map((product) => (
+              <View onLayout={(event) => {
+                masterResultsYRef.current = event.nativeEvent.layout.y;
+              }}>
+                {masterResultRange ? <Text style={styles.resultSummary}>{masterResultRange}</Text> : null}
+              </View>
+              {masterVisibleResults.map((product) => (
                 <View key={product.id} style={styles.searchResult}>
                   {(() => {
                     const productImageUrl = getProductMasterImageUrl(product);
@@ -925,6 +981,27 @@ export default function InventoryFormScreen() {
                   />
                 </View>
               ))}
+              {masterSearchResults.length > masterPageSize ? (
+                <View style={styles.paginationRow}>
+                  <AppButton
+                    title="前の候補"
+                    variant="secondary"
+                    disabled={masterResultPage === 0}
+                    onPress={() => changeMasterResultPage(Math.max(masterResultPage - 1, 0))}
+                    style={styles.paginationButton}
+                  />
+                  <Text style={styles.paginationText}>
+                    {masterResultPage + 1} / {masterTotalPages}
+                  </Text>
+                  <AppButton
+                    title="次の候補"
+                    variant="secondary"
+                    disabled={masterResultPage >= masterTotalPages - 1}
+                    onPress={() => changeMasterResultPage(Math.min(masterResultPage + 1, masterTotalPages - 1))}
+                    style={styles.paginationButton}
+                  />
+                </View>
+              ) : null}
             </>
           ) : null}
           {addMethod === 'barcode' ? (
@@ -1102,14 +1179,17 @@ export default function InventoryFormScreen() {
 
       <FieldLabel label="通知タイミング" requirement="optional" />
       <View style={styles.wrapRow}>
-        {[7, 3, 1].map((day) => (
-          <AppButton
-            key={day}
-            title={`残り${day}日`}
-            variant={notifyBeforeDays.includes(day) ? 'primary' : 'secondary'}
-            onPress={() => toggleNotify(day)}
-          />
-        ))}
+        {defaultNotifyBeforeDays.map((day) => {
+          const isSelected = notifyBeforeDays.includes(day);
+          return (
+            <AppButton
+              key={day}
+              title={`${isSelected ? '通知あり' : '通知なし'}・残り${day}日`}
+              variant={isSelected ? 'primary' : 'secondary'}
+              onPress={() => toggleNotify(day)}
+            />
+          );
+        })}
       </View>
 
       <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />
@@ -1212,10 +1292,11 @@ export default function InventoryFormScreen() {
 
       <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} requirement="optional" />
 
-      <AppButton title="保存する" onPress={() => void save()} />
+      <AppButton title={savingForm ? '保存中...' : '保存する'} loading={savingForm} onPress={() => void save()} />
       <AppButton
         title="キャンセル"
         variant="secondary"
+        disabled={savingForm}
         onPress={goBackWithDiscardConfirmation}
       />
     </ScrollView>
@@ -1342,6 +1423,23 @@ const styles = StyleSheet.create({
   },
   resultAction: {
     flexGrow: 1,
+  },
+  paginationRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  paginationButton: {
+    flex: 1,
+    minWidth: 0,
+  },
+  paginationText: {
+    color: colors.subText,
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 48,
+    textAlign: 'center',
   },
   productResultBody: {
     alignItems: 'flex-start',

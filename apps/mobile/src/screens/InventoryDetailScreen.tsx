@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addDays, parseISO } from 'date-fns';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -7,7 +8,7 @@ import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
 import { DatePickerField } from '@/components/DatePickerField';
 import { StatusBadge } from '@/components/StatusBadge';
-import { categoryLabels, unitLabels } from '@/constants/categories';
+import { categoryLabels, unitLabels, units } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCachedCats, getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
@@ -27,7 +28,7 @@ import {
   replenishInventoryItem,
   saveInventoryItem,
 } from '@/features/inventory/inventoryStorage';
-import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import { InventoryItem, InventoryUnit, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
 import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
@@ -45,6 +46,8 @@ import {
 } from '@/utils/validation';
 
 type PurchaseLinkErrors = Partial<Record<ShopType, string>>;
+type QuickAdjustMode = 'days' | 'amount';
+const editableNotifyDays = [7, 3, 1];
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -64,6 +67,12 @@ export default function InventoryDetailScreen() {
   const [cats, setCats] = useState<Cat[]>(() => getCachedCats());
   const [showReplenish, setShowReplenish] = useState(action === 'replenish');
   const [savingReplenish, setSavingReplenish] = useState(false);
+  const [savingQuickAdjust, setSavingQuickAdjust] = useState(false);
+  const [savingStockEdit, setSavingStockEdit] = useState(false);
+  const [savingHistoryAdd, setSavingHistoryAdd] = useState(false);
+  const [savingPurchaseLinks, setSavingPurchaseLinks] = useState(false);
+  const [switchingEstimationMode, setSwitchingEstimationMode] = useState(false);
+  const [deletingItem, setDeletingItem] = useState(false);
   const [showHistoryAdd, setShowHistoryAdd] = useState(false);
   const [replenishDate, setReplenishDate] = useState(todayIso());
   const [price, setPrice] = useState(action === 'replenish' ? initialItem?.price?.toString() ?? '' : '');
@@ -72,12 +81,18 @@ export default function InventoryDetailScreen() {
   const [historyPrice, setHistoryPrice] = useState('');
   const [historyMemo, setHistoryMemo] = useState('');
   const [showStockEdit, setShowStockEdit] = useState(false);
+  const [showQuickAdjust, setShowQuickAdjust] = useState(false);
   const [editPurchaseDate, setEditPurchaseDate] = useState(todayIso());
   const [editPrice, setEditPrice] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editUnit, setEditUnit] = useState<InventoryUnit>('g');
   const [editDailyUsage, setEditDailyUsage] = useState('');
   const [editLastingDays, setEditLastingDays] = useState('');
+  const [editNotifyBeforeDays, setEditNotifyBeforeDays] = useState<number[]>([]);
   const [editMemo, setEditMemo] = useState('');
+  const [quickAdjustMode, setQuickAdjustMode] = useState<QuickAdjustMode>('days');
+  const [quickRemainingDays, setQuickRemainingDays] = useState('');
+  const [quickRemainingAmount, setQuickRemainingAmount] = useState('');
   const [imageUploading, setImageUploading] = useState(false);
   const [showPurchaseLinkEdit, setShowPurchaseLinkEdit] = useState(false);
   const [editAmazonUrl, setEditAmazonUrl] = useState('');
@@ -90,8 +105,10 @@ export default function InventoryDetailScreen() {
     setEditPurchaseDate(nextItem.purchaseDate);
     setEditPrice(nextItem.price?.toString() ?? '');
     setEditAmount(String(nextItem.amount));
+    setEditUnit(nextItem.unit);
     setEditDailyUsage(nextItem.dailyUsage?.toString() ?? '');
     setEditLastingDays(nextItem.lastingDays?.toString() ?? '');
+    setEditNotifyBeforeDays(nextItem.notifyBeforeDays);
     setEditMemo(nextItem.memo ?? '');
   };
 
@@ -100,6 +117,13 @@ export default function InventoryDetailScreen() {
     setEditRakutenUrl(nextItem.purchaseLinks.rakuten ?? '');
     setEditYahooUrl(nextItem.purchaseLinks.yahoo ?? '');
     setEditOtherUrl(nextItem.purchaseLinks.other ?? '');
+  };
+
+  const resetQuickAdjustFields = (nextItem: InventoryItem) => {
+    const nextRemainingDays = calculateRemainingDays(nextItem);
+    const nextRemainingAmount = calculateRemainingAmount(nextItem);
+    setQuickRemainingDays(nextRemainingDays === undefined ? '' : String(Math.max(0, nextRemainingDays)));
+    setQuickRemainingAmount(nextRemainingAmount === undefined ? '' : formatQuantity(nextRemainingAmount));
   };
 
   const load = useCallback(async () => {
@@ -206,6 +230,105 @@ export default function InventoryDetailScreen() {
     setShowStockEdit(true);
   };
 
+  const toggleEditNotifyBeforeDay = (day: number) => {
+    setEditNotifyBeforeDays((currentDays) =>
+      currentDays.includes(day)
+        ? currentDays.filter((currentDay) => currentDay !== day)
+        : [...currentDays, day].sort((a, b) => b - a),
+    );
+  };
+
+  const openQuickAdjust = () => {
+    resetQuickAdjustFields(item);
+    setQuickAdjustMode('days');
+    setShowQuickAdjust(true);
+  };
+
+  const closeQuickAdjust = () => {
+    if (savingQuickAdjust) return;
+    resetQuickAdjustFields(item);
+    setShowQuickAdjust(false);
+  };
+
+  const saveQuickAdjust = async () => {
+    if (savingQuickAdjust) return;
+    const remainingDaysNumber = parseOptionalNumber(quickRemainingDays);
+    const remainingAmountNumber = parseOptionalNumber(quickRemainingAmount);
+    const canAdjustAmount = item.estimationMode !== 'purchase_frequency';
+
+    if (quickAdjustMode === 'days' && (!quickRemainingDays.trim() || remainingDaysNumber === undefined || remainingDaysNumber < 0)) {
+      Alert.alert('入力を確認してください', '残り日数は0以上の数字で入力してください。');
+      return;
+    }
+    if (quickAdjustMode === 'amount' && (!canAdjustAmount || !quickRemainingAmount.trim() || remainingAmountNumber === undefined || remainingAmountNumber < 0)) {
+      Alert.alert('入力を確認してください', '残量は0以上の数字で入力してください。');
+      return;
+    }
+    if (quickAdjustMode === 'amount' && item.estimationMode === 'lasting_days' && (!item.amount || item.amount <= 0 || !item.lastingDays || item.lastingDays <= 0)) {
+      Alert.alert('入力を確認してください', '残量から残り日数を計算するには、商品情報の内容量と使い切る日数を設定してください。');
+      return;
+    }
+    if (quickAdjustMode === 'amount' && remainingAmountNumber !== undefined && item.amount > 0 && remainingAmountNumber > item.amount) {
+      Alert.alert('入力を確認してください', '残量は内容量以下で入力してください。');
+      return;
+    }
+    if (quickAdjustMode === 'days' && (!item.estimationMode || item.estimationMode === 'usage') && (!item.dailyUsage || item.dailyUsage <= 0)) {
+      Alert.alert('入力を確認してください', '残り日数から残量を計算するには、商品情報の消費ペースを設定してください。');
+      return;
+    }
+
+    const today = parseISO(todayIso());
+    const lastingDaysForAdjustment = item.estimationMode === 'lasting_days' ? item.lastingDays : undefined;
+    const amountBasedRemainingDays =
+      quickAdjustMode === 'amount' && item.estimationMode === 'lasting_days' && remainingAmountNumber !== undefined && lastingDaysForAdjustment
+        ? Math.ceil((remainingAmountNumber / item.amount) * lastingDaysForAdjustment)
+        : undefined;
+    const usageAmountBasedRemainingDays =
+      quickAdjustMode === 'amount' && (!item.estimationMode || item.estimationMode === 'usage') && remainingAmountNumber !== undefined && item.dailyUsage
+        ? Math.ceil(remainingAmountNumber / item.dailyUsage)
+        : undefined;
+    const nextRemainingDays = quickAdjustMode === 'days' ? remainingDaysNumber : amountBasedRemainingDays ?? usageAmountBasedRemainingDays;
+    const daysBasedRemainingAmount =
+      quickAdjustMode === 'days' && (!item.estimationMode || item.estimationMode === 'usage') && remainingDaysNumber !== undefined && item.dailyUsage
+        ? remainingDaysNumber * item.dailyUsage
+        : undefined;
+    const adjustedRemainingAmount = daysBasedRemainingAmount ?? remainingAmountNumber;
+    const shouldAdjustUsageRemaining = Boolean((!item.estimationMode || item.estimationMode === 'usage') && adjustedRemainingAmount !== undefined && item.dailyUsage);
+    const adjustedOpenedDate =
+      shouldAdjustUsageRemaining && item.dailyUsage && adjustedRemainingAmount !== undefined
+        ? addDays(today, -Math.max(0, (item.amount - Math.min(adjustedRemainingAmount, item.amount)) / item.dailyUsage)).toISOString().slice(0, 10)
+        : item.openedDate;
+    const nextItem: InventoryItem = {
+      ...item,
+      amount: item.amount,
+      openedDate: adjustedOpenedDate,
+      estimatedEndDate: nextRemainingDays === undefined
+        ? shouldAdjustUsageRemaining
+          ? undefined
+          : item.estimatedEndDate
+        : addDays(today, nextRemainingDays).toISOString().slice(0, 10),
+      updatedAt: nowIso(),
+    };
+
+    setSavingQuickAdjust(true);
+    try {
+      await saveInventoryItem(nextItem);
+      const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
+      await scheduleInventoryNotifications(items, settings);
+      const savedItem = await getInventoryItem(item.id);
+      if (savedItem) {
+        setItem(savedItem);
+        resetStockEditFields(savedItem);
+        resetQuickAdjustFields(savedItem);
+      }
+      setShowQuickAdjust(false);
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingQuickAdjust(false);
+    }
+  };
+
   const selectProductIcon = async () => {
     if (!hasIconUploadStorage()) {
       Alert.alert('保存先が未設定です', 'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。');
@@ -232,17 +355,24 @@ export default function InventoryDetailScreen() {
   };
 
   const remove = () => {
+    if (deletingItem) return;
     Alert.alert('削除しますか？', `${item.name}を削除します。購入履歴は残ります。`, [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '削除する',
         style: 'destructive',
         onPress: async () => {
-          await deleteInventoryItem(item.id);
-          await clearIconReference('inventory_item', item.id);
-          const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
-          await scheduleInventoryNotifications(items, settings);
-          router.back();
+          setDeletingItem(true);
+          try {
+            await deleteInventoryItem(item.id);
+            await clearIconReference('inventory_item', item.id);
+            const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
+            await scheduleInventoryNotifications(items, settings);
+            router.back();
+          } catch (error) {
+            Alert.alert('削除できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+            setDeletingItem(false);
+          }
         },
       },
     ]);
@@ -271,6 +401,7 @@ export default function InventoryDetailScreen() {
   };
 
   const closeHistoryAdd = () => {
+    if (savingHistoryAdd) return;
     setShowHistoryAdd(false);
     setHistoryPrice('');
     setHistoryMemo('');
@@ -369,6 +500,7 @@ export default function InventoryDetailScreen() {
   };
 
   const submitPastPurchaseHistory = () => {
+    if (savingHistoryAdd) return;
     const priceNumber = parseOptionalNumber(historyPrice);
     if (historyPrice.trim() && (priceNumber === undefined || priceNumber < 0)) {
       Alert.alert('入力を確認してください', '価格は0以上の数字で入力してください。');
@@ -381,6 +513,7 @@ export default function InventoryDetailScreen() {
   };
 
   const savePastPurchaseHistory = async (priceNumber: number | undefined) => {
+    if (savingHistoryAdd) return;
     const history: PurchaseHistory = {
       id: createId('history'),
       inventoryItemId: item.id,
@@ -391,12 +524,22 @@ export default function InventoryDetailScreen() {
       memo: historyMemo.trim() || undefined,
       createdAt: nowIso(),
     };
-    await addPurchaseHistory(history);
-    closeHistoryAdd();
-    Alert.alert('追加しました', '購入履歴に追加しました。');
+    setSavingHistoryAdd(true);
+    try {
+      await addPurchaseHistory(history);
+      setShowHistoryAdd(false);
+      setHistoryPrice('');
+      setHistoryMemo('');
+      Alert.alert('追加しました', '購入履歴に追加しました。');
+    } catch (error) {
+      Alert.alert('追加できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingHistoryAdd(false);
+    }
   };
 
   const saveStockEdit = async () => {
+    if (savingStockEdit) return;
     const priceNumber = parseOptionalNumber(editPrice);
     const amountNumber = parseOptionalNumber(editAmount);
     const dailyUsageNumber = parseOptionalNumber(editDailyUsage);
@@ -407,11 +550,11 @@ export default function InventoryDetailScreen() {
       return;
     }
     if (editAmount.trim() && (amountNumber === undefined || amountNumber < 0)) {
-      Alert.alert('入力を確認してください', '内容量・残量は0以上の数字で入力してください。');
+      Alert.alert('入力を確認してください', '内容量は0以上の数字で入力してください。');
       return;
     }
     if ((!item.estimationMode || item.estimationMode === 'usage') && (!amountNumber || amountNumber <= 0)) {
-      Alert.alert('入力を確認してください', '内容量・残量は0より大きくしてください。');
+      Alert.alert('入力を確認してください', '内容量は0より大きくしてください。');
       return;
     }
     if ((!item.estimationMode || item.estimationMode === 'usage') && (!dailyUsageNumber || dailyUsageNumber <= 0)) {
@@ -422,27 +565,45 @@ export default function InventoryDetailScreen() {
       Alert.alert('入力を確認してください', '使い切る日数は0より大きくしてください。');
       return;
     }
+    const didChangeUsageBasis =
+      (!item.estimationMode || item.estimationMode === 'usage') &&
+      (amountNumber !== item.amount || dailyUsageNumber !== item.dailyUsage || editUnit !== item.unit || editPurchaseDate !== item.purchaseDate);
+    const didChangeLastingDaysBasis =
+      item.estimationMode === 'lasting_days' &&
+      (amountNumber !== item.amount || lastingDaysNumber !== item.lastingDays || editUnit !== item.unit || editPurchaseDate !== item.purchaseDate);
+    const shouldRecalculateEstimatedEndDate = didChangeUsageBasis || didChangeLastingDaysBasis;
 
     const nextItem: InventoryItem = {
       ...item,
       price: priceNumber,
-      amount: item.estimationMode === 'purchase_frequency' ? item.amount : amountNumber ?? 0,
+      amount: item.estimationMode === 'purchase_frequency'
+        ? item.amount
+        : amountNumber ?? 0,
+      unit: item.estimationMode === 'purchase_frequency' ? item.unit : editUnit,
       dailyUsage: !item.estimationMode || item.estimationMode === 'usage' ? dailyUsageNumber : item.dailyUsage,
       lastingDays: item.estimationMode === 'lasting_days' ? lastingDaysNumber : item.lastingDays,
       purchaseDate: editPurchaseDate,
-      estimatedEndDate: item.estimationMode === 'purchase_frequency' ? item.estimatedEndDate : undefined,
+      estimatedEndDate: item.estimationMode === 'purchase_frequency' || !shouldRecalculateEstimatedEndDate ? item.estimatedEndDate : undefined,
+      notifyBeforeDays: editNotifyBeforeDays,
       memo: editMemo.trim() || undefined,
       updatedAt: nowIso(),
     };
-    await saveInventoryItem(nextItem);
-    const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
-    await scheduleInventoryNotifications(items, settings);
-    const savedItem = await getInventoryItem(item.id);
-    if (savedItem) {
-      setItem(savedItem);
-      resetStockEditFields(savedItem);
+    setSavingStockEdit(true);
+    try {
+      await saveInventoryItem(nextItem);
+      const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
+      await scheduleInventoryNotifications(items, settings);
+      const savedItem = await getInventoryItem(item.id);
+      if (savedItem) {
+        setItem(savedItem);
+        resetStockEditFields(savedItem);
+      }
+      setShowStockEdit(false);
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingStockEdit(false);
     }
-    setShowStockEdit(false);
   };
 
   const openPurchaseLinkEdit = () => {
@@ -452,6 +613,7 @@ export default function InventoryDetailScreen() {
   };
 
   const savePurchaseLinks = async () => {
+    if (savingPurchaseLinks) return;
     const nextErrors: PurchaseLinkErrors = {};
     if (!isValidOptionalAmazonUrl(editAmazonUrl.trim() || undefined)) {
       nextErrors.amazon = 'AmazonのURLを入力してください。';
@@ -480,14 +642,22 @@ export default function InventoryDetailScreen() {
       },
       updatedAt: nowIso(),
     };
-    await saveInventoryItem(nextItem);
-    setItem(nextItem);
-    resetPurchaseLinkFields(nextItem);
-    setPurchaseLinkErrors({});
-    setShowPurchaseLinkEdit(false);
+    setSavingPurchaseLinks(true);
+    try {
+      await saveInventoryItem(nextItem);
+      setItem(nextItem);
+      resetPurchaseLinkFields(nextItem);
+      setPurchaseLinkErrors({});
+      setShowPurchaseLinkEdit(false);
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingPurchaseLinks(false);
+    }
   };
 
   const switchToLastingDays = () => {
+    if (switchingEstimationMode) return;
     if (!purchaseFrequencyDays) {
       Alert.alert('まだ切り替えできません', '購入頻度が計算されてから切り替えできます。先に補充を記録してください。');
       return;
@@ -500,21 +670,28 @@ export default function InventoryDetailScreen() {
         {
           text: '切り替える',
           onPress: async () => {
-            const nextItem: InventoryItem = {
-              ...item,
-              estimationMode: 'lasting_days',
-              lastingDays: purchaseFrequencyDays,
-              dailyUsage: undefined,
-              estimatedEndDate: undefined,
-              updatedAt: nowIso(),
-            };
-            await saveInventoryItem(nextItem);
-            const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
-            await scheduleInventoryNotifications(items, settings);
-            const savedItem = await getInventoryItem(item.id);
-            if (savedItem) {
-              setItem(savedItem);
-              resetStockEditFields(savedItem);
+            setSwitchingEstimationMode(true);
+            try {
+              const nextItem: InventoryItem = {
+                ...item,
+                estimationMode: 'lasting_days',
+                lastingDays: purchaseFrequencyDays,
+                dailyUsage: undefined,
+                estimatedEndDate: undefined,
+                updatedAt: nowIso(),
+              };
+              await saveInventoryItem(nextItem);
+              const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
+              await scheduleInventoryNotifications(items, settings);
+              const savedItem = await getInventoryItem(item.id);
+              if (savedItem) {
+                setItem(savedItem);
+                resetStockEditFields(savedItem);
+              }
+            } catch (error) {
+              Alert.alert('切り替えできませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+            } finally {
+              setSwitchingEstimationMode(false);
             }
           },
         },
@@ -557,6 +734,83 @@ export default function InventoryDetailScreen() {
           <Metric label="残り日数" value={remainingDays === undefined ? '未計算' : `${Math.max(0, remainingDays)}日`} />
           <Metric label="残量" value={remainingStockLabel} />
         </View>
+        <AppButton
+          title={showQuickAdjust ? '調整を閉じる' : '残り日数・残量を調整'}
+          variant="secondary"
+          disabled={savingQuickAdjust}
+          onPress={showQuickAdjust ? closeQuickAdjust : openQuickAdjust}
+        />
+        {showQuickAdjust ? (
+          <View style={styles.quickAdjustPanel}>
+            <View style={styles.inlineActions}>
+              <AppButton
+                title="残り日数で調整"
+                variant={quickAdjustMode === 'days' ? 'primary' : 'secondary'}
+                onPress={() => setQuickAdjustMode('days')}
+                style={styles.inlineAction}
+              />
+              {item.estimationMode !== 'purchase_frequency' ? (
+                <AppButton
+                  title="残量で調整"
+                  variant={quickAdjustMode === 'amount' ? 'primary' : 'secondary'}
+                  onPress={() => setQuickAdjustMode('amount')}
+                  style={styles.inlineAction}
+                />
+              ) : null}
+            </View>
+            {quickAdjustMode === 'days' ? (
+              <AppTextInput
+                label="現在の残り日数"
+                value={quickRemainingDays}
+                onChangeText={setQuickRemainingDays}
+                keyboardType="numeric"
+                placeholder="例：5"
+              />
+            ) : null}
+            {item.estimationMode !== 'purchase_frequency' ? (
+              quickAdjustMode === 'amount' ? (
+                <AppTextInput
+                  label={`現在の残量（${unitLabels[item.unit]}）`}
+                  value={quickRemainingAmount}
+                  onChangeText={setQuickRemainingAmount}
+                  keyboardType="decimal-pad"
+                  placeholder="例：120"
+                />
+              ) : null
+            ) : (
+              <Text style={styles.hint}>購入頻度から自動計算中の商品は、残り日数だけ調整できます。</Text>
+            )}
+            {item.estimationMode === 'lasting_days' ? (
+              <Text style={styles.hint}>
+                {quickAdjustMode === 'amount'
+                  ? '保存すると、内容量と使い切る日数から残り日数も反映します。'
+                  : '保存すると、内容量と使い切る日数から残量も反映します。'}
+              </Text>
+            ) : null}
+            {!item.estimationMode || item.estimationMode === 'usage' ? (
+              <Text style={styles.hint}>
+                {quickAdjustMode === 'amount'
+                  ? '保存すると、残量と消費ペースから残り日数も反映します。'
+                  : '保存すると、残り日数と消費ペースから残量も反映します。'}
+              </Text>
+            ) : null}
+            <View style={styles.inlineActions}>
+              <AppButton
+                title={savingQuickAdjust ? '保存中...' : '保存'}
+                loading={savingQuickAdjust}
+                onPress={() => void saveQuickAdjust()}
+                style={styles.inlineAction}
+              />
+              <AppButton
+                title="キャンセル"
+                variant="secondary"
+                disabled={savingQuickAdjust}
+                onPress={closeQuickAdjust}
+                style={styles.inlineAction}
+              />
+            </View>
+          </View>
+        ) : null}
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -568,11 +822,13 @@ export default function InventoryDetailScreen() {
             onPress={
               showStockEdit
                 ? () => {
+                  if (savingStockEdit) return;
                   resetStockEditFields(item);
                   setShowStockEdit(false);
                 }
                 : openStockEdit
             }
+            disabled={savingStockEdit}
             style={styles.editButton}
           />
         </View>
@@ -588,18 +844,37 @@ export default function InventoryDetailScreen() {
             {item.estimationMode !== 'purchase_frequency' ? (
               <>
                 <AppTextInput
-                  label={`内容量・残量（${unitLabels[item.unit]}）`}
+                  label={`内容量（${unitLabels[editUnit]}）`}
                   value={editAmount}
                   onChangeText={setEditAmount}
                   keyboardType="decimal-pad"
                 />
-                <AppTextInput
-                  label={`消費ペース（${unitLabels[item.unit]}/日）`}
-                  value={editDailyUsage}
-                  onChangeText={setEditDailyUsage}
-                  keyboardType="decimal-pad"
-                />
+                <View style={styles.unitBox}>
+                  <Text style={styles.fieldTitle}>単位</Text>
+                  <View style={styles.inlineActions}>
+                    {units.map((unit) => (
+                      <AppButton
+                        key={unit}
+                        title={unitLabels[unit]}
+                        variant={editUnit === unit ? 'primary' : 'secondary'}
+                        onPress={() => setEditUnit(unit)}
+                        style={styles.unitButton}
+                      />
+                    ))}
+                  </View>
+                </View>
               </>
+            ) : null}
+            {!item.estimationMode || item.estimationMode === 'usage' ? (
+              <AppTextInput
+                label={`消費ペース（${unitLabels[editUnit]}/日）`}
+                value={editDailyUsage}
+                onChangeText={setEditDailyUsage}
+                keyboardType="decimal-pad"
+              />
+            ) : null}
+            {item.estimationMode === 'lasting_days' ? (
+              <Text style={styles.hint}>消費ペースは内容量と使い切る日数から自動で見積もります。残り日数・残量の調整は、上の調整ボタンから行えます。</Text>
             ) : null}
             {item.estimationMode === 'lasting_days' ? (
               <AppTextInput
@@ -612,6 +887,23 @@ export default function InventoryDetailScreen() {
             {item.estimationMode === 'purchase_frequency' ? (
               <Text style={styles.hint}>購入頻度は補充履歴から自動計算するため、ここでは価格・購入日・メモを変更できます。</Text>
             ) : null}
+            <View style={styles.unitBox}>
+              <Text style={styles.fieldTitle}>通知タイミング</Text>
+              <View style={styles.inlineActions}>
+                {editableNotifyDays.map((day) => {
+                  const isSelected = editNotifyBeforeDays.includes(day);
+                  return (
+                    <AppButton
+                      key={day}
+                      title={`${isSelected ? '通知あり' : '通知なし'}・残り${day}日`}
+                      variant={isSelected ? 'primary' : 'secondary'}
+                      onPress={() => toggleEditNotifyBeforeDay(day)}
+                      style={styles.notifyButton}
+                    />
+                  );
+                })}
+              </View>
+            </View>
             <AppTextInput
               label="メモ"
               value={editMemo}
@@ -620,7 +912,7 @@ export default function InventoryDetailScreen() {
               placeholder="メモ"
               style={styles.memo}
             />
-            <AppButton title="保存" onPress={() => void saveStockEdit()} />
+            <AppButton title={savingStockEdit ? '保存中...' : '保存'} loading={savingStockEdit} onPress={() => void saveStockEdit()} />
           </>
         ) : (
           <>
@@ -628,6 +920,7 @@ export default function InventoryDetailScreen() {
             <Info label="購入日" value={formatDisplayDate(item.purchaseDate)} />
             <Info label="推定終了日" value={formatDisplayDate(item.estimatedEndDate)} />
             <Info label="残り日数の計算方法" value={estimationLabel} />
+            <Info label="通知タイミング" value={formatNotifyBeforeDays(item.notifyBeforeDays)} />
             <Info label="内容量" value={contentAmountLabel} />
             <Info label="残量" value={remainingStockLabel} />
             {item.estimationMode === 'lasting_days' ? (
@@ -639,7 +932,8 @@ export default function InventoryDetailScreen() {
                 <AppButton
                   title="使い切る日数方式に切り替える"
                   variant="secondary"
-                  disabled={purchaseFrequencyDays === undefined}
+                  disabled={purchaseFrequencyDays === undefined || switchingEstimationMode}
+                  loading={switchingEstimationMode}
                   onPress={switchToLastingDays}
                 />
               </>
@@ -667,17 +961,19 @@ export default function InventoryDetailScreen() {
             <AppButton
               title={showPurchaseLinkEdit ? 'キャンセル' : 'URL設定'}
               variant="secondary"
-              onPress={
-                showPurchaseLinkEdit
-                  ? () => {
-                    resetPurchaseLinkFields(item);
-                    setPurchaseLinkErrors({});
-                    setShowPurchaseLinkEdit(false);
-                  }
-                  : openPurchaseLinkEdit
-              }
-              style={styles.editButton}
-            />
+            onPress={
+              showPurchaseLinkEdit
+                ? () => {
+                  if (savingPurchaseLinks) return;
+                  resetPurchaseLinkFields(item);
+                  setPurchaseLinkErrors({});
+                  setShowPurchaseLinkEdit(false);
+                }
+                : openPurchaseLinkEdit
+            }
+            disabled={savingPurchaseLinks}
+            style={styles.editButton}
+          />
           </View>
           <Text style={styles.affiliate}>リンクにはアフィリエイトが含まれる場合があります</Text>
           <Text style={styles.hint}>ストアによって内容量や味などが異なる場合がございます。</Text>
@@ -727,7 +1023,11 @@ export default function InventoryDetailScreen() {
                 autoCapitalize="none"
                 error={purchaseLinkErrors.other}
               />
-              <AppButton title="URLを保存" onPress={() => void savePurchaseLinks()} />
+              <AppButton
+                title={savingPurchaseLinks ? '保存中...' : 'URLを保存'}
+                loading={savingPurchaseLinks}
+                onPress={() => void savePurchaseLinks()}
+              />
             </>
           ) : (
             <View style={styles.actionGrid}>
@@ -819,8 +1119,12 @@ export default function InventoryDetailScreen() {
               />
               <AppTextInput label="価格" value={historyPrice} onChangeText={setHistoryPrice} keyboardType="numeric" />
               <AppTextInput label="メモ" value={historyMemo} onChangeText={setHistoryMemo} multiline style={styles.memo} />
-              <AppButton title="購入履歴を追加" onPress={submitPastPurchaseHistory} />
-              <AppButton title="閉じる" variant="secondary" onPress={closeHistoryAdd} />
+              <AppButton
+                title={savingHistoryAdd ? '追加中...' : '購入履歴を追加'}
+                loading={savingHistoryAdd}
+                onPress={submitPastPurchaseHistory}
+              />
+              <AppButton title="閉じる" variant="secondary" disabled={savingHistoryAdd} onPress={closeHistoryAdd} />
             </AppCard>
           </View>
         ) : null}
@@ -829,7 +1133,12 @@ export default function InventoryDetailScreen() {
       <AppCard style={styles.dangerZone}>
         <Text style={styles.dangerZoneTitle}>削除</Text>
         <Text style={styles.dangerZoneText}>商品だけを削除します。購入履歴は購入履歴画面から削除できます。</Text>
-        <AppButton title="この商品を削除" variant="danger" onPress={remove} />
+        <AppButton
+          title={deletingItem ? '削除中...' : 'この商品を削除'}
+          variant="danger"
+          loading={deletingItem}
+          onPress={remove}
+        />
       </AppCard>
     </ScrollView>
   );
@@ -882,7 +1191,28 @@ function formatRemainingStockValue(item: InventoryItem, percent: number | undefi
     return `${percent}%`;
   }
   if (item.amount <= 0) return '未設定';
+  if (!item.estimationMode || item.estimationMode === 'usage') {
+    const remainingAmount = calculateRemainingAmount(item);
+    if (remainingAmount === undefined) return `${percent}%`;
+    return `${formatQuantity(remainingAmount)}${unitLabels[item.unit]}`;
+  }
   return `${percent}%`;
+}
+
+function formatNotifyBeforeDays(days: number[]): string {
+  if (days.length === 0) return '通知なし';
+  return [...days].sort((a, b) => b - a).map((day) => `残り${day}日`).join('・');
+}
+
+function calculateRemainingAmount(item: InventoryItem): number | undefined {
+  if (!item.estimationMode || item.estimationMode === 'usage') {
+    const remainingDays = calculateRemainingDays(item);
+    if (remainingDays === undefined || !item.dailyUsage || item.dailyUsage <= 0) return undefined;
+    return Math.min(item.amount, Math.max(0, remainingDays * item.dailyUsage));
+  }
+  const percent = calculateRemainingPercent(item);
+  if (percent === undefined || item.amount <= 0) return undefined;
+  return (item.amount * Math.max(0, percent)) / 100;
 }
 
 function formatQuantity(value: number): string {
@@ -1012,6 +1342,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 4,
   },
+  quickAdjustPanel: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: 10,
+    paddingTop: 12,
+  },
   infoRow: {
     gap: 3,
   },
@@ -1049,6 +1385,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  fieldTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  unitBox: {
+    gap: 8,
+  },
   actionGrid: {
     gap: 10,
   },
@@ -1060,6 +1404,18 @@ const styles = StyleSheet.create({
   inlineAction: {
     flexGrow: 1,
     minWidth: 120,
+  },
+  unitButton: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  notifyButton: {
+    flexGrow: 1,
+    minHeight: 42,
+    minWidth: 140,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   memo: {
     minHeight: 80,

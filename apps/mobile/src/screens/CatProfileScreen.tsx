@@ -49,6 +49,8 @@ export default function CatProfileScreen() {
   const [gender, setGender] = useState<CatGender>('unknown');
   const [iconUrl, setIconUrl] = useState<string | undefined>();
   const [iconUploading, setIconUploading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [deletingProfile, setDeletingProfile] = useState(false);
   const [memo, setMemo] = useState('');
   const [formInitialized, setFormInitialized] = useState(false);
 
@@ -186,6 +188,7 @@ export default function CatProfileScreen() {
   );
 
   const save = async () => {
+    if (savingProfile) return;
     if (!name.trim()) {
       Alert.alert('入力を確認してください', '猫の名前は必須です。');
       return;
@@ -196,24 +199,31 @@ export default function CatProfileScreen() {
     }
     const now = nowIso();
     const catId = current?.id ?? draftCatId;
-    await saveCat({
-      id: catId,
-      name: name.trim(),
-      iconUrl,
-      birthday: birthday.trim() || undefined,
-      weight: parseOptionalNumber(weight),
-      gender,
-      memo: memo.trim() || undefined,
-      createdAt: current?.createdAt ?? now,
-      updatedAt: now,
-    });
-    await saveIconReference('cat', catId, iconUrl);
-    await updateSettings({ selectedCatId: catId });
-    const nextCats = await getCats();
-    const savedCat = await getCat(catId);
-    setCats(nextCats);
-    if (savedCat) fillForm(savedCat);
-    Alert.alert('保存しました', `${name.trim()}のプロフィールを保存しました。`);
+    setSavingProfile(true);
+    try {
+      await saveCat({
+        id: catId,
+        name: name.trim(),
+        iconUrl,
+        birthday: birthday.trim() || undefined,
+        weight: parseOptionalNumber(weight),
+        gender,
+        memo: memo.trim() || undefined,
+        createdAt: current?.createdAt ?? now,
+        updatedAt: now,
+      });
+      await saveIconReference('cat', catId, iconUrl);
+      await updateSettings({ selectedCatId: catId });
+      const nextCats = await getCats();
+      const savedCat = await getCat(catId);
+      setCats(nextCats);
+      if (savedCat) fillForm(savedCat);
+      Alert.alert('保存しました', `${name.trim()}のプロフィールを保存しました。`);
+    } catch (error) {
+      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const startNew = () => {
@@ -242,7 +252,7 @@ export default function CatProfileScreen() {
   };
 
   const remove = () => {
-    if (!current) return;
+    if (!current || deletingProfile) return;
     Alert.alert(
       '猫プロフィールを削除しますか？',
       `${current.name}のプロフィールを削除します。この猫だけに紐づく在庫は削除され、購入履歴は残ります。共有中の商品は他の猫の在庫として残ります。`,
@@ -253,19 +263,26 @@ export default function CatProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             const deletedCatId = current.id;
-            await deleteInventoryItemsForCat(deletedCatId);
-            await deleteCat(deletedCatId);
-            await clearIconReference('cat', deletedCatId);
-            const [nextCats, items, settings] = await Promise.all([getCats(), getInventoryItems(), getSettings()]);
-            const nextSelectedCatId =
-              settings.selectedCatId === deletedCatId ? nextCats[0]?.id : settings.selectedCatId;
-            await updateSettings({ selectedCatId: nextSelectedCatId });
-            await scheduleInventoryNotifications(items, { ...settings, selectedCatId: nextSelectedCatId });
-            setCats(nextCats);
-            if (nextCats[0]) {
-              fillForm(nextCats[0]);
-            } else {
-              resetForm();
+            setDeletingProfile(true);
+            try {
+              await deleteInventoryItemsForCat(deletedCatId);
+              await deleteCat(deletedCatId);
+              await clearIconReference('cat', deletedCatId);
+              const [nextCats, items, settings] = await Promise.all([getCats(), getInventoryItems(), getSettings()]);
+              const nextSelectedCatId =
+                settings.selectedCatId === deletedCatId ? nextCats[0]?.id : settings.selectedCatId;
+              await updateSettings({ selectedCatId: nextSelectedCatId });
+              await scheduleInventoryNotifications(items, { ...settings, selectedCatId: nextSelectedCatId });
+              setCats(nextCats);
+              if (nextCats[0]) {
+                fillForm(nextCats[0]);
+              } else {
+                resetForm();
+              }
+            } catch (error) {
+              Alert.alert('削除できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+            } finally {
+              setDeletingProfile(false);
             }
           },
         },
@@ -356,13 +373,18 @@ export default function CatProfileScreen() {
         style={styles.memo}
         requirement="optional"
       />
-      <AppButton title="保存する" onPress={() => void save()} />
-      <AppButton title="閉じる" variant="secondary" onPress={goBackWithDiscardConfirmation} />
+      <AppButton title={savingProfile ? '保存中...' : '保存する'} loading={savingProfile} onPress={() => void save()} />
+      <AppButton title="閉じる" variant="secondary" disabled={savingProfile} onPress={goBackWithDiscardConfirmation} />
       {current ? (
         <AppCard style={styles.dangerZone}>
           <Text style={styles.dangerZoneTitle}>削除</Text>
           <Text style={styles.dangerZoneText}>この猫だけに紐づく在庫を削除します。購入履歴は残ります。</Text>
-          <AppButton title="この猫を削除" variant="danger" onPress={remove} />
+          <AppButton
+            title={deletingProfile ? '削除中...' : 'この猫を削除'}
+            variant="danger"
+            loading={deletingProfile}
+            onPress={remove}
+          />
         </AppCard>
       ) : null}
     </ScrollView>

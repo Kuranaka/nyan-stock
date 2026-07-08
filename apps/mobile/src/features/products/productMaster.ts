@@ -7,7 +7,7 @@ import { ProductCategory, ProductMaster, ProductUnit } from './productTypes';
 type ProductSearchOptions = {
   brand?: string;
   category?: ProductCategory;
-  limit?: number;
+  limit?: number | null;
 };
 
 type SupabaseProductMasterRow = {
@@ -179,16 +179,17 @@ function searchProductMasters(
 ): ProductMaster[] {
   const normalizedKeyword = normalizeProductName(keyword);
   const normalizedJanCode = keyword.replace(/\D/g, '');
-  const limit = options.limit ?? 20;
+  const limit = options.limit === undefined ? 20 : options.limit;
 
-  return products
+  const results = products
     .filter((product) => !options.category || product.category === options.category)
     .filter((product) => !options.brand || product.brand === options.brand)
     .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, normalizedJanCode) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || compareProductsByCategoryAndMaker(a.product, b.product))
-    .slice(0, limit)
     .map(({ product }) => product);
+
+  return limit === null ? results : results.slice(0, limit);
 }
 
 function getProductMasters(): ProductMaster[] {

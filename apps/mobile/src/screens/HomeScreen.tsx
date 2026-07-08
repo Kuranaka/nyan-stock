@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -35,7 +35,7 @@ export default function HomeScreen() {
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [settings, setSettings] = useState<AppSettings | undefined>();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter | undefined>();
 
   const load = useCallback(async () => {
@@ -81,6 +81,10 @@ export default function HomeScreen() {
         onSignedIn={() => void completeOnboarding(true)}
       />
     );
+  }
+
+  if (!settings) {
+    return <HomeLoading />;
   }
 
   const selectedCat = cats.find((nextCat) => nextCat.id === selectedCatId);
@@ -206,6 +210,19 @@ export default function HomeScreen() {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function HomeLoading() {
+  return (
+    <View style={styles.loadingScreen}>
+      <View style={styles.loadingMark}>
+        <Text style={styles.loadingMarkText}>に</Text>
+      </View>
+      <Text style={styles.loadingTitle}>にゃんストック</Text>
+      <Text style={styles.loadingText}>在庫を読み込んでいます...</Text>
+      <ActivityIndicator color={colors.primaryDark} size="small" />
+    </View>
   );
 }
 
@@ -376,5 +393,37 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 14,
+  },
+  loadingScreen: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    flex: 1,
+    gap: 10,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loadingMark: {
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    height: 64,
+    justifyContent: 'center',
+    width: 64,
+  },
+  loadingMarkText: {
+    color: colors.card,
+    fontSize: 30,
+    fontWeight: '900',
+  },
+  loadingTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  loadingText: {
+    color: colors.subText,
+    fontSize: 13,
+    marginBottom: 4,
   },
 });
