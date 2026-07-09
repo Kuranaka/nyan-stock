@@ -2,12 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
+const consolidatedMigration = 'supabase/migrations/20260709000000_nyan_stock_schema.sql';
 
 const checks = [
   {
     name: 'household hardening migration drops permissive anon policies',
-    file: 'supabase/migrations/20260706000000_security_hardening_after_initial_sync.sql',
+    file: consolidatedMigration,
     assert: (source) => {
+      const hardeningSource = sourceAfter(source, 'Source: 20260706000000_security_hardening_after_initial_sync.sql');
       for (const policyName of [
         'Anon households read',
         'Anon household cats create',
@@ -15,10 +17,10 @@ const checks = [
         'Anon household purchase history delete',
         'Anon household snapshot update',
       ]) {
-        assert(source.includes(`drop policy if exists "${policyName}"`), `${policyName} is not dropped`);
+        assert(hardeningSource.includes(`drop policy if exists "${policyName}"`), `${policyName} is not dropped`);
       }
-      assert(!/create policy "Anon household/.test(source), 'anon household policies are recreated');
-      assert(source.includes('public.is_household_member(household_id)'), 'household membership policy is missing');
+      assert(!/create policy "Anon household/.test(hardeningSource), 'anon household policies are recreated');
+      assert(hardeningSource.includes('public.is_household_member(household_id)'), 'household membership policy is missing');
     },
   },
   {
@@ -39,12 +41,13 @@ const checks = [
   },
   {
     name: 'icon hardening migration requires authenticated owner folder',
-    file: 'supabase/migrations/20260706000000_security_hardening_after_initial_sync.sql',
+    file: consolidatedMigration,
     assert: (source) => {
-      assert(!/create policy "Anon icon/.test(source), 'anon icon policies are recreated');
-      assert(source.includes('owner_user_id = auth.uid()'), 'icon references are not owner-scoped');
-      assert(source.includes('(storage.foldername(name))[2] = auth.uid()::text'), 'storage object path is not owner-scoped');
-      assert(source.includes('delete from public.icon_references'), 'unowned legacy icon references are not removed');
+      const hardeningSource = sourceAfter(source, 'Source: 20260706000000_security_hardening_after_initial_sync.sql');
+      assert(!/create policy "Anon icon/.test(hardeningSource), 'anon icon policies are recreated');
+      assert(hardeningSource.includes('owner_user_id = auth.uid()'), 'icon references are not owner-scoped');
+      assert(hardeningSource.includes('(storage.foldername(name))[2] = auth.uid()::text'), 'storage object path is not owner-scoped');
+      assert(hardeningSource.includes('delete from public.icon_references'), 'unowned legacy icon references are not removed');
     },
   },
   {
@@ -75,4 +78,10 @@ function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function sourceAfter(source, marker) {
+  const markerIndex = source.indexOf(marker);
+  assert(markerIndex >= 0, `${marker} marker is missing`);
+  return source.slice(markerIndex);
 }
