@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { addDays, isBefore, parseISO, set } from 'date-fns';
+import { addDays, compareAsc, isBefore, parseISO, set } from 'date-fns';
 import { Alert, Platform } from 'react-native';
 
 import { calculateEstimatedEndDate } from '@/features/inventory/inventoryLogic';
@@ -7,6 +7,25 @@ import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { AppSettings } from '@/features/settings/settingsTypes';
 
 const canUseNativeNotifications = Platform.OS !== 'web';
+const inventoryNotificationPrefix = 'nyan-stock:inventory:';
+const inventoryNotificationChannelId = 'inventory-reminders';
+const maxScheduledInventoryNotifications = 60;
+
+type InventoryNotificationPlan = {
+  beforeDays: number;
+  estimatedEndDate: string;
+  identifier: string;
+  item: InventoryItem;
+  triggerDate: Date;
+};
+
+export type NotificationPermissionState = 'unsupported' | 'granted' | 'denied' | 'undetermined';
+
+export type InventoryNotificationSummary = {
+  enabled: boolean;
+  permissionState: NotificationPermissionState;
+  scheduledCount: number;
+};
 
 if (canUseNativeNotifications) {
   Notifications.setNotificationHandler({
@@ -17,6 +36,80 @@ if (canUseNativeNotifications) {
       shouldSetBadge: false,
     }),
   });
+}
+
+function isInventoryNotificationIdentifier(identifier: string): boolean {
+  return identifier.startsWith(inventoryNotificationPrefix);
+}
+
+function sanitizeIdentifierPart(value: string): string {
+  return encodeURIComponent(value).replace(/%/g, '_');
+}
+
+function createInventoryNotificationIdentifier(itemId: string, beforeDays: number, estimatedEndDate: string): string {
+  return `${inventoryNotificationPrefix}${sanitizeIdentifierPart(itemId)}:${beforeDays}:${estimatedEndDate}`;
+}
+
+function uniqueNotifyBeforeDays(item: InventoryItem): number[] {
+  return Array.from(new Set([...item.notifyBeforeDays, 0]))
+    .filter((day) => Number.isFinite(day) && day >= 0)
+    .sort((a, b) => b - a);
+}
+
+function buildInventoryNotificationPlans(
+  items: InventoryItem[],
+  settings: AppSettings,
+  now: Date = new Date(),
+): InventoryNotificationPlan[] {
+  return items
+    .flatMap((item) => {
+      const estimatedEndDate = item.estimatedEndDate || calculateEstimatedEndDate(item);
+      if (!estimatedEndDate) return [];
+
+      return uniqueNotifyBeforeDays(item)
+        .map((beforeDays) => {
+          const targetDate = addDays(parseISO(estimatedEndDate), -beforeDays);
+          const triggerDate = set(targetDate, {
+            hours: settings.notificationHour,
+            minutes: settings.notificationMinute,
+            seconds: 0,
+            milliseconds: 0,
+          });
+          if (isBefore(triggerDate, now)) return undefined;
+          return {
+            beforeDays,
+            estimatedEndDate,
+            identifier: createInventoryNotificationIdentifier(item.id, beforeDays, estimatedEndDate),
+            item,
+            triggerDate,
+          };
+        })
+        .filter((plan): plan is InventoryNotificationPlan => Boolean(plan));
+    })
+    .sort((a, b) => compareAsc(a.triggerDate, b.triggerDate))
+    .slice(0, maxScheduledInventoryNotifications);
+}
+
+async function ensureNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+
+  await Notifications.setNotificationChannelAsync(inventoryNotificationChannelId, {
+    name: '在庫リマインダー',
+    description: '猫用品の在庫が少なくなる前にお知らせします。',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+    showBadge: false,
+    sound: null,
+  });
+}
+
+export async function getNotificationPermissionState(): Promise<NotificationPermissionState> {
+  if (!canUseNativeNotifications) return 'unsupported';
+
+  const current = await Notifications.getPermissionsAsync();
+  if (current.granted) return 'granted';
+  if (current.canAskAgain) return 'undetermined';
+  return 'denied';
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -36,7 +129,30 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export async function cancelAllInventoryNotifications(): Promise<void> {
   if (!canUseNativeNotifications) return;
 
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduledNotifications
+      .filter((notification) => isInventoryNotificationIdentifier(notification.identifier))
+      .map((notification) => Notifications.cancelScheduledNotificationAsync(notification.identifier)),
+  );
+}
+
+export async function getInventoryNotificationSummary(settings: AppSettings): Promise<InventoryNotificationSummary> {
+  if (!canUseNativeNotifications) {
+    return { enabled: settings.notificationsEnabled, permissionState: 'unsupported', scheduledCount: 0 };
+  }
+
+  const [permissionState, scheduledNotifications] = await Promise.all([
+    getNotificationPermissionState(),
+    Notifications.getAllScheduledNotificationsAsync(),
+  ]);
+  return {
+    enabled: settings.notificationsEnabled,
+    permissionState,
+    scheduledCount: scheduledNotifications.filter((notification) =>
+      isInventoryNotificationIdentifier(notification.identifier),
+    ).length,
+  };
 }
 
 export async function scheduleInventoryNotifications(
@@ -45,42 +161,65 @@ export async function scheduleInventoryNotifications(
 ): Promise<void> {
   if (!canUseNativeNotifications) return;
 
-  await cancelAllInventoryNotifications();
-  if (!settings.notificationsEnabled) return;
+  await ensureNotificationChannel();
+
+  if (!settings.notificationsEnabled) {
+    await cancelAllInventoryNotifications();
+    return;
+  }
 
   const hasPermission = await requestNotificationPermission();
-  if (!hasPermission) return;
+  if (!hasPermission) {
+    await cancelAllInventoryNotifications();
+    return;
+  }
 
-  const now = new Date();
+  const plans = buildInventoryNotificationPlans(items, settings);
+  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  const scheduledInventoryIdentifiers = scheduledNotifications
+    .filter((notification) => isInventoryNotificationIdentifier(notification.identifier))
+    .map((notification) => notification.identifier);
+  const plannedIdentifiers = new Set(plans.map((plan) => plan.identifier));
+
   await Promise.all(
-    items.flatMap((item) => {
-      const estimatedEndDate = item.estimatedEndDate || calculateEstimatedEndDate(item);
-      if (!estimatedEndDate) return [];
-      const notifyDays = Array.from(new Set([...item.notifyBeforeDays, 0]));
-      return notifyDays
-        .map((beforeDays) => {
-          const targetDate = addDays(parseISO(estimatedEndDate), -beforeDays);
-          const triggerDate = set(targetDate, {
-            hours: settings.notificationHour,
-            minutes: settings.notificationMinute,
-            seconds: 0,
-            milliseconds: 0,
-          });
-          if (isBefore(triggerDate, now)) return undefined;
-          const remainingText = beforeDays === 0 ? '今日なくなる目安です' : `残り${beforeDays}日くらいです`;
-          return Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'にゃんストック',
-              body: `${item.name}が${remainingText}。いつもの商品を確認しましょう。`,
-              data: { inventoryItemId: item.id },
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: triggerDate,
-            },
-          });
-        })
-        .filter((promise): promise is Promise<string> => Boolean(promise));
-    }),
+    scheduledInventoryIdentifiers
+      .filter((identifier) => !plannedIdentifiers.has(identifier))
+      .map((identifier) => Notifications.cancelScheduledNotificationAsync(identifier)),
   );
+
+  const alreadyScheduledIdentifiers = new Set(scheduledInventoryIdentifiers);
+  await Promise.all(
+    plans
+      .filter((plan) => !alreadyScheduledIdentifiers.has(plan.identifier))
+      .map((plan) => {
+        const remainingText = plan.beforeDays === 0 ? '今日なくなる目安です' : `残り${plan.beforeDays}日くらいです`;
+        return Notifications.scheduleNotificationAsync({
+          identifier: plan.identifier,
+          content: {
+            title: 'にゃんストック',
+            body: `${plan.item.name}が${remainingText}。いつもの商品を確認しましょう。`,
+            data: {
+              kind: 'inventory-reminder',
+              inventoryItemId: plan.item.id,
+              beforeDays: plan.beforeDays,
+              estimatedEndDate: plan.estimatedEndDate,
+            },
+            sound: false,
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: plan.triggerDate,
+            channelId: inventoryNotificationChannelId,
+          },
+        });
+      }),
+  );
+}
+
+export function getInventoryItemIdFromNotificationResponse(
+  response: Notifications.NotificationResponse,
+): string | undefined {
+  const { data } = response.notification.request.content;
+  if (data.kind !== 'inventory-reminder' || typeof data.inventoryItemId !== 'string') return undefined;
+  return data.inventoryItemId;
 }

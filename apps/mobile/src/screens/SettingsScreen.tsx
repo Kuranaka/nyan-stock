@@ -14,7 +14,12 @@ import { clearAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
 import { getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
-import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import {
+  cancelAllInventoryNotifications,
+  getInventoryNotificationSummary,
+  InventoryNotificationSummary,
+  scheduleInventoryNotifications,
+} from '@/features/notifications/notificationService';
 import { resetReviewPromptState, showReviewPromptForDebug } from '@/features/review/reviewPrompt';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
@@ -40,6 +45,8 @@ export default function SettingsScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [joinName, setJoinName] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
+  const [notificationBusy, setNotificationBusy] = useState(false);
+  const [notificationSummary, setNotificationSummary] = useState<InventoryNotificationSummary | undefined>();
   const [hour, setHour] = useState('9');
   const [minute, setMinute] = useState('0');
 
@@ -54,6 +61,7 @@ export default function SettingsScreen() {
     setSyncState(nextSyncState);
     setHour(String(next.notificationHour));
     setMinute(String(next.notificationMinute));
+    setNotificationSummary(await getInventoryNotificationSummary(next));
   }, []);
 
   useFocusEffect(
@@ -68,10 +76,19 @@ export default function SettingsScreen() {
   const persist = async (patch: Partial<AppSettings>) => {
     if (!settings) return;
     const next = { ...settings, ...patch };
-    setSettings(next);
-    await saveSettings(next);
-    const items = await getInventoryItems();
-    await scheduleInventoryNotifications(items, next);
+    setNotificationBusy(true);
+    try {
+      setSettings(next);
+      await saveSettings(next);
+      const items = await getInventoryItems();
+      await scheduleInventoryNotifications(items, next);
+      setNotificationSummary(await getInventoryNotificationSummary(next));
+    } catch (error) {
+      Alert.alert('通知設定を保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      await load();
+    } finally {
+      setNotificationBusy(false);
+    }
   };
 
   const saveTime = async () => {
@@ -82,6 +99,21 @@ export default function SettingsScreen() {
     setMinute(String(notificationMinute));
   };
 
+  const refreshNotifications = async () => {
+    if (!settings) return;
+    setNotificationBusy(true);
+    try {
+      const items = await getInventoryItems();
+      await scheduleInventoryNotifications(items, settings);
+      setNotificationSummary(await getInventoryNotificationSummary(settings));
+      Alert.alert('通知予定を更新しました', '現在の在庫と通知時間に合わせて、通知予定を作り直しました。');
+    } catch (error) {
+      Alert.alert('通知予定を更新できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setNotificationBusy(false);
+    }
+  };
+
   const resetData = () => {
     Alert.alert('データを初期化しますか？', '猫プロフィール、在庫、購入履歴、設定を削除します。', [
       { text: 'キャンセル', style: 'cancel' },
@@ -89,6 +121,7 @@ export default function SettingsScreen() {
         text: '初期化する',
         style: 'destructive',
         onPress: async () => {
+          await cancelAllInventoryNotifications();
           await Promise.all(Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)));
           await load();
           router.replace('/');
@@ -361,6 +394,7 @@ export default function SettingsScreen() {
           </View>
           <Switch
             value={Boolean(settings?.notificationsEnabled)}
+            disabled={notificationBusy}
             onValueChange={(value) => void persist({ notificationsEnabled: value })}
             trackColor={{ false: colors.border, true: colors.primaryLight }}
             thumbColor={settings?.notificationsEnabled ? colors.primary : colors.card}
@@ -370,7 +404,24 @@ export default function SettingsScreen() {
           <AppTextInput label="時" value={hour} onChangeText={setHour} keyboardType="numeric" />
           <AppTextInput label="分" value={minute} onChangeText={setMinute} keyboardType="numeric" />
         </View>
-        <AppButton title="通知時間を保存" variant="secondary" onPress={() => void saveTime()} />
+        {notificationSummary ? (
+          <View style={styles.notificationStatusBox}>
+            <Text style={styles.statusLine}>端末の通知許可: {notificationPermissionLabels[notificationSummary.permissionState]}</Text>
+            <Text style={styles.statusLine}>登録済みの在庫通知: {notificationSummary.scheduledCount}件</Text>
+          </View>
+        ) : null}
+        <AppButton
+          title="通知時間を保存"
+          variant="secondary"
+          loading={notificationBusy}
+          onPress={() => void saveTime()}
+        />
+        <AppButton
+          title="通知予定を更新"
+          variant="ghost"
+          disabled={!settings?.notificationsEnabled || notificationBusy}
+          onPress={() => void refreshNotifications()}
+        />
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -490,6 +541,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  notificationStatusBox: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  statusLine: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   todoRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -541,6 +605,13 @@ const authProviderLabels = {
   apple: 'Apple',
   x: 'X',
 } satisfies Record<AuthSession['provider'], string>;
+
+const notificationPermissionLabels = {
+  unsupported: 'この環境では未対応',
+  granted: '許可済み',
+  denied: '端末設定でオフ',
+  undetermined: '未確認',
+} satisfies Record<InventoryNotificationSummary['permissionState'], string>;
 
 function isSignedInAccount(session: AuthSession | undefined): boolean {
   return session?.provider === 'google' || session?.provider === 'apple';

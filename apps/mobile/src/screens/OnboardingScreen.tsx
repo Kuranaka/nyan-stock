@@ -2,31 +2,21 @@ import { useState } from 'react';
 import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/AppButton';
-import { AppTextInput } from '@/components/AppTextInput';
 import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 
 type Props = {
-  onStart: (guestName: string) => Promise<void>;
+  onStart: () => Promise<void>;
   onSignedIn: () => void;
 };
 
 export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
-  const [guestName, setGuestName] = useState('');
-  const [guestNameError, setGuestNameError] = useState<string | undefined>();
   const [startingAsGuest, setStartingAsGuest] = useState(false);
 
   const startAsGuest = async () => {
-    const nextGuestName = guestName.trim();
-    if (!nextGuestName) {
-      setGuestNameError('ゲスト名を入力してください。');
-      return;
-    }
-
-    setGuestNameError(undefined);
     setStartingAsGuest(true);
     try {
-      await onStart(nextGuestName);
+      await onStart();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
       Alert.alert('ゲストアカウントを作成できませんでした', message);
@@ -47,18 +37,6 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
       </View>
       <SignInButtons onSignedIn={onSignedIn} />
       <View style={styles.guestForm}>
-        <AppTextInput
-          label="ゲスト名"
-          requirement="required"
-          value={guestName}
-          onChangeText={(value) => {
-            setGuestName(value);
-            if (guestNameError) setGuestNameError(undefined);
-          }}
-          placeholder="例: ママ"
-          maxLength={40}
-          error={guestNameError}
-        />
         <AppButton
           title={startingAsGuest ? 'ゲストアカウント作成中...' : 'ゲストアカウントで始める'}
           loading={startingAsGuest}

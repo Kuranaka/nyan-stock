@@ -75,8 +75,8 @@ export default function HomeScreen() {
     if (toProfile) router.push('/cat-profile');
   };
 
-  const startAsGuest = async (guestName: string) => {
-    await signInAsGuest(guestName);
+  const startAsGuest = async () => {
+    await signInAsGuest();
     await completeOnboarding(true);
   };
 

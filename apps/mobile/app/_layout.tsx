@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +8,7 @@ import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-nat
 import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
 import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
+import { getInventoryItemIdFromNotificationResponse } from '@/features/notifications/notificationService';
 import {
   householdRealtimeEventName,
   householdRealtimeResubscribeEventName,
@@ -15,6 +17,23 @@ import {
 
 export default function RootLayout() {
   const router = useRouter();
+
+  useEffect(() => {
+    const openInventoryItem = (response: Notifications.NotificationResponse | null) => {
+      if (!response) return;
+      const inventoryItemId = getInventoryItemIdFromNotificationResponse(response);
+      if (!inventoryItemId) return;
+
+      router.push({ pathname: '/inventory-detail', params: { id: inventoryItemId } });
+      Notifications.clearLastNotificationResponse();
+    };
+
+    openInventoryItem(Notifications.getLastNotificationResponse());
+    const responseListener = Notifications.addNotificationResponseReceivedListener(openInventoryItem);
+    return () => {
+      responseListener.remove();
+    };
+  }, [router]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
