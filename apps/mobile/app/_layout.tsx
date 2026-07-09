@@ -6,6 +6,7 @@ import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-nat
 
 import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
+import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
 import {
   householdRealtimeEventName,
   householdRealtimeResubscribeEventName,
@@ -37,6 +38,21 @@ export default function RootLayout() {
       resubscribeListener.remove();
       unsubscribe?.();
     };
+  }, []);
+
+  useEffect(() => {
+    const googleMobileAds = getGoogleMobileAdsPackage();
+    if (!googleMobileAds) return;
+
+    void googleMobileAds
+      .default()
+      .setRequestConfiguration({
+        maxAdContentRating: googleMobileAds.MaxAdContentRating.G,
+      })
+      .then(() => googleMobileAds.default().initialize())
+      .catch((error: unknown) => {
+        console.warn('[AdMob] initialization failed', error);
+      });
   }, []);
 
   return (

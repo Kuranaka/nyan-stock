@@ -38,6 +38,7 @@ export default function SettingsScreen() {
   const [authSession, setAuthSession] = useState<AuthSession | undefined>();
   const [syncState, setSyncState] = useState<HouseholdSyncState | undefined>();
   const [joinCode, setJoinCode] = useState('');
+  const [joinName, setJoinName] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
   const [hour, setHour] = useState('9');
   const [minute, setMinute] = useState('0');
@@ -201,9 +202,15 @@ export default function SettingsScreen() {
       {
         text: '参加する',
         onPress: () => {
-          void runSyncAction('共有スペースに参加しました', () => joinHouseholdSyncSpace(joinCode), (state) => {
+          void runSyncAction('共有スペースに参加しました', () => joinHouseholdSyncSpace(joinCode, joinName), (state) => {
             setJoinCode('');
-            return `共有コード: ${state.inviteCode ?? state.householdId}`;
+            setJoinName('');
+            return [
+              `共有コード: ${state.inviteCode ?? state.householdId}`,
+              state.joinedBy ? `参加名: ${state.joinedBy}` : undefined,
+            ]
+              .filter(Boolean)
+              .join('\n');
           });
         },
       },
@@ -328,6 +335,13 @@ export default function SettingsScreen() {
               onChangeText={setJoinCode}
               autoCapitalize="characters"
               placeholder="NYAN-XXXX-XXXX"
+            />
+            <AppTextInput
+              label="参加名"
+              value={joinName}
+              onChangeText={setJoinName}
+              placeholder="例: ママのiPhone"
+              maxLength={40}
             />
             <AppButton
               title="共有スペースに参加"

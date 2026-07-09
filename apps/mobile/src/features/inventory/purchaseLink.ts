@@ -34,7 +34,33 @@ const currentPriceCacheTtlMs = 60 * 60 * 1000;
 const currentPriceCache = new Map<string, { checkedAt: number; item?: CurrentPurchasePrice }>();
 
 export function getPurchaseUrl(item: InventoryItem, shopType: ShopType): string | undefined {
-  return item.purchaseLinks[shopType];
+  return item.purchaseLinks[shopType] ?? buildPurchaseSearchUrl(item.name, shopType);
+}
+
+export function hasSavedPurchaseUrl(item: InventoryItem, shopType: ShopType): boolean {
+  return Boolean(item.purchaseLinks[shopType]);
+}
+
+export function buildPurchaseSearchUrl(productName: string, shopType: ShopType): string | undefined {
+  const keyword = productName.trim();
+  if (!keyword || shopType === 'other') return undefined;
+
+  if (shopType === 'amazon') {
+    const params = new URLSearchParams({
+      k: keyword,
+      i: 'pets',
+    });
+    return `https://www.amazon.co.jp/s?${params.toString()}`;
+  }
+
+  if (shopType === 'rakuten') {
+    return `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(keyword)}/`;
+  }
+
+  const params = new URLSearchParams({
+    p: keyword,
+  });
+  return `https://shopping.yahoo.co.jp/search?${params.toString()}`;
 }
 
 export async function buildAffiliateUrl(originalUrl: string, shopType: ShopType): Promise<string> {
@@ -71,7 +97,7 @@ export async function getCurrentPurchasePrice(
   shopType: ShopType,
 ): Promise<CurrentPurchasePrice | undefined> {
   if (shopType !== 'rakuten' && shopType !== 'yahoo') return undefined;
-  const url = getPurchaseUrl(item, shopType);
+  const url = item.purchaseLinks[shopType];
   const endpoint = getPurchaseLinkSearchEndpoint();
   if (!url || !endpoint || !supabaseAnonKey) return undefined;
 

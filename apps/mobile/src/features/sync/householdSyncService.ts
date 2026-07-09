@@ -95,11 +95,15 @@ async function requireSignedInAccountForHouseholdCreation(): Promise<void> {
   }
 }
 
-export async function joinHouseholdSyncSpace(householdIdInput: string): Promise<HouseholdSyncState> {
+export async function joinHouseholdSyncSpace(
+  householdIdInput: string,
+  participantNameInput?: string,
+): Promise<HouseholdSyncState> {
   const inviteCode = normalizeHouseholdId(householdIdInput);
   if (!inviteCode) {
     throw new Error('共有コードを入力してください。');
   }
+  const participantName = participantNameInput?.trim();
 
   await ensureSupabaseSessionForSharing();
   const { household_id: householdId, invite_code: joinedInviteCode } = await joinRemoteHouseholdByInviteCode(inviteCode);
@@ -111,7 +115,7 @@ export async function joinHouseholdSyncSpace(householdIdInput: string): Promise<
     householdId,
     inviteCode: joinedInviteCode,
     joinedAt: nowIso(),
-    joinedBy: await getCurrentUserLabel(),
+    joinedBy: participantName || (await getCurrentUserLabel()),
     lastPulledAt: nowIso(),
   };
   await applyRemoteSnapshot(remote.snapshot);

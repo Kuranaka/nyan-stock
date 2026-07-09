@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 
-import { householdRealtimeEventName } from './householdRealtime';
+import { householdRealtimeEventName, householdRealtimeResubscribeEventName } from './householdRealtime';
 
 export function useHouseholdSyncEvents(onUpdate: () => void) {
   useEffect(() => {
-    const subscription = DeviceEventEmitter.addListener(householdRealtimeEventName, onUpdate);
+    const updateSubscription = DeviceEventEmitter.addListener(householdRealtimeEventName, onUpdate);
+    const resubscribeSubscription = DeviceEventEmitter.addListener(householdRealtimeResubscribeEventName, onUpdate);
     return () => {
-      subscription.remove();
+      updateSubscription.remove();
+      resubscribeSubscription.remove();
     };
   }, [onUpdate]);
 }

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { AppCard } from '@/components/AppCard';
 import { EmptyState } from '@/components/EmptyState';
 import { InventoryCard } from '@/components/InventoryCard';
 import { colors } from '@/constants/colors';
+import { signInAsGuest } from '@/features/auth/supabaseAuth';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import {
@@ -74,10 +75,15 @@ export default function HomeScreen() {
     if (toProfile) router.push('/cat-profile');
   };
 
+  const startAsGuest = async (guestName: string) => {
+    await signInAsGuest(guestName);
+    await completeOnboarding(true);
+  };
+
   if (settings && !settings.onboardingCompleted) {
     return (
       <OnboardingScreen
-        onStart={() => void completeOnboarding(true)}
+        onStart={startAsGuest}
         onSignedIn={() => void completeOnboarding(true)}
       />
     );
@@ -115,6 +121,21 @@ export default function HomeScreen() {
 
   const toggleInventoryFilter = (nextFilter: InventoryFilter) => {
     setInventoryFilter((currentFilter) => (currentFilter === nextFilter ? undefined : nextFilter));
+  };
+
+  const openInventoryForm = () => {
+    if (cats.length > 0) {
+      router.push('/inventory-form');
+      return;
+    }
+    Alert.alert(
+      '先に猫プロフィールを登録してください',
+      '商品は猫ごとに在庫を記録します。猫プロフィールを登録してから商品を追加できます。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '登録する', onPress: () => router.push('/cat-profile') },
+      ],
+    );
   };
 
   return (
@@ -175,7 +196,7 @@ export default function HomeScreen() {
       </AppCard>
 
       <View style={styles.actions}>
-        <AppButton title="商品を追加する" onPress={() => router.push('/inventory-form')} />
+        <AppButton title="商品を追加する" onPress={openInventoryForm} />
         <AppButton
           title="費用を見る"
           variant="secondary"
@@ -194,7 +215,7 @@ export default function HomeScreen() {
           }
           message={inventoryFilter ? '在庫状況の項目をもう一度押すと絞り込みを解除できます。' : '登録すると、残り何日でなくなるか自動で分かります'}
           actionTitle={inventoryFilter ? undefined : '商品を追加する'}
-          onAction={inventoryFilter ? undefined : () => router.push('/inventory-form')}
+          onAction={inventoryFilter ? undefined : openInventoryForm}
         />
       ) : (
         <View style={styles.list}>

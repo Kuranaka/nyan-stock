@@ -1,7 +1,11 @@
 import { convertRawProductToProductMaster } from '../normalizers/normalizeProduct.js';
 import { searchRakutenItemsByKeyword } from '../providers/rakuten.js';
 import { searchYahooItemsByKeyword } from '../providers/yahoo.js';
-import { loadProductMasters, upsertProductMasters } from '../repositories/productRepository.js';
+import {
+  deleteProductMastersByIds,
+  loadProductMasters,
+  upsertProductMasters,
+} from '../repositories/productRepository.js';
 import {
   buildSeedSearchKeyword,
   createSeedProductMaster,
@@ -18,13 +22,17 @@ type ImportOptions = {
   batchSize: number;
   dryRun: boolean;
   provider: 'both' | 'rakuten' | 'yahoo';
+  skuMigration: boolean;
 };
 
 export async function importFromSeedCsv(options = parseOptions(process.argv.slice(2))): Promise<void> {
   const seedProducts = await loadSeedProductSeries();
   const existingProducts = options.dryRun ? [] : await loadProductMasters();
   const existingById = new Map(existingProducts.map((product) => [product.id, product]));
-  const targets = seedProducts.slice(options.offset ?? 0, options.limit ? (options.offset ?? 0) + options.limit : undefined);
+  const targets = seedProducts.slice(
+    options.offset ?? 0,
+    options.limit !== undefined ? (options.offset ?? 0) + options.limit : undefined,
+  );
   let pendingProducts: ProductMaster[] = [];
   let normalizedCount = 0;
 
@@ -80,6 +88,7 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
   }
 
   if (options.dryRun) {
+    await deleteParentSeriesProductsForSkuMigration(seedProducts, targets, options);
     console.log(`[import:seed] dry-run completed. normalized=${normalizedCount}`);
     return;
   }
@@ -88,7 +97,51 @@ export async function importFromSeedCsv(options = parseOptions(process.argv.slic
     const saved = await upsertProductMasters(pendingProducts, { dedupe: false });
     console.log(`[import:seed] batch saved=${pendingProducts.length} totalSaved=${saved.length}`);
   }
+  await deleteParentSeriesProductsForSkuMigration(seedProducts, targets, options);
   console.log(`[import:seed] normalized=${normalizedCount}`);
+}
+
+async function deleteParentSeriesProductsForSkuMigration(
+  seedProducts: Awaited<ReturnType<typeof loadSeedProductSeries>>,
+  targets: Awaited<ReturnType<typeof loadSeedProductSeries>>,
+  options: ImportOptions,
+): Promise<void> {
+  if (!options.skuMigration) return;
+
+  const parentProductIds = parentProductIdsForSkuMigration(seedProducts);
+  const targetParentProductIds = parentProductIdsForSkuMigration(targets);
+  const parentMasterIds = Array.from(parentProductIds).map((productId) => `pm-seed-${productId}`);
+  const targetParentMasterIds = Array.from(targetParentProductIds).map((productId) => `pm-seed-${productId}`);
+  const isPartialImport = options.limit !== undefined || options.offset !== undefined;
+
+  console.log(
+    `[import:seed] skuMigration parentSeries candidates=${parentMasterIds.length} targetCandidates=${targetParentMasterIds.length}`,
+  );
+  if (parentMasterIds.length > 0) {
+    console.log(`[import:seed] skuMigration parentSeries sample=${parentMasterIds.slice(0, 10).join(', ')}`);
+  }
+
+  if (options.dryRun) {
+    console.log('[import:seed] skuMigration dry-run: parent series products were not deleted.');
+    return;
+  }
+
+  if (isPartialImport) {
+    console.warn('[import:seed] skuMigration parent deletion skipped because --limit or --offset was used.');
+    return;
+  }
+
+  await deleteProductMastersByIds(parentMasterIds);
+  console.log(`[import:seed] skuMigration deleted parentSeries=${parentMasterIds.length}`);
+}
+
+function parentProductIdsForSkuMigration(seedProducts: Awaited<ReturnType<typeof loadSeedProductSeries>>): Set<string> {
+  const seedProductIds = new Set(seedProducts.map((seed) => seed.productId));
+  return new Set(
+    seedProducts
+      .map((seed) => seed.parentProductId)
+      .filter((parentProductId): parentProductId is string => Boolean(parentProductId && !seedProductIds.has(parentProductId))),
+  );
 }
 
 function mergeImportedProductWithExistingReview(
@@ -131,11 +184,16 @@ function parseOptions(args: string[]): ImportOptions {
     batchSize: 25,
     dryRun: false,
     provider: 'both',
+    skuMigration: false,
   };
 
   args.forEach((arg) => {
     if (arg === '--dry-run') {
       options.dryRun = true;
+      return;
+    }
+    if (arg === '--sku-migration') {
+      options.skuMigration = true;
       return;
     }
     if (arg.startsWith('--limit=')) {

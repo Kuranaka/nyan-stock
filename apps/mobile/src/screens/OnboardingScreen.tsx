@@ -1,15 +1,40 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/AppButton';
+import { AppTextInput } from '@/components/AppTextInput';
 import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 
 type Props = {
-  onStart: () => void;
+  onStart: (guestName: string) => Promise<void>;
   onSignedIn: () => void;
 };
 
 export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
+  const [guestName, setGuestName] = useState('');
+  const [guestNameError, setGuestNameError] = useState<string | undefined>();
+  const [startingAsGuest, setStartingAsGuest] = useState(false);
+
+  const startAsGuest = async () => {
+    const nextGuestName = guestName.trim();
+    if (!nextGuestName) {
+      setGuestNameError('ゲスト名を入力してください。');
+      return;
+    }
+
+    setGuestNameError(undefined);
+    setStartingAsGuest(true);
+    try {
+      await onStart(nextGuestName);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
+      Alert.alert('ゲストアカウントを作成できませんでした', message);
+    } finally {
+      setStartingAsGuest(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Image source={require('../../assets/icon.png')} style={styles.mark} resizeMode="contain" />
@@ -21,7 +46,26 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
         <Text style={styles.point}>・いつもの商品をすぐ再購入</Text>
       </View>
       <SignInButtons onSignedIn={onSignedIn} />
-      <AppButton title="ゲストアカウントで始める" onPress={onStart} />
+      <View style={styles.guestForm}>
+        <AppTextInput
+          label="ゲスト名"
+          requirement="required"
+          value={guestName}
+          onChangeText={(value) => {
+            setGuestName(value);
+            if (guestNameError) setGuestNameError(undefined);
+          }}
+          placeholder="例: ママ"
+          maxLength={40}
+          error={guestNameError}
+        />
+        <AppButton
+          title={startingAsGuest ? 'ゲストアカウント作成中...' : 'ゲストアカウントで始める'}
+          loading={startingAsGuest}
+          disabled={startingAsGuest}
+          onPress={() => void startAsGuest()}
+        />
+      </View>
       <View style={styles.guestBox}>
         <Text style={styles.guestTitle}>ゲストアカウントの注意点</Text>
         <Text style={styles.guestText}>
@@ -72,6 +116,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     lineHeight: 24,
+  },
+  guestForm: {
+    gap: 10,
   },
   guestBox: {
     backgroundColor: colors.card,

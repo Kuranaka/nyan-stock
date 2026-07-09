@@ -29,9 +29,10 @@ import {
   saveInventoryItem,
 } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, InventoryUnit, LastingDaysReplenishMode, PurchaseHistory } from '@/features/inventory/inventoryTypes';
-import { openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
+import { getPurchaseUrl, hasSavedPurchaseUrl, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
 import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { ProductLinkIssueType, submitProductLinkReport } from '@/features/reports/productLinkReportService';
 import { recordReviewEligibleAction } from '@/features/review/reviewPrompt';
 import { getSettings } from '@/features/settings/settingsStorage';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
@@ -48,6 +49,12 @@ import {
 type PurchaseLinkErrors = Partial<Record<ShopType, string>>;
 type QuickAdjustMode = 'days' | 'amount';
 const editableNotifyDays = [7, 3, 1];
+const productLinkIssueOptions: { value: ProductLinkIssueType; label: string }[] = [
+  { value: 'purchase_link', label: '購入リンクが違う' },
+  { value: 'image', label: '画像が違う' },
+  { value: 'variant', label: '内容量・味が違う' },
+  { value: 'other', label: 'その他' },
+];
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -100,6 +107,10 @@ export default function InventoryDetailScreen() {
   const [editYahooUrl, setEditYahooUrl] = useState('');
   const [editOtherUrl, setEditOtherUrl] = useState('');
   const [purchaseLinkErrors, setPurchaseLinkErrors] = useState<PurchaseLinkErrors>({});
+  const [showProductLinkReport, setShowProductLinkReport] = useState(false);
+  const [productLinkIssueType, setProductLinkIssueType] = useState<ProductLinkIssueType>('purchase_link');
+  const [productLinkIssueMessage, setProductLinkIssueMessage] = useState('');
+  const [submittingProductLinkReport, setSubmittingProductLinkReport] = useState(false);
 
   const resetStockEditFields = (nextItem: InventoryItem) => {
     setEditPurchaseDate(nextItem.purchaseDate);
@@ -705,6 +716,33 @@ export default function InventoryDetailScreen() {
     if (opened) await recordReviewEligibleAction('purchase_open');
   };
 
+  const submitProductLinkIssueReport = async () => {
+    if (submittingProductLinkReport) return;
+    if (!productLinkIssueMessage.trim()) {
+      Alert.alert('内容を入力してください', 'リンク先や画像が商品と異なる内容を入力してください。');
+      return;
+    }
+    setSubmittingProductLinkReport(true);
+    try {
+      await submitProductLinkReport({
+        item,
+        issueType: productLinkIssueType,
+        message: productLinkIssueMessage,
+      });
+      setShowProductLinkReport(false);
+      setProductLinkIssueType('purchase_link');
+      setProductLinkIssueMessage('');
+      Alert.alert('送信しました', 'お問い合わせありがとうございます。内容を確認します。');
+    } catch (error) {
+      Alert.alert(
+        '送信できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
+    } finally {
+      setSubmittingProductLinkReport(false);
+    }
+  };
+
   return (
     <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
       <AppCard style={styles.card}>
@@ -1033,27 +1071,68 @@ export default function InventoryDetailScreen() {
             <View style={styles.actionGrid}>
               <PurchaseButton
                 label="Amazon"
-                configured={Boolean(item.purchaseLinks.amazon)}
+                configured={Boolean(getPurchaseUrl(item, 'amazon'))}
+                saved={hasSavedPurchaseUrl(item, 'amazon')}
                 primary
                 onPress={() => void buy('amazon')}
               />
               <PurchaseButton
                 label="楽天"
-                configured={Boolean(item.purchaseLinks.rakuten)}
+                configured={Boolean(getPurchaseUrl(item, 'rakuten'))}
+                saved={hasSavedPurchaseUrl(item, 'rakuten')}
                 onPress={() => void buy('rakuten')}
               />
               <PurchaseButton
                 label="Yahoo"
-                configured={Boolean(item.purchaseLinks.yahoo)}
+                configured={Boolean(getPurchaseUrl(item, 'yahoo'))}
+                saved={hasSavedPurchaseUrl(item, 'yahoo')}
                 onPress={() => void buy('yahoo')}
               />
               <PurchaseButton
                 label="その他"
-                configured={Boolean(item.purchaseLinks.other)}
+                configured={Boolean(getPurchaseUrl(item, 'other'))}
+                saved={hasSavedPurchaseUrl(item, 'other')}
                 onPress={() => void buy('other')}
               />
             </View>
           )}
+          <Text style={styles.reportHint}>購入リンク先や画像が商品と異なる場合はお問い合わせください。</Text>
+          <AppButton
+            title={showProductLinkReport ? '報告フォームを閉じる' : 'リンク・画像について報告する'}
+            variant="secondary"
+            disabled={submittingProductLinkReport}
+            onPress={() => setShowProductLinkReport((current) => !current)}
+          />
+          {showProductLinkReport ? (
+            <View style={styles.reportBox}>
+              <Text style={styles.fieldTitle}>問題の種類</Text>
+              <View style={styles.reportIssueGrid}>
+                {productLinkIssueOptions.map((option) => (
+                  <AppButton
+                    key={option.value}
+                    title={option.label}
+                    variant={productLinkIssueType === option.value ? 'primary' : 'secondary'}
+                    disabled={submittingProductLinkReport}
+                    onPress={() => setProductLinkIssueType(option.value)}
+                    style={styles.reportIssueButton}
+                  />
+                ))}
+              </View>
+              <AppTextInput
+                label="詳細"
+                value={productLinkIssueMessage}
+                onChangeText={setProductLinkIssueMessage}
+                multiline
+                style={styles.memo}
+                placeholder="例: Amazonリンク先の商品が犬用になっています"
+              />
+              <AppButton
+                title={submittingProductLinkReport ? '送信中...' : '送信する'}
+                loading={submittingProductLinkReport}
+                onPress={() => void submitProductLinkIssueReport()}
+              />
+            </View>
+          ) : null}
         </AppCard>
       </View>
 
@@ -1165,18 +1244,21 @@ function Info({ label, value }: { label: string; value: string }) {
 function PurchaseButton({
   label,
   configured,
+  saved,
   primary,
   onPress,
 }: {
   label: string;
   configured: boolean;
+  saved: boolean;
   primary?: boolean;
   onPress: () => void;
 }) {
   return (
     <AppButton
-      title={configured ? `${label}で買う` : `${label} URL未設定`}
+      title={configured ? `${label}で${saved ? '買う' : '探す'}` : `${label} URL未設定`}
       variant={configured && primary ? 'primary' : 'secondary'}
+      disabled={!configured}
       onPress={onPress}
     />
   );
@@ -1384,6 +1466,28 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 12,
     lineHeight: 18,
+  },
+  reportHint: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  reportBox: {
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+    padding: 12,
+  },
+  reportIssueGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reportIssueButton: {
+    flexGrow: 1,
+    minWidth: 140,
   },
   fieldTitle: {
     color: colors.text,

@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { config } from '../config.js';
+import { config, delay } from '../config.js';
 import { dedupeProducts } from '../scripts/dedupeProducts.js';
 import { ProductMaster } from '../types.js';
 
@@ -57,6 +57,17 @@ export async function upsertProductMasters(
   incoming: ProductMaster[],
   options: UpsertProductMasterOptions = {},
 ): Promise<ProductMaster[]> {
+  if (config.databaseUrl) {
+    const products = options.dedupe === false ? upsertById([], incoming) : dedupeProducts(incoming);
+    await saveToPostgres(products);
+    return products;
+  }
+  if (hasSupabaseConfig()) {
+    const products = options.dedupe === false ? upsertById([], incoming) : dedupeProducts(incoming);
+    await saveToSupabase(products);
+    return products;
+  }
+
   const existing = await loadProductMasters();
   const next = options.dedupe === false ? upsertById(existing, incoming) : dedupeProducts([...existing, ...incoming]);
   await saveProductMasters(next);
@@ -135,7 +146,7 @@ async function deleteFromPostgres(ids: string[]): Promise<void> {
 }
 
 async function loadFromSupabase(): Promise<ProductMaster[]> {
-  const response = await fetch(supabaseEndpoint('select=data&order=updated_at.desc'), {
+  const response = await fetchSupabase(supabaseEndpoint('select=data&order=updated_at.desc'), {
     headers: supabaseHeaders(),
   });
   if (!response.ok) {
@@ -146,21 +157,25 @@ async function loadFromSupabase(): Promise<ProductMaster[]> {
 }
 
 async function saveToSupabase(products: ProductMaster[]): Promise<void> {
-  const rows = products.map((product) => ({
-    id: product.id,
-    data: product,
-    updated_at: product.updatedAt,
-  }));
-  const response = await fetch(supabaseEndpoint('on_conflict=id'), {
-    method: 'POST',
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: 'resolution=merge-duplicates',
-    },
-    body: JSON.stringify(rows),
-  });
-  if (!response.ok) {
-    throw new Error(`[repository] Supabase save failed ${response.status}: ${await response.text()}`);
+  const chunkSize = 50;
+  for (let index = 0; index < products.length; index += chunkSize) {
+    const chunk = products.slice(index, index + chunkSize);
+    const rows = chunk.map((product) => ({
+      id: product.id,
+      data: product,
+      updated_at: product.updatedAt,
+    }));
+    const response = await fetchSupabase(supabaseEndpoint('on_conflict=id'), {
+      method: 'POST',
+      headers: {
+        ...supabaseHeaders(),
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify(rows),
+    });
+    if (!response.ok) {
+      throw new Error(`[repository] Supabase save failed ${response.status}: ${await response.text()}`);
+    }
   }
   console.log(`[repository] saved product masters to Supabase: ${products.length}`);
 }
@@ -169,7 +184,7 @@ async function deleteFromSupabase(ids: string[]): Promise<void> {
   const chunkSize = 100;
   for (let index = 0; index < ids.length; index += chunkSize) {
     const chunk = ids.slice(index, index + chunkSize);
-    const response = await fetch(supabaseEndpoint(`id=in.(${chunk.map(encodeURIComponent).join(',')})`), {
+    const response = await fetchSupabase(supabaseEndpoint(`id=in.(${chunk.map(encodeURIComponent).join(',')})`), {
       method: 'DELETE',
       headers: supabaseHeaders(),
     });
@@ -195,6 +210,47 @@ function supabaseHeaders(): Record<string, string> {
     Authorization: `Bearer ${key}`,
     'Content-Type': 'application/json',
   };
+}
+
+async function fetchSupabase(url: string, init: RequestInit): Promise<Response> {
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, init);
+      if (!isRetryableSupabaseStatus(response.status) || attempt === maxAttempts) {
+        return response;
+      }
+
+      console.warn(
+        `[repository] Supabase transient response ${response.status}; retrying ${attempt}/${maxAttempts - 1}.`,
+      );
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+
+      console.warn(
+        `[repository] Supabase fetch failed; retrying ${attempt}/${maxAttempts - 1}: ${formatFetchError(error)}`,
+      );
+    }
+
+    await delay(1000 * attempt);
+  }
+
+  throw new Error('[repository] Supabase request retry loop exited unexpectedly.');
+}
+
+function isRetryableSupabaseStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+function formatFetchError(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = 'cause' in error && error.cause instanceof Error ? ` cause=${error.cause.message}` : '';
+    return `${error.message}${cause}`;
+  }
+  return String(error);
 }
 
 type PostgresClient = {

@@ -42,6 +42,15 @@
         {
           "photosPermission": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。"
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-4606903514071634~6737780220",
+          "optimizeInitialization": true,
+          "optimizeAdLoading": true
+        }
       ]
     ],
     "experiments": {

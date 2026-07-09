@@ -44,15 +44,32 @@ export async function ensureSupabaseSessionForSharing(): Promise<Session> {
   return signInAsGuest();
 }
 
-export async function signInAsGuest(): Promise<Session> {
+export async function signInAsGuest(displayName?: string): Promise<Session> {
   const client = requireSupabaseClient();
-  const { data, error } = await client.auth.signInAnonymously();
+  const guestName = displayName?.trim();
+  const { data, error } = await client.auth.signInAnonymously({
+    options: {
+      data: guestName ? { name: guestName, full_name: guestName } : undefined,
+    },
+  });
   if (error || !data.session || !data.user) {
-    throw new Error('ゲストアカウントを作成できませんでした。SupabaseのAnonymous Auth設定を確認してください。');
+    console.warn('[auth] anonymous sign-in failed', error);
+    throw new Error(buildGuestSignInErrorMessage(error));
   }
 
-  await saveAuthSession(createAuthSessionFromSupabaseSession(data.session));
+  await saveAuthSession(createAuthSessionFromSupabaseSession(data.session, 'guest', guestName));
   return data.session;
+}
+
+function buildGuestSignInErrorMessage(error: unknown): string {
+  const details =
+    typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : undefined;
+  const baseMessage =
+    'ゲストアカウントを作成できませんでした。SupabaseのAuthentication > ProvidersでAnonymous sign-insが有効か確認してください。';
+
+  return details ? `${baseMessage}\n\n詳細: ${details}` : baseMessage;
 }
 
 export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<AuthSession> {
@@ -115,7 +132,11 @@ function getStringMetadata(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
-function createAuthSessionFromSupabaseSession(session: Session, fallbackProvider?: AuthProvider): AuthSession {
+function createAuthSessionFromSupabaseSession(
+  session: Session,
+  fallbackProvider?: AuthProvider,
+  fallbackName?: string,
+): AuthSession {
   const provider = getAuthProvider(session.user.app_metadata?.provider) ?? fallbackProvider ?? 'guest';
   return {
     provider,
@@ -128,6 +149,7 @@ function createAuthSessionFromSupabaseSession(session: Session, fallbackProvider
     name:
       getStringMetadata(session.user.user_metadata?.name) ??
       getStringMetadata(session.user.user_metadata?.full_name) ??
+      fallbackName ??
       (provider === 'guest' ? 'ゲスト' : undefined),
     photoUrl:
       getStringMetadata(session.user.user_metadata?.avatar_url) ??

@@ -18,9 +18,9 @@ AMAZON_ASSOCIATE_TAG=
 DATABASE_URL=
 ```
 
-## シリーズseed CSVから補完する
+## seed CSVから補完する
 
-`data/seed/cat_products_seed.csv` は、味・容量・JANまで含む完全SKUリストではなく、アプリ初期マスタ向けの商品シリーズ一覧です。
+`data/seed/cat_products_seed.csv` は、アプリ初期マスタ向けの商品seedです。SKU移行後は、味・内容量別の商品行を `product_id` に持ち、元シリーズIDを `parent_product_id` に保持します。
 
 このCSVをベースに、楽天API/YahooショッピングAPIで代表候補を検索し、ProductMasterへ以下を補完します。
 
@@ -67,6 +67,20 @@ npm run import:seed-csv -- --batch-size=10
 ```bash
 npm run import:seed-csv
 ```
+
+SKU別seedへ移行し、旧シリーズ単位の `pm-seed-${parent_product_id}` を削除する場合:
+
+```bash
+npm run import:seed-csv -- --sku-migration
+```
+
+削除候補だけ確認する場合:
+
+```bash
+npm run import:seed-csv -- --dry-run --sku-migration --limit=0
+```
+
+`--limit` または `--offset` を指定した部分実行では、親シリーズ商品の削除は安全のためスキップされます。
 
 楽天Provider内ではリクエスト前に `PRODUCT_IMPORT_REQUEST_DELAY_MS` の待機を入れています。未指定時は1000msです。
 

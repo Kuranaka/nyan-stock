@@ -1,33 +1,53 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/colors';
+import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
+
+const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID;
 
 export function AdBanner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [adFailed, setAdFailed] = useState(false);
+  const googleMobileAds = getGoogleMobileAdsPackage();
+  const bannerUnitId =
+    googleMobileAds && (__DEV__ || !productionBannerUnitId)
+      ? googleMobileAds.TestIds.ADAPTIVE_BANNER
+      : productionBannerUnitId;
 
   return (
     <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="広告について"
-        onPress={() => router.push('/affiliate')}
-        style={({ pressed }) => [styles.banner, pressed && styles.bannerPressed]}
-      >
-        <View style={styles.badge}>
+      <View style={styles.banner}>
+        {googleMobileAds && bannerUnitId && !adFailed ? (
+          <googleMobileAds.BannerAd
+            unitId={bannerUnitId}
+            size={googleMobileAds.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            onAdFailedToLoad={() => setAdFailed(true)}
+          />
+        ) : (
+          <Text style={styles.placeholderText}>
+            {adFailed ? '広告を読み込めませんでした' : '開発ビルドで広告を表示します'}
+          </Text>
+        )}
+      </View>
+      <View style={styles.disclosureRow}>
+        <View style={styles.badge} accessibilityLabel="広告">
           <Text style={styles.badgeText}>広告</Text>
         </View>
-        <View style={styles.copy}>
-          <Text style={styles.title} numberOfLines={1}>
-            おすすめ猫用品の広告枠
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="広告とアフィリエイトについて"
+          onPress={() => router.push('/affiliate')}
+          style={({ pressed }) => [styles.disclosureButton, pressed && styles.disclosureButtonPressed]}
+        >
+          <Text style={styles.disclosureText} numberOfLines={1}>
+            広告とアフィリエイトについて
           </Text>
-          <Text style={styles.note} numberOfLines={1}>
-            タップで広告表示について確認
-          </Text>
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -42,43 +62,42 @@ const styles = StyleSheet.create({
   },
   banner: {
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 10,
-    minHeight: 52,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    minHeight: 50,
   },
-  bannerPressed: {
-    opacity: 0.75,
+  placeholderText: {
+    color: colors.subText,
+    fontSize: 12,
+  },
+  disclosureRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 4,
+    minHeight: 22,
   },
   badge: {
-    alignItems: 'center',
     backgroundColor: colors.primaryLight,
-    borderRadius: 6,
-    justifyContent: 'center',
-    minHeight: 28,
-    paddingHorizontal: 10,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   badgeText: {
     color: colors.primaryDark,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
-  copy: {
-    flex: 1,
-    minWidth: 0,
+  disclosureButton: {
+    minHeight: 22,
+    justifyContent: 'center',
   },
-  title: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
+  disclosureButtonPressed: {
+    opacity: 0.65,
   },
-  note: {
+  disclosureText: {
     color: colors.subText,
     fontSize: 12,
-    marginTop: 2,
+    textDecorationLine: 'underline',
   },
 });

@@ -7,10 +7,13 @@ import {
   calculateConfidence,
   normalizeProductName,
 } from './normalizers/normalizeProduct.js';
+import { detectAmount } from './normalizers/detectAmount.js';
 import { ProductCategory, ProductMaster, ProductProvider, RawProduct } from './types.js';
 
 export type SeedProductSeries = {
   productId: string;
+  parentProductId: string;
+  baseProductName: string;
   productName: string;
   brandId: string;
   brandName: string;
@@ -25,6 +28,24 @@ export type SeedProductSeries = {
   note: string;
   sourceUrl: string;
   isActive: boolean;
+  contentAmount: string;
+  flavor: string;
+  scent: string;
+  variantSource: string;
+  splitStatus: string;
+  needsResearch: boolean;
+  reviewReason: string;
+  verificationStatus: string;
+  verifiedSourceUrl: string;
+  verifiedNote: string;
+  verifiedAt: string;
+  amazonSearchQuery: string;
+  amazonSearchUrl: string;
+  amazonSearchUrlAllDepartments: string;
+  amazonProductUrl: string;
+  amazonAsin: string;
+  amazonMatchStatus: string;
+  manualReviewNote: string;
 };
 
 export type EnrichmentCandidate = {
@@ -45,6 +66,7 @@ export async function loadSeedProductSeries(csvPath = defaultSeedCsvPath): Promi
 export function createSeedProductMaster(seed: SeedProductSeries): ProductMaster {
   const now = new Date().toISOString();
   const normalizedName = normalizeProductName(seed.productName);
+  const seedAmount = detectAmount(seed.contentAmount || seed.productName);
   const product: ProductMaster = {
     id: `pm-seed-${seed.productId}`,
     name: seed.productName,
@@ -53,6 +75,12 @@ export function createSeedProductMaster(seed: SeedProductSeries): ProductMaster 
     maker: seed.manufacturer || undefined,
     category: mapSeedCategory(seed),
     description: buildDescription(seed),
+    parentProductId: seed.parentProductId || undefined,
+    contentAmount: seed.contentAmount || undefined,
+    flavor: normalizeOptionalVariantValue(seed.flavor),
+    scent: normalizeOptionalVariantValue(seed.scent),
+    amount: seedAmount?.amount,
+    unit: seedAmount?.unit,
     purchaseLinks: {
       official: seed.sourceUrl || undefined,
     },
@@ -129,6 +157,7 @@ export function mergeSeedProductWithCandidates(
     imageUrl: seedProduct.imageUrl ?? imageSource?.imageUrl,
     packageImageUrls,
     purchaseLinks: {
+      amazon: seedProduct.purchaseLinks?.amazon,
       official: seedProduct.purchaseLinks?.official,
       rakuten: seedProduct.purchaseLinks?.rakuten ?? rakuten?.purchaseLinks?.rakuten,
       yahoo: seedProduct.purchaseLinks?.yahoo ?? yahoo?.purchaseLinks?.yahoo,
@@ -219,6 +248,8 @@ function parseCsvRows(csv: string): string[][] {
 function mapSeedRow(row: Record<string, string>): SeedProductSeries {
   return {
     productId: row.product_id,
+    parentProductId: row.parent_product_id,
+    baseProductName: row.base_product_name,
     productName: row.product_name,
     brandId: row.brand_id,
     brandName: row.brand_name,
@@ -233,6 +264,24 @@ function mapSeedRow(row: Record<string, string>): SeedProductSeries {
     note: row.note,
     sourceUrl: row.source_url,
     isActive: row.is_active === 'true',
+    contentAmount: row.content_amount,
+    flavor: row.flavor,
+    scent: row.scent,
+    variantSource: row.variant_source,
+    splitStatus: row.split_status,
+    needsResearch: row.needs_research === 'true',
+    reviewReason: row.review_reason,
+    verificationStatus: row.verification_status,
+    verifiedSourceUrl: row.verified_source_url,
+    verifiedNote: row.verified_note,
+    verifiedAt: row.verified_at,
+    amazonSearchQuery: row.amazon_search_query,
+    amazonSearchUrl: row.amazon_search_url,
+    amazonSearchUrlAllDepartments: row.amazon_search_url_all_departments,
+    amazonProductUrl: row.amazon_product_url,
+    amazonAsin: row.amazon_asin,
+    amazonMatchStatus: row.amazon_match_status,
+    manualReviewNote: row.manual_review_note,
   };
 }
 
@@ -249,15 +298,34 @@ function mapSeedCategory(seed: SeedProductSeries): ProductCategory {
 }
 
 function buildDescription(seed: SeedProductSeries): string | undefined {
-  const values = [seed.subcategoryName, seed.productType, seed.variationsOrTarget, seed.note].filter(Boolean);
+  const values = [
+    seed.subcategoryName,
+    seed.productType,
+    seed.variationsOrTarget,
+    seed.contentAmount ? `内容量: ${seed.contentAmount}` : undefined,
+    normalizeOptionalVariantValue(seed.flavor) ? `味: ${normalizeOptionalVariantValue(seed.flavor)}` : undefined,
+    normalizeOptionalVariantValue(seed.scent) ? `香り: ${normalizeOptionalVariantValue(seed.scent)}` : undefined,
+    seed.note,
+    seed.verifiedNote,
+  ].filter(Boolean);
   return values.length > 0 ? values.join(' / ') : undefined;
 }
 
 function buildVisualKeywords(seed: SeedProductSeries): string[] {
   return Array.from(
     new Set(
-      [seed.brandName, seed.productName, seed.manufacturer, seed.subcategoryName, seed.variationsOrTarget]
-        .filter(Boolean)
+      [
+        seed.brandName,
+        seed.baseProductName,
+        seed.productName,
+        seed.manufacturer,
+        seed.subcategoryName,
+        seed.variationsOrTarget,
+        seed.contentAmount,
+        normalizeOptionalVariantValue(seed.flavor),
+        normalizeOptionalVariantValue(seed.scent),
+      ]
+        .filter((value): value is string => Boolean(value))
         .flatMap((value) => value.split(/[\s　/・、]+/))
         .map((value) => value.trim())
         .filter((value) => value.length >= 2),
@@ -269,6 +337,12 @@ function calculateSeedConfidence(product: ProductMaster, seed?: SeedProductSerie
   const base = calculateConfidence(product);
   const seedBonus = seed?.priority === 'A' ? 10 : 5;
   return Math.min(base + seedBonus, 100);
+}
+
+function normalizeOptionalVariantValue(value: string): string | undefined {
+  const normalized = value.trim();
+  if (!normalized || normalized === '該当なし') return undefined;
+  return normalized;
 }
 
 function mergeSources(

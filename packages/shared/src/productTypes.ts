@@ -32,6 +32,10 @@ export type ProductMaster = {
   maker?: string;
   category: ProductCategory;
   description?: string;
+  parentProductId?: string;
+  contentAmount?: string;
+  flavor?: string;
+  scent?: string;
 
   amount?: number;
   unit?: ProductUnit;

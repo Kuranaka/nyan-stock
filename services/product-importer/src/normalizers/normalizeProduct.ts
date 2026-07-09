@@ -36,6 +36,9 @@ export function buildSearchKeywords(product: ProductMaster): string[] {
     product.brand,
     product.maker,
     product.category,
+    product.contentAmount,
+    product.flavor,
+    product.scent,
     product.amount !== undefined && product.unit ? `${product.amount}${product.unit}` : undefined,
   ];
   const words = values

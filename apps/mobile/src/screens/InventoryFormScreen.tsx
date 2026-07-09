@@ -12,7 +12,7 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { DatePickerField } from '@/components/DatePickerField';
 import { categories, defaultUnitByCategory, unitLabels, units } from '@/constants/categories';
 import { colors } from '@/constants/colors';
-import { getCats, saveCat } from '@/features/cats/catStorage';
+import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import {
   hasPurchaseLinkSearchApi,
@@ -279,20 +279,7 @@ export default function InventoryFormScreen() {
         initialFormSnapshotRef.current = undefined;
         setFormInitialized(false);
         const settings = await getSettings();
-        let nextCats = await getCats();
-        if (nextCats.length === 0) {
-          const now = nowIso();
-          const defaultCat: Cat = {
-            id: createId('cat'),
-            name: 'うちの猫',
-            gender: 'unknown',
-            createdAt: now,
-            updatedAt: now,
-          };
-          await saveCat(defaultCat);
-          await updateSettings({ selectedCatId: defaultCat.id });
-          nextCats = [defaultCat];
-        }
+        const nextCats = await getCats();
         setCats(nextCats);
         const fallbackCatId = nextCats.some((cat) => cat.id === settings.selectedCatId)
           ? settings.selectedCatId
@@ -814,6 +801,24 @@ export default function InventoryFormScreen() {
       setSavingForm(false);
     }
   };
+
+  if (formInitialized && cats.length === 0) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <AppCard style={styles.searchCard}>
+          <Text style={styles.sectionTitle}>先に猫プロフィールを登録してください</Text>
+          <Text style={styles.hint}>商品は猫ごとに在庫を記録します。まず猫の名前を登録してから、商品を追加できます。</Text>
+          <AppButton
+            title="猫プロフィールを登録する"
+            onPress={() => {
+              allowNextRemoveRef.current = true;
+              router.replace('/cat-profile');
+            }}
+          />
+        </AppCard>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
