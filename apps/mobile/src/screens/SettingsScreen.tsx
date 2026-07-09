@@ -19,6 +19,7 @@ import {
   getInventoryNotificationSummary,
   InventoryNotificationSummary,
   scheduleInventoryNotifications,
+  scheduleTestInventoryNotification,
 } from '@/features/notifications/notificationService';
 import { resetReviewPromptState, showReviewPromptForDebug } from '@/features/review/reviewPrompt';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
@@ -109,6 +110,25 @@ export default function SettingsScreen() {
       Alert.alert('通知予定を更新しました', '現在の在庫と通知時間に合わせて、通知予定を作り直しました。');
     } catch (error) {
       Alert.alert('通知予定を更新できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setNotificationBusy(false);
+    }
+  };
+
+  const sendTestNotification = async () => {
+    setNotificationBusy(true);
+    try {
+      const items = await getInventoryItems();
+      const sent = await scheduleTestInventoryNotification(items[0]);
+      setNotificationSummary(settings ? await getInventoryNotificationSummary(settings) : undefined);
+      Alert.alert(
+        sent ? 'テスト通知を予約しました' : 'テスト通知を送れませんでした',
+        sent
+          ? '約5秒後に通知が届きます。在庫がある場合は、通知をタップすると商品詳細を開きます。'
+          : 'この環境では通知に対応していないか、端末側で通知が許可されていません。',
+      );
+    } catch (error) {
+      Alert.alert('テスト通知を送れませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
     } finally {
       setNotificationBusy(false);
     }
@@ -421,6 +441,12 @@ export default function SettingsScreen() {
           variant="ghost"
           disabled={!settings?.notificationsEnabled || notificationBusy}
           onPress={() => void refreshNotifications()}
+        />
+        <AppButton
+          title="テスト通知を送る"
+          variant="ghost"
+          disabled={notificationBusy}
+          onPress={() => void sendTestNotification()}
         />
       </AppCard>
 

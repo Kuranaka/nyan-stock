@@ -12,3 +12,6 @@ services/*/.env
 expo-env.d.ts
 apps/mobile/expo-env.d.ts
 apps/web/next-env.d.ts
+supabase/.branches/
+supabase/.temp/
+supabase/supabase/

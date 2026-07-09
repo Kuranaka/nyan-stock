@@ -8,6 +8,7 @@ import { AppSettings } from '@/features/settings/settingsTypes';
 
 const canUseNativeNotifications = Platform.OS !== 'web';
 const inventoryNotificationPrefix = 'nyan-stock:inventory:';
+const testNotificationPrefix = 'nyan-stock:test:';
 const inventoryNotificationChannelId = 'inventory-reminders';
 const maxScheduledInventoryNotifications = 60;
 
@@ -46,8 +47,8 @@ function sanitizeIdentifierPart(value: string): string {
   return encodeURIComponent(value).replace(/%/g, '_');
 }
 
-function createInventoryNotificationIdentifier(itemId: string, beforeDays: number, estimatedEndDate: string): string {
-  return `${inventoryNotificationPrefix}${sanitizeIdentifierPart(itemId)}:${beforeDays}:${estimatedEndDate}`;
+function createInventoryNotificationIdentifier(itemId: string, beforeDays: number, triggerDate: Date): string {
+  return `${inventoryNotificationPrefix}${sanitizeIdentifierPart(itemId)}:${beforeDays}:${triggerDate.getTime()}`;
 }
 
 function uniqueNotifyBeforeDays(item: InventoryItem): number[] {
@@ -79,7 +80,7 @@ function buildInventoryNotificationPlans(
           return {
             beforeDays,
             estimatedEndDate,
-            identifier: createInventoryNotificationIdentifier(item.id, beforeDays, estimatedEndDate),
+            identifier: createInventoryNotificationIdentifier(item.id, beforeDays, triggerDate),
             item,
             triggerDate,
           };
@@ -214,6 +215,39 @@ export async function scheduleInventoryNotifications(
         });
       }),
   );
+}
+
+export async function scheduleTestInventoryNotification(item?: InventoryItem): Promise<boolean> {
+  if (!canUseNativeNotifications) return false;
+
+  await ensureNotificationChannel();
+  const hasPermission = await requestNotificationPermission();
+  if (!hasPermission) return false;
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${testNotificationPrefix}${Date.now()}`,
+    content: {
+      title: 'にゃんストック',
+      body: item
+        ? `${item.name}のテスト通知です。タップすると商品詳細を開きます。`
+        : 'テスト通知です。通知が届けば端末側の許可は有効です。',
+      data: item
+        ? {
+            kind: 'inventory-reminder',
+            inventoryItemId: item.id,
+            beforeDays: 0,
+            estimatedEndDate: item.estimatedEndDate,
+          }
+        : { kind: 'notification-test' },
+      sound: false,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 5,
+      channelId: inventoryNotificationChannelId,
+    },
+  });
+  return true;
 }
 
 export function getInventoryItemIdFromNotificationResponse(
