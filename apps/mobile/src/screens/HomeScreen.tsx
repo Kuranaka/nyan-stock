@@ -22,6 +22,7 @@ import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
+import { canCreateInventoryItem, getSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatTodayJapanese } from '@/utils/date';
 
@@ -123,8 +124,20 @@ export default function HomeScreen() {
     setInventoryFilter((currentFilter) => (currentFilter === nextFilter ? undefined : nextFilter));
   };
 
-  const openInventoryForm = () => {
+  const openInventoryForm = async () => {
     if (cats.length > 0) {
+      const entitlement = await getSubscriptionEntitlement();
+      if (!canCreateInventoryItem(entitlement, items.length)) {
+        Alert.alert(
+          '無料プランでは在庫は10件までです',
+          'Plusにすると、在庫を無制限に登録でき、広告も非表示になります。',
+          [
+            { text: 'あとで', style: 'cancel' },
+            { text: 'Plusを見る', onPress: () => router.push('/subscription') },
+          ],
+        );
+        return;
+      }
       router.push('/inventory-form');
       return;
     }
@@ -196,7 +209,7 @@ export default function HomeScreen() {
       </AppCard>
 
       <View style={styles.actions}>
-        <AppButton title="商品を追加する" onPress={openInventoryForm} />
+        <AppButton title="商品を追加する" onPress={() => void openInventoryForm()} />
         <AppButton
           title="費用を見る"
           variant="secondary"
@@ -215,7 +228,7 @@ export default function HomeScreen() {
           }
           message={inventoryFilter ? '在庫状況の項目をもう一度押すと絞り込みを解除できます。' : '登録すると、残り何日でなくなるか自動で分かります'}
           actionTitle={inventoryFilter ? undefined : '商品を追加する'}
-          onAction={inventoryFilter ? undefined : openInventoryForm}
+          onAction={inventoryFilter ? undefined : () => void openInventoryForm()}
         />
       ) : (
         <View style={styles.list}>

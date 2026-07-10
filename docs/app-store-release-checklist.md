@@ -14,17 +14,49 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
 
 ## App Store Connect
 
-- Appカテゴリを決める。候補: `Lifestyle` または `Productivity`
-- 年齢制限を確認する。医療・診断アプリではない前提で回答する。
-- サポートURLを用意する。
+- Appカテゴリを決める。推奨: `Lifestyle`、副カテゴリ候補: `Productivity`
+- 年齢制限を確認する。医療・診断アプリではない前提で回答する。想定: 4+
+- サポートURLを用意する。草案は `docs/app-store-metadata.md` を参照。
 - マーケティングURLを用意する場合はLPを指定する。
 - プライバシーポリシーURLを正式な公開URLにする。
+- 利用規約URLとアフィリエイト開示URLを正式な公開URLにする。
 - スクリーンショットを用意する。
   - iPhone 6.7 inch
   - iPhone 6.5 inch
   - iPhone 5.5 inchが必要になる場合は追加
 - レビュー用メモに、ログインなしでも基本機能を確認できることを書く。
 - 共有同期を確認してほしい場合は、レビュー用アカウントまたは共有コードの手順を用意する。
+- App Store用説明文、キーワード、レビュー用メモの草案は `docs/app-store-metadata.md` に保存済み。
+
+## RevenueCat / Subscriptions
+
+- RevenueCatでiOSアプリを作成する。
+- Entitlement `nyanstock_plus` を作成する。
+- Offering `default` を作成する。
+- App Store Connectでサブスクリプション商品を作成する。
+  - Monthly: `nyan_stock_plus_monthly`
+  - Annual: `nyan_stock_plus_annual`
+- RevenueCatのOfferingに月額・年額商品を紐づける。
+- 商品を `nyanstock_plus` entitlementに紐づける。
+- App Store ConnectのIn-App Purchase KeyをRevenueCatに登録する。
+- `apps/mobile/.env` に `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` を設定する。
+- `EXPO_PUBLIC_REVENUECAT_PLUS_ENTITLEMENT_ID=nyanstock_plus` を確認する。
+- RevenueCat未設定時にクラッシュしないことを確認する。
+- TestFlight / Sandboxで購入と復元を確認する。
+- 再起動後も購入済みユーザーがPlus扱いになることを確認する。
+
+## Plan Behavior
+
+- 無料プラン
+  - 猫プロフィール: 2匹まで
+  - 在庫登録: 10件まで
+  - 広告: 表示あり
+  - 家族共有、購入履歴、月別費用レポート、複数端末同期: 無料のまま
+- Plus
+  - 猫プロフィール: 無制限
+  - 在庫登録: 無制限
+  - 広告: 非表示
+- 課金画面に価格、購入、復元、サブスクリプション管理導線が表示されること。
 
 ## Privacy Nutrition Labels
 
@@ -33,10 +65,12 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
 - ユーザーコンテンツ: 猫プロフィール、在庫、購入履歴、商品リンク、メモ
 - 識別子: Supabase user id、匿名ゲストID、OAuth provider user id
 - 連絡先情報: Google / Appleログインでメールアドレスを取得する場合あり
-- 購入: 外部ECサイトでの購入自体はアプリ内で処理しない
+- 購入: Plusの購読状態、商品ID、RevenueCat subscriber id。外部ECサイトでの猫用品購入自体はアプリ内で処理しない
+- 広告関連データ: 広告SDKを有効化する場合はAdMobのデータ利用に合わせて入力する
+- 通知設定: ローカル通知の設定
 - 位置情報: 取得しない
 - 健康とフィットネス: 獣医療上の診断情報を目的として取得しない
-- トラッキング: 広告SDKやIDFAを入れるまでは原則なし
+- トラッキング: IDFAや他社アプリ/サイト横断のトラッキング広告を使わない構成に寄せる場合は原則なし。AdMob設定とApp Store Privacy回答を必ず一致させる
 
 ## Sign in with Apple / Supabase
 
@@ -55,6 +89,11 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
 - Camera: JANコード読み取りのため
 - Photo Library: 猫や商品のアイコン画像選択のため
 - Notifications: 在庫切れ前のローカル通知のため
+
+提出前確認:
+
+- バーコード機能を初回リリースで出さない場合、Camera権限とバーコード画面の露出を外すか、説明文・レビュー手順と一致させる。
+- Android / Google Play / Google Billingは初回iOSリリースでは対象外。Android向け権限と課金設定は別タスクで確認する。
 
 ## Legal Copy
 
@@ -102,6 +141,9 @@ npx expo export --platform ios
 ログインなしでも基本機能を確認できます。
 GoogleまたはAppleログインを行うと、共有コードを使った家族・他アカウントとの在庫共有を利用できます。
 本アプリは獣医療上の診断、治療、予防、助言を行うものではありません。
+Plusは広告非表示と、猫プロフィール・在庫登録数の上限解除を提供します。
+無料プランでは猫プロフィール2匹、在庫10件まで登録できます。
+家族共有、購入履歴、月別費用レポート、複数端末同期は無料プランでも利用できます。
+アプリ内に購入復元導線があります。購入画面から復元できます。
 商品リンクにはアフィリエイトリンクが含まれる場合があります。
 ```
-

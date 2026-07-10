@@ -9,6 +9,7 @@ import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
 import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
 import { getInventoryItemIdFromNotificationResponse } from '@/features/notifications/notificationService';
+import { configureRevenueCat } from '@/features/subscription/subscriptionService';
 import {
   householdRealtimeEventName,
   householdRealtimeResubscribeEventName,
@@ -60,6 +61,12 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    void configureRevenueCat().catch((error: unknown) => {
+      console.warn('[RevenueCat] initialization failed', error);
+    });
+  }, []);
+
+  useEffect(() => {
     const googleMobileAds = getGoogleMobileAdsPackage();
     if (!googleMobileAds) return;
 
@@ -106,6 +113,7 @@ export default function RootLayout() {
           <Stack.Screen name="cost-dashboard" options={{ title: '費用ダッシュボード' }} />
           <Stack.Screen name="purchase-history" options={{ title: '購入履歴' }} />
           <Stack.Screen name="settings" options={{ title: '設定' }} />
+          <Stack.Screen name="subscription" options={{ title: 'にゃんストック Plus' }} />
           <Stack.Screen name="privacy" options={{ title: 'プライバシーポリシー' }} />
           <Stack.Screen name="terms" options={{ title: '利用規約' }} />
           <Stack.Screen name="affiliate" options={{ title: 'アフィリエイトについて' }} />

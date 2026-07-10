@@ -1,10 +1,15 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/colors';
 import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
+import {
+  getSubscriptionEntitlement,
+  SubscriptionEntitlement,
+  subscriptionChangedEventName,
+} from '@/features/subscription/subscriptionService';
 
 const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID;
 
@@ -12,11 +17,25 @@ export function AdBanner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [adFailed, setAdFailed] = useState(false);
+  const [entitlement, setEntitlement] = useState<SubscriptionEntitlement | undefined>();
   const googleMobileAds = getGoogleMobileAdsPackage();
   const bannerUnitId =
     googleMobileAds && (__DEV__ || !productionBannerUnitId)
       ? googleMobileAds.TestIds.ADAPTIVE_BANNER
       : productionBannerUnitId;
+
+  useEffect(() => {
+    void getSubscriptionEntitlement().then(setEntitlement);
+    const listener = DeviceEventEmitter.addListener(
+      subscriptionChangedEventName,
+      (next: SubscriptionEntitlement) => setEntitlement(next),
+    );
+    return () => listener.remove();
+  }, []);
+
+  if (entitlement && !entitlement.shouldShowAds) {
+    return null;
+  }
 
   return (
     <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>

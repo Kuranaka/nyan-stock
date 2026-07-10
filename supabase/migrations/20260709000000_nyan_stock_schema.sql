@@ -902,6 +902,110 @@ create index if not exists product_link_reports_status_created_at_idx
 grant insert, select on public.product_link_reports to authenticated;
 
 -- ============================================================================
+-- Source: 20260708000500_support_inquiries.sql
+-- ============================================================================
+
+create table if not exists support_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users (id) on delete set null,
+  provider text,
+  provider_user_id text,
+  user_email text,
+  household_id text,
+  message text not null,
+  status text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'closed')),
+  created_at timestamptz not null default now()
+);
+
+alter table support_inquiries enable row level security;
+
+drop policy if exists "Users can create support inquiries" on support_inquiries;
+create policy "Users can create support inquiries"
+  on support_inquiries
+  for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can read own support inquiries" on support_inquiries;
+create policy "Users can read own support inquiries"
+  on support_inquiries
+  for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+create index if not exists support_inquiries_user_id_created_at_idx
+  on support_inquiries (user_id, created_at desc);
+
+create index if not exists support_inquiries_status_created_at_idx
+  on support_inquiries (status, created_at desc);
+
+grant insert, select on public.support_inquiries to authenticated;
+
+-- ============================================================================
+-- Source: 20260708001000_product_master_suggestions.sql
+-- ============================================================================
+
+create table if not exists product_master_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users (id) on delete set null,
+  provider text,
+  provider_user_id text,
+  user_email text,
+  household_id text,
+  inventory_item_id text,
+  product_name text not null,
+  normalized_product_name text not null,
+  category text,
+  jan_code text,
+  purchase_url text,
+  image_url text,
+  purchase_links jsonb not null default '{}'::jsonb,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_at timestamptz not null default now()
+);
+
+alter table product_master_suggestions enable row level security;
+
+drop policy if exists "Users can create product master suggestions" on product_master_suggestions;
+create policy "Users can create product master suggestions"
+  on product_master_suggestions
+  for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can read own product master suggestions" on product_master_suggestions;
+create policy "Users can read own product master suggestions"
+  on product_master_suggestions
+  for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+create index if not exists product_master_suggestions_user_id_created_at_idx
+  on product_master_suggestions (user_id, created_at desc);
+
+create index if not exists product_master_suggestions_status_created_at_idx
+  on product_master_suggestions (status, created_at desc);
+
+create index if not exists product_master_suggestions_normalized_category_idx
+  on product_master_suggestions (normalized_product_name, category);
+
+create or replace view product_master_suggestion_counts as
+select
+  normalized_product_name,
+  category,
+  min(product_name) as sample_product_name,
+  count(*) as suggestion_count,
+  max(created_at) as last_suggested_at,
+  array_remove(array_agg(distinct jan_code), null) as jan_codes,
+  array_remove(array_agg(distinct purchase_url), null) as purchase_urls
+from product_master_suggestions
+where status = 'pending'
+group by normalized_product_name, category
+order by suggestion_count desc, last_suggested_at desc;
+
+grant insert, select on public.product_master_suggestions to authenticated;
+
+-- ============================================================================
 -- Source: 20260709000000_fix_join_household_rpc_ambiguity.sql
 -- ============================================================================
 
@@ -956,4 +1060,3 @@ end;
 $$;
 
 grant execute on function public.join_household_by_invite_code(text) to authenticated;
-

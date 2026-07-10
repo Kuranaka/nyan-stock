@@ -21,10 +21,16 @@ import {
   scheduleInventoryNotifications,
   scheduleTestInventoryNotification,
 } from '@/features/notifications/notificationService';
+import { submitSupportInquiry } from '@/features/reports/supportInquiryService';
 import { resetReviewPromptState, showReviewPromptForDebug } from '@/features/review/reviewPrompt';
 import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
+import {
+  createSubscriptionEntitlement,
+  freePlanCatLimit,
+  freePlanInventoryLimit,
+} from '@/features/subscription/subscriptionService';
 import {
   createHouseholdSyncSpace,
   isHouseholdSyncConfigured,
@@ -50,13 +56,17 @@ export default function SettingsScreen() {
   const [notificationSummary, setNotificationSummary] = useState<InventoryNotificationSummary | undefined>();
   const [hour, setHour] = useState('9');
   const [minute, setMinute] = useState('0');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSubmitting, setSupportSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    const [next, nextAuthSession, nextSyncState] = await Promise.all([
+    const [next, nextAuthSession, nextSyncState, items] = await Promise.all([
       getSettings(),
       getCurrentAuthSession(),
       getHouseholdSyncState(),
+      getInventoryItems(),
     ]);
+    await scheduleInventoryNotifications(items, next);
     setSettings(next);
     setAuthSession(nextAuthSession);
     setSyncState(nextSyncState);
@@ -100,21 +110,6 @@ export default function SettingsScreen() {
     setMinute(String(notificationMinute));
   };
 
-  const refreshNotifications = async () => {
-    if (!settings) return;
-    setNotificationBusy(true);
-    try {
-      const items = await getInventoryItems();
-      await scheduleInventoryNotifications(items, settings);
-      setNotificationSummary(await getInventoryNotificationSummary(settings));
-      Alert.alert('通知予定を更新しました', '現在の在庫と通知時間に合わせて、通知予定を作り直しました。');
-    } catch (error) {
-      Alert.alert('通知予定を更新できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
-    } finally {
-      setNotificationBusy(false);
-    }
-  };
-
   const sendTestNotification = async () => {
     setNotificationBusy(true);
     try {
@@ -150,6 +145,11 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const clearLocalDeviceData = async () => {
+    await cancelAllInventoryNotifications();
+    await Promise.all(Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)));
+  };
+
   const addSeedData = () => {
     Alert.alert('サンプルデータを追加しますか？', '開発確認用の猫プロフィールと在庫2件を追加します。既存データは削除しません。', [
       { text: 'キャンセル', style: 'cancel' },
@@ -173,7 +173,10 @@ export default function SettingsScreen() {
   };
 
   const signOut = () => {
-    Alert.alert('ログアウトしますか？', 'この端末の共有参加も解除します。クラウド側の共有データは削除されません。', [
+    Alert.alert(
+      'ログアウトしますか？',
+      'ログアウトすると、この端末内の猫プロフィール、在庫、購入履歴、設定が初期化されます。クラウド側の共有データは削除されません。',
+      [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: 'ログアウト',
@@ -184,13 +187,16 @@ export default function SettingsScreen() {
           } catch {
             await clearAuthSession();
           }
-          await clearHouseholdSyncState();
+          await clearLocalDeviceData();
           setAuthSession(undefined);
           setSyncState(undefined);
           DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
+          await load();
+          router.replace('/');
         },
       },
-    ]);
+      ],
+    );
   };
 
   const runSyncAction = async (
@@ -307,8 +313,48 @@ export default function SettingsScreen() {
     );
   };
 
+  const sendSupportInquiry = async () => {
+    if (supportSubmitting) return;
+    if (!supportMessage.trim()) {
+      Alert.alert('内容を入力してください', 'お問い合わせ内容を入力してください。');
+      return;
+    }
+    setSupportSubmitting(true);
+    try {
+      await submitSupportInquiry({ message: supportMessage });
+      setSupportMessage('');
+      Alert.alert('送信しました', 'お問い合わせありがとうございます。内容を確認します。');
+    } catch (error) {
+      Alert.alert('送信できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+    } finally {
+      setSupportSubmitting(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <AppCard style={styles.card}>
+        <Text style={styles.title}>プラン</Text>
+        <Text style={styles.planName}>{settings?.subscriptionPlan === 'plus' ? 'にゃんストック Plus' : '無料プラン'}</Text>
+        <Text style={styles.note}>
+          {settings?.subscriptionPlan === 'plus'
+            ? '猫プロフィールと在庫を無制限に登録でき、広告は非表示です。'
+            : `無料では猫プロフィール${freePlanCatLimit}匹、在庫${freePlanInventoryLimit}件まで登録できます。`}
+        </Text>
+        <View style={styles.planLimitBox}>
+          <Text style={styles.statusLine}>
+            猫プロフィール: {formatLimit(createSubscriptionEntitlement(settings?.subscriptionPlan ?? 'free').catLimit)}
+          </Text>
+          <Text style={styles.statusLine}>
+            在庫登録: {formatLimit(createSubscriptionEntitlement(settings?.subscriptionPlan ?? 'free').inventoryLimit)}
+          </Text>
+          <Text style={styles.statusLine}>
+            広告: {createSubscriptionEntitlement(settings?.subscriptionPlan ?? 'free').shouldShowAds ? '表示あり' : '非表示'}
+          </Text>
+        </View>
+        <AppButton title="にゃんストック Plusを見る" onPress={() => router.push('/subscription')} />
+      </AppCard>
+
       <AppCard style={styles.card}>
         <Text style={styles.title}>アカウント</Text>
         {authSession ? (
@@ -410,7 +456,7 @@ export default function SettingsScreen() {
         <View style={styles.switchRow}>
           <View style={styles.switchText}>
             <Text style={styles.title}>通知</Text>
-            <Text style={styles.note}>在庫切れの前にローカル通知でお知らせします。</Text>
+            <Text style={styles.note}>在庫切れの前に通知でお知らせします。</Text>
           </View>
           <Switch
             value={Boolean(settings?.notificationsEnabled)}
@@ -437,12 +483,6 @@ export default function SettingsScreen() {
           onPress={() => void saveTime()}
         />
         <AppButton
-          title="通知予定を更新"
-          variant="ghost"
-          disabled={!settings?.notificationsEnabled || notificationBusy}
-          onPress={() => void refreshNotifications()}
-        />
-        <AppButton
           title="テスト通知を送る"
           variant="ghost"
           disabled={notificationBusy}
@@ -456,6 +496,24 @@ export default function SettingsScreen() {
         <AppButton title="プライバシーポリシー" variant="secondary" onPress={() => router.push('/privacy')} />
         <AppButton title="利用規約" variant="secondary" onPress={() => router.push('/terms')} />
         <AppButton title="データ初期化" variant="danger" onPress={resetData} />
+      </AppCard>
+
+      <AppCard style={styles.card}>
+        <Text style={styles.title}>お問い合わせ</Text>
+        <Text style={styles.note}>不具合、使い方で困ったこと、機能のご要望などがあればお知らせください。内容を確認し、今後の改善に活用します。</Text>
+        <AppTextInput
+          label="内容"
+          value={supportMessage}
+          onChangeText={setSupportMessage}
+          multiline
+          style={styles.supportInput}
+          placeholder="例: 通知が届かない、こんな機能がほしい"
+        />
+        <AppButton
+          title={supportSubmitting ? '送信中...' : '送信する'}
+          loading={supportSubmitting}
+          onPress={() => void sendSupportInquiry()}
+        />
       </AppCard>
 
       {__DEV__ ? (
@@ -544,6 +602,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 19,
   },
+  planName: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  planLimitBox: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
   codeBox: {
     backgroundColor: colors.muted,
     borderColor: colors.border,
@@ -611,6 +682,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  supportInput: {
+    minHeight: 110,
+    paddingTop: 12,
+    textAlignVertical: 'top',
+  },
 });
 
 const todoItems = [
@@ -641,4 +717,8 @@ const notificationPermissionLabels = {
 
 function isSignedInAccount(session: AuthSession | undefined): boolean {
   return session?.provider === 'google' || session?.provider === 'apple';
+}
+
+function formatLimit(limit: number | undefined): string {
+  return limit === undefined ? '無制限' : `${limit}件まで`;
 }

@@ -7,7 +7,9 @@
     "scheme": "nyanstock",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -19,14 +21,16 @@
       "bundleIdentifier": "com.nyanstock.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "JANコードを読み取り、猫用品の在庫登録を補助するためにカメラを使用します。",
         "NSPhotoLibraryUsageDescription": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。"
       }
     },
     "android": {
       "package": "com.nyanstock.app",
       "versionCode": 1,
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "com.android.vending.BILLING",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF7E8"
@@ -35,7 +39,6 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
-      "expo-camera",
       "expo-apple-authentication",
       [
         "expo-image-picker",
@@ -55,6 +58,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8324fb83-b5d9-4396-91ce-d67a97d848e6"
+      }
     }
   }
 }

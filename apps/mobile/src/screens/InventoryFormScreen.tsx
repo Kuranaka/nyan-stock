@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { addDays, parseISO } from 'date-fns';
-import { Href } from 'expo-router';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -14,13 +13,6 @@ import { categories, defaultUnitByCategory, unitLabels, units } from '@/constant
 import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
-import {
-  hasPurchaseLinkSearchApi,
-  PurchaseLinkProvider,
-  RakutenSearchResult,
-  searchRakutenItems,
-  searchYahooItemsByJanCode,
-} from '@/features/ec/rakutenSearch';
 import {
   getInventoryItem,
   getInventoryItems,
@@ -36,18 +28,17 @@ import {
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import {
-  findProductByJanCodeAsync,
   findProductsByKeywordAsync,
   getProductMasterImageUrl,
   getProductMasterBrands,
   productCategoryLabels,
   productCategoryToInventoryCategory,
-  productPurchaseLinksToInventoryLinks,
   productUnitToInventoryUnit,
 } from '@/features/products/productMaster';
 import { ProductCategory, ProductMaster } from '@/features/products/productTypes';
-import { saveUserProductSuggestion } from '@/features/products/userProductSuggestionStorage';
+import { collectUserProductSuggestion } from '@/features/products/userProductSuggestionService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
+import { canCreateInventoryItem, getSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
 import { nowIso, todayIso } from '@/utils/date';
 import {
   createId,
@@ -59,7 +50,8 @@ import {
 } from '@/utils/validation';
 
 type FormErrors = Partial<Record<'name' | 'amount' | 'dailyUsage' | 'lastingDays' | 'price' | 'url' | 'imageUrl', string>>;
-type AddMethod = 'master' | 'barcode' | 'manual' | undefined;
+type FormErrorKey = keyof FormErrors;
+type AddMethod = 'master' | 'manual' | undefined;
 type ProductCategoryFilter = ProductCategory | 'all';
 type FormSnapshot = {
   targetCatIds: string[];
@@ -96,13 +88,13 @@ const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] 
 export default function InventoryFormScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { id, barcode, scannedAt } = useLocalSearchParams<{ id?: string; barcode?: string; scannedAt?: string }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
-  const nameFieldYRef = useRef(0);
+  const formFieldYRefs = useRef<Partial<Record<FormErrorKey | 'estimation', number>>>({});
   const masterResultsYRef = useRef(0);
   const initialFormSnapshotRef = useRef<FormSnapshot | undefined>(undefined);
   const allowNextRemoveRef = useRef(false);
-  const lastAppliedBarcodeRef = useRef<string | undefined>(undefined);
+  const pendingScrollToNameRef = useRef(false);
   const [draftItemId] = useState(() => createId('item'));
   const [cats, setCats] = useState<Cat[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
@@ -140,28 +132,43 @@ export default function InventoryFormScreen() {
   const [masterResultPage, setMasterResultPage] = useState(0);
   const [masterSearchMessage, setMasterSearchMessage] = useState('');
   const [masterSearchLoading, setMasterSearchLoading] = useState(false);
-  const [scannedBarcode, setScannedBarcode] = useState('');
-  const [barcodeSearchMessage, setBarcodeSearchMessage] = useState('');
-  const [barcodeSearchLoading, setBarcodeSearchLoading] = useState(false);
-  const [barcodeYahooResults, setBarcodeYahooResults] = useState<RakutenSearchResult[]>([]);
-  const [showPurchaseLinkSearch, setShowPurchaseLinkSearch] = useState(false);
-  const [purchaseLinkProvider, setPurchaseLinkProvider] = useState<PurchaseLinkProvider>('rakuten');
-  const [productSearchKeyword, setProductSearchKeyword] = useState('');
-  const [productSearchResults, setProductSearchResults] = useState<RakutenSearchResult[]>([]);
-  const [productSearchMessage, setProductSearchMessage] = useState('');
-  const [productSearchLoading, setProductSearchLoading] = useState(false);
-  const [productSearchError, setProductSearchError] = useState('');
   const [formInitialized, setFormInitialized] = useState(false);
   const [savingForm, setSavingForm] = useState(false);
 
-  const scrollToNameField = useCallback(() => {
+  const scrollToY = useCallback((y: number) => {
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({
-        y: Math.max(nameFieldYRef.current - 12, 0),
+        y: Math.max(y - 12, 0),
         animated: true,
       });
     }, 100);
   }, []);
+
+  const setFormFieldY = useCallback((field: FormErrorKey | 'estimation') => {
+    return (event: LayoutChangeEvent) => {
+      const nextY = event.nativeEvent.layout.y;
+      formFieldYRefs.current[field] = nextY;
+      if (field === 'name' && pendingScrollToNameRef.current) {
+        pendingScrollToNameRef.current = false;
+        scrollToY(nextY);
+      }
+    };
+  }, [scrollToY]);
+
+  const scrollToFirstFormError = useCallback(
+    (nextErrors: FormErrors) => {
+      const firstErrorField = (['name', 'imageUrl', 'amount', 'dailyUsage', 'lastingDays', 'url', 'price'] as FormErrorKey[]).find(
+        (field) => Boolean(nextErrors[field]),
+      );
+      if (!firstErrorField) return;
+      const scrollField: FormErrorKey | 'estimation' =
+        firstErrorField === 'amount' || firstErrorField === 'dailyUsage' || firstErrorField === 'lastingDays'
+          ? 'estimation'
+          : firstErrorField;
+      scrollToY(formFieldYRefs.current[scrollField] ?? 0);
+    },
+    [scrollToY],
+  );
 
   const scrollToMasterResults = useCallback(() => {
     requestAnimationFrame(() => {
@@ -312,7 +319,6 @@ export default function InventoryFormScreen() {
         setTargetCatIds(getInventoryCatIds(item));
         setName(item.name);
         setMasterSearchKeyword(item.name);
-        setProductSearchKeyword(item.name);
         setCategory(item.category);
         setAmount(String(item.amount));
         setUnit(item.unit);
@@ -473,38 +479,11 @@ export default function InventoryFormScreen() {
       nextErrors.imageUrl = '画像URLは http:// または https:// で始めてください。';
     }
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const searchProducts = async () => {
-    const keyword = productSearchKeyword.trim() || name.trim();
-    setProductSearchError('');
-    setProductSearchMessage('');
-    setProductSearchResults([]);
-    setProductSearchLoading(true);
-    try {
-      setProductSearchKeyword(keyword);
-      if (!hasPurchaseLinkSearchApi()) {
-        const url =
-          purchaseLinkProvider === 'rakuten'
-            ? `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(keyword)}/`
-            : `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(keyword)}`;
-        await WebBrowser.openBrowserAsync(url);
-        setProductSearchMessage(
-          `${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}の検索ページを開きました。購入URLは必要に応じてURL欄へ貼り付けてください。`,
-        );
-        return;
-      }
-      const results = await searchRakutenItems(keyword, purchaseLinkProvider);
-      setProductSearchResults(results);
-      if (results.length === 0) {
-        setProductSearchError('該当する商品が見つかりませんでした。');
-      }
-    } catch (error) {
-      setProductSearchError(error instanceof Error ? error.message : '商品検索に失敗しました。');
-    } finally {
-      setProductSearchLoading(false);
+    if (Object.keys(nextErrors).length > 0) {
+      scrollToFirstFormError(nextErrors);
+      return false;
     }
+    return true;
   };
 
   const refreshProductMasterBrands = async (categoryFilter: ProductCategoryFilter) => {
@@ -569,21 +548,15 @@ export default function InventoryFormScreen() {
 
   const applyProductMaster = useCallback((product: ProductMaster) => {
     const nextCategory = productCategoryToInventoryCategory(product.category);
-    const nextLinks = productPurchaseLinksToInventoryLinks(product);
     const nextImageUrl = getProductMasterImageUrl(product);
     const shouldCopyAmount = Boolean(product.amount !== undefined && product.unit && (product.janCode || product.gtin));
     setProductMasterId(product.id);
     setImageUrl(nextImageUrl);
-    setName(product.name);
+    setName(getProductNameWithBrand(product));
     setCategory(nextCategory);
     setAmount(shouldCopyAmount ? String(product.amount) : '');
     setEstimationMode('lasting_days');
     setUnit(shouldCopyAmount && product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
-    setAmazon(nextLinks.amazon ?? '');
-    setRakuten(nextLinks.rakuten ?? '');
-    setYahoo(nextLinks.yahoo ?? '');
-    setOther(nextLinks.other ?? '');
-    setProductSearchKeyword(product.name);
     setAddMethod(undefined);
     setMasterSearchResults([]);
     setMasterResultPage(0);
@@ -591,128 +564,8 @@ export default function InventoryFormScreen() {
     setShowMasterCategoryOptions(false);
     setShowMasterBrandOptions(false);
     setErrors((currentErrors) => ({ ...currentErrors, name: undefined, amount: undefined, url: undefined }));
-    scrollToNameField();
-  }, [scrollToNameField]);
-
-  const applyYahooBarcodeResult = useCallback(
-    (result: RakutenSearchResult, options: { showAlert: boolean } = { showAlert: true }) => {
-      setProductMasterId(undefined);
-      setImageUrl(undefined);
-      setName(result.name);
-      if (result.price !== undefined) setPrice(String(result.price));
-      setYahoo(result.url);
-      setProductSearchKeyword(result.name);
-      setErrors((currentErrors) => ({ ...currentErrors, name: undefined, url: undefined }));
-      scrollToNameField();
-      if (options.showAlert) {
-        Alert.alert('Yahoo検索結果を反映しました', '商品名とYahoo URLを入力欄に反映しました。');
-      }
-    },
-    [scrollToNameField],
-  );
-
-  useEffect(() => {
-    if (id) return;
-    const normalizedBarcode = normalizeBarcodeParam(barcode);
-    if (!normalizedBarcode) return;
-    const scanKey = `${normalizedBarcode}:${typeof scannedAt === 'string' ? scannedAt : ''}`;
-    if (lastAppliedBarcodeRef.current === scanKey) return;
-    let isActive = true;
-    lastAppliedBarcodeRef.current = scanKey;
-    setAddMethod('barcode');
-    setScannedBarcode(normalizedBarcode);
-    setBarcodeSearchMessage('');
-    setBarcodeSearchLoading(true);
-    setBarcodeYahooResults([]);
-
-    async function applyScannedBarcode() {
-      const product = await findProductByJanCodeAsync(normalizedBarcode);
-      if (!isActive) return;
-      if (product) {
-        applyProductMaster(product);
-        setBarcodeSearchMessage(`JAN ${normalizedBarcode} に一致する商品をフォームへ反映しました。`);
-        setBarcodeSearchLoading(false);
-        return;
-      }
-
-      if (!hasPurchaseLinkSearchApi()) {
-        setProductMasterId(undefined);
-        setImageUrl(undefined);
-        setMasterSearchKeyword(normalizedBarcode);
-        setMasterSearchResults([]);
-        setMasterResultPage(0);
-        setBarcodeSearchMessage(
-          `JAN ${normalizedBarcode} は商品マスタに見つかりませんでした。Yahooショッピング検索の設定がないため、手入力で登録してください。`,
-        );
-        setBarcodeSearchLoading(false);
-        return;
-      }
-
-      try {
-        setBarcodeSearchMessage(`JAN ${normalizedBarcode} は商品マスタにないため、YahooショッピングをJANで検索しています。`);
-        const yahooResults = await searchYahooItemsByJanCode(normalizedBarcode);
-        if (!isActive) return;
-        setBarcodeYahooResults(yahooResults);
-        if (yahooResults.length > 0) {
-          applyYahooBarcodeResult(yahooResults[0], { showAlert: false });
-          setBarcodeSearchMessage(
-            `Yahooショッピングで${yahooResults.length}件見つかりました。先頭候補をフォームへ反映しました。`,
-          );
-          return;
-        }
-        setProductMasterId(undefined);
-        setImageUrl(undefined);
-        setMasterSearchKeyword(normalizedBarcode);
-        setMasterSearchResults([]);
-        setMasterResultPage(0);
-        setBarcodeSearchMessage(
-          `JAN ${normalizedBarcode} は商品マスタとYahooショッピングのどちらにも見つかりませんでした。手入力で登録してください。`,
-        );
-      } catch (error) {
-        if (!isActive) return;
-        setProductMasterId(undefined);
-        setImageUrl(undefined);
-        setMasterSearchKeyword(normalizedBarcode);
-        setMasterSearchResults([]);
-        setMasterResultPage(0);
-        setBarcodeSearchMessage(
-          error instanceof Error
-            ? `商品マスタに見つからず、Yahoo検索にも失敗しました: ${error.message}`
-            : '商品マスタに見つからず、Yahoo検索にも失敗しました。',
-        );
-      } finally {
-        if (isActive) setBarcodeSearchLoading(false);
-      }
-    }
-
-    void applyScannedBarcode();
-    return () => {
-      isActive = false;
-    };
-  }, [applyProductMaster, applyYahooBarcodeResult, barcode, id, scannedAt]);
-
-  const applyRakutenResult = (result: RakutenSearchResult, options: { includeName: boolean }) => {
-    if (options.includeName) {
-      setName(result.name);
-    }
-    if ((result.provider ?? purchaseLinkProvider) === 'yahoo') {
-      setYahoo(result.url);
-    } else {
-      setRakuten(result.url);
-    }
-    if (options.includeName && result.price !== undefined) {
-      setPrice(String(result.price));
-    }
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      name: options.includeName ? undefined : currentErrors.name,
-      url: undefined,
-    }));
-    Alert.alert(
-      '反映しました',
-      options.includeName ? '商品名と購入URLを入力欄に反映しました。' : '購入URLを入力欄に反映しました。',
-    );
-  };
+    pendingScrollToNameRef.current = true;
+  }, []);
 
   const selectProductIcon = async () => {
     if (!hasIconUploadStorage()) {
@@ -738,6 +591,21 @@ export default function InventoryFormScreen() {
     if (savingForm) return;
     const primaryCatId = targetCatIds[0] ?? selectedCatId;
     if (!validate() || !primaryCatId) return;
+    if (!current) {
+      const entitlement = await getSubscriptionEntitlement();
+      const latestItems = await getInventoryItems();
+      if (!canCreateInventoryItem(entitlement, latestItems.length)) {
+        Alert.alert(
+          '無料プランでは在庫は10件までです',
+          'Plusにすると、在庫を無制限に登録でき、広告も非表示になります。',
+          [
+            { text: 'あとで', style: 'cancel' },
+            { text: 'Plusを見る', onPress: () => router.push('/subscription') },
+          ],
+        );
+        return;
+      }
+    }
     const now = nowIso();
     const amountNumber = parseOptionalNumber(amount);
     const priceNumber = parseOptionalNumber(price);
@@ -780,14 +648,19 @@ export default function InventoryFormScreen() {
       });
       await saveIconReference('inventory_item', itemId, imageUrl?.trim() || undefined);
       if (!productMasterId && !current) {
-        await saveUserProductSuggestion({
-          id: createId('suggestion'),
-          name: name.trim(),
-          category,
-          purchaseUrl: purchaseLinks.amazon ?? purchaseLinks.rakuten ?? purchaseLinks.yahoo ?? purchaseLinks.other,
-          status: 'pending',
-          createdAt: now,
-          updatedAt: now,
+        await collectUserProductSuggestion({
+          suggestion: {
+            id: createId('suggestion'),
+            name: name.trim(),
+            category,
+            purchaseUrl: purchaseLinks.amazon ?? purchaseLinks.rakuten ?? purchaseLinks.yahoo ?? purchaseLinks.other,
+            imageUrl: imageUrl?.trim() || undefined,
+            status: 'pending',
+            createdAt: now,
+            updatedAt: now,
+          },
+          inventoryItemId: itemId,
+          purchaseLinks,
         });
       }
       await updateSettings({ selectedCatId: primaryCatId });
@@ -849,14 +722,6 @@ export default function InventoryFormScreen() {
               title="アプリに登録済みの商品から選択する"
               variant={addMethod === 'master' ? 'primary' : 'secondary'}
               onPress={() => void openProductMasterPicker()}
-            />
-            <AppButton
-              title="バーコードで読み取る"
-              variant={addMethod === 'barcode' ? 'primary' : 'secondary'}
-              onPress={() => {
-                setAddMethod('barcode');
-                router.push('/barcode-scan' as Href);
-              }}
             />
             <AppButton
               title="手入力で追加"
@@ -1009,69 +874,24 @@ export default function InventoryFormScreen() {
               ) : null}
             </>
           ) : null}
-          {addMethod === 'barcode' ? (
-            <View style={styles.barcodeResultBox}>
-              <Text style={styles.sectionTitle}>バーコード読み取り結果</Text>
-              {scannedBarcode ? <Text style={styles.resultMeta}>JAN {scannedBarcode}</Text> : null}
-              {barcodeSearchLoading ? <Text style={styles.resultSummary}>検索しています...</Text> : null}
-              {barcodeSearchMessage ? <Text style={styles.resultSummary}>{barcodeSearchMessage}</Text> : null}
-              {barcodeYahooResults.length > 0 ? (
-                <>
-                  {barcodeYahooResults.map((result) => (
-                    <View key={result.id} style={styles.searchResult}>
-                      <Text style={styles.resultName}>{result.name}</Text>
-                      <Text style={styles.resultMeta}>
-                        {[
-                          'Yahooショッピング',
-                          result.shopName,
-                          result.price ? `${result.price.toLocaleString()}円` : undefined,
-                        ]
-                          .filter(Boolean)
-                          .join(' ・ ')}
-                      </Text>
-                      <AppButton
-                        title="反映する"
-                        variant="secondary"
-                        onPress={() => applyYahooBarcodeResult(result)}
-                      />
-                    </View>
-                  ))}
-                </>
-              ) : null}
-              <View style={styles.resultActions}>
-                <AppButton
-                  title="もう一度読み取る"
-                  variant="secondary"
-                  onPress={() => router.push('/barcode-scan' as Href)}
-                  style={styles.resultAction}
-                />
-                <AppButton
-                  title="手入力で続ける"
-                  variant="secondary"
-                  onPress={() => setAddMethod('manual')}
-                  style={styles.resultAction}
-                />
-              </View>
-            </View>
-          ) : null}
         </AppCard>
       ) : null}
 
-      <View onLayout={(event) => {
-        nameFieldYRef.current = event.nativeEvent.layout.y;
-      }}>
+      <View onLayout={setFormFieldY('name')}>
         <AppTextInput label="商品名" value={name} onChangeText={setName} error={errors.name} requirement="required" />
       </View>
 
-      <AppTextInput
-        label="画像URL"
-        value={imageUrl ?? ''}
-        onChangeText={(value) => setImageUrl(value)}
-        keyboardType="url"
-        autoCapitalize="none"
-        error={errors.imageUrl}
-        requirement="optional"
-      />
+      <View onLayout={setFormFieldY('imageUrl')}>
+        <AppTextInput
+          label="画像URL"
+          value={imageUrl ?? ''}
+          onChangeText={(value) => setImageUrl(value)}
+          keyboardType="url"
+          autoCapitalize="none"
+          error={errors.imageUrl}
+          requirement="optional"
+        />
+      </View>
       <View style={styles.iconPickerRow}>
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={styles.iconPreview} resizeMode="cover" />
@@ -1110,77 +930,79 @@ export default function InventoryFormScreen() {
         requirement="required"
       />
 
-      <AppCard style={styles.searchCard}>
-        <FieldLabel label="残り日数の計算方法" requirement="required" />
-        <View style={styles.wrapRow}>
-          <AppButton
-            title="使い切る日数"
-            variant={estimationMode === 'lasting_days' ? 'primary' : 'secondary'}
-            onPress={() => changeEstimationMode('lasting_days')}
-          />
-          <AppButton
-            title="内容量と1日の使用量"
-            variant={estimationMode === 'usage' ? 'primary' : 'secondary'}
-            onPress={() => changeEstimationMode('usage')}
-          />
-          <AppButton
-            title="購入頻度から自動計算"
-            variant={estimationMode === 'purchase_frequency' ? 'primary' : 'secondary'}
-            onPress={() => changeEstimationMode('purchase_frequency')}
-          />
-        </View>
+      <View onLayout={setFormFieldY('estimation')}>
+        <AppCard style={styles.searchCard}>
+          <FieldLabel label="残り日数の計算方法" requirement="required" />
+          <View style={styles.wrapRow}>
+            <AppButton
+              title="使い切る日数"
+              variant={estimationMode === 'lasting_days' ? 'primary' : 'secondary'}
+              onPress={() => changeEstimationMode('lasting_days')}
+            />
+            <AppButton
+              title="内容量と1日の使用量"
+              variant={estimationMode === 'usage' ? 'primary' : 'secondary'}
+              onPress={() => changeEstimationMode('usage')}
+            />
+            <AppButton
+              title="購入頻度から自動計算"
+              variant={estimationMode === 'purchase_frequency' ? 'primary' : 'secondary'}
+              onPress={() => changeEstimationMode('purchase_frequency')}
+            />
+          </View>
 
-        {estimationMode === 'usage' ? (
-          <>
-            <View style={styles.twoColumns}>
-              <AppTextInput
-                label="内容量"
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                error={errors.amount}
-                requirement="required"
-              />
-              <View style={styles.unitBox}>
-                <FieldLabel label="単位" requirement="required" />
-                <View style={styles.wrapRow}>
-                  {units.map((option) => (
-                    <AppButton
-                      key={option}
-                      title={unitLabels[option]}
-                      variant={unit === option ? 'primary' : 'secondary'}
-                      onPress={() => setUnit(option)}
-                    />
-                  ))}
+          {estimationMode === 'usage' ? (
+            <>
+              <View style={styles.twoColumns}>
+                <AppTextInput
+                  label="内容量"
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  error={errors.amount}
+                  requirement="required"
+                />
+                <View style={styles.unitBox}>
+                  <FieldLabel label="単位" requirement="required" />
+                  <View style={styles.wrapRow}>
+                    {units.map((option) => (
+                      <AppButton
+                        key={option}
+                        title={unitLabels[option]}
+                        variant={unit === option ? 'primary' : 'secondary'}
+                        onPress={() => setUnit(option)}
+                      />
+                    ))}
+                  </View>
                 </View>
               </View>
-            </View>
+              <AppTextInput
+                label="1日あたりの消費量"
+                value={dailyUsage}
+                onChangeText={setDailyUsage}
+                keyboardType="decimal-pad"
+                error={errors.dailyUsage}
+                requirement="required"
+              />
+            </>
+          ) : null}
+
+          {estimationMode === 'lasting_days' ? (
             <AppTextInput
-              label="1日あたりの消費量"
-              value={dailyUsage}
-              onChangeText={setDailyUsage}
-              keyboardType="decimal-pad"
-              error={errors.dailyUsage}
+              label="使い切る日数"
+              value={lastingDays}
+              onChangeText={setLastingDays}
+              keyboardType="numeric"
+              error={errors.lastingDays}
               requirement="required"
             />
-          </>
-        ) : null}
+          ) : null}
 
-        {estimationMode === 'lasting_days' ? (
-          <AppTextInput
-            label="使い切る日数"
-            value={lastingDays}
-            onChangeText={setLastingDays}
-            keyboardType="numeric"
-            error={errors.lastingDays}
-            requirement="required"
-          />
-        ) : null}
-
-        {estimationMode === 'purchase_frequency' ? (
-          <Text style={styles.hint}>補充を記録すると、購入日どうしの間隔から次回購入日を自動推定します。</Text>
-        ) : null}
-      </AppCard>
+          {estimationMode === 'purchase_frequency' ? (
+            <Text style={styles.hint}>補充を記録すると、購入日どうしの間隔から次回購入日を自動推定します。</Text>
+          ) : null}
+        </AppCard>
+      </View>
 
       <FieldLabel label="通知タイミング" requirement="optional" />
       <View style={styles.wrapRow}>
@@ -1197,103 +1019,23 @@ export default function InventoryFormScreen() {
         })}
       </View>
 
-      <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />
+      <View onLayout={setFormFieldY('url')}>
+        <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />
+      </View>
       <AppTextInput label="楽天 URL" value={rakuten} onChangeText={setRakuten} requirement="optional" />
       <AppTextInput label="Yahoo URL" value={yahoo} onChangeText={setYahoo} requirement="optional" />
       <AppTextInput label="その他URL" value={other} onChangeText={setOther} requirement="optional" />
 
-      <AppCard style={styles.searchCard}>
-        <View style={styles.collapsibleHeader}>
-          <View style={styles.collapsibleTitleWrap}>
-            <Text style={styles.sectionTitle}>購入リンクを探す</Text>
-            <Text style={styles.affiliate}>検索結果のリンクにはアフィリエイトが含まれる場合があります。</Text>
-          </View>
-          <AppButton
-            title={showPurchaseLinkSearch ? '閉じる' : '開く'}
-            variant="secondary"
-            onPress={() => setShowPurchaseLinkSearch((current) => !current)}
-          />
-        </View>
-        {showPurchaseLinkSearch ? (
-          <>
-            <FieldLabel label="検索先" requirement="required" />
-            <View style={styles.wrapRow}>
-              <AppButton
-                title="楽天市場"
-                variant={purchaseLinkProvider === 'rakuten' ? 'primary' : 'secondary'}
-                onPress={() => {
-                  setPurchaseLinkProvider('rakuten');
-                  setProductSearchResults([]);
-                  setProductSearchMessage('');
-                  setProductSearchError('');
-                }}
-              />
-              <AppButton
-                title="Yahooショッピング"
-                variant={purchaseLinkProvider === 'yahoo' ? 'primary' : 'secondary'}
-                onPress={() => {
-                  setPurchaseLinkProvider('yahoo');
-                  setProductSearchResults([]);
-                  setProductSearchMessage('');
-                  setProductSearchError('');
-                }}
-              />
-            </View>
-            <Text style={styles.hint}>Amazonでの検索は今後対応予定です。</Text>
-            <AppTextInput
-              label={`${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}で検索`}
-              value={productSearchKeyword}
-              onChangeText={setProductSearchKeyword}
-              placeholder={name || '例：キャットフード'}
-            />
-            <AppButton
-              title={productSearchLoading ? '検索中...' : `${purchaseLinkProvider === 'rakuten' ? '楽天市場' : 'Yahooショッピング'}で探す`}
-              variant="secondary"
-              disabled={productSearchLoading}
-              onPress={() => void searchProducts()}
-            />
-            {productSearchMessage ? <Text style={styles.resultSummary}>{productSearchMessage}</Text> : null}
-            {productSearchError ? <Text style={styles.errorText}>{productSearchError}</Text> : null}
-            {productSearchResults.map((result) => (
-              <View key={result.id} style={styles.searchResult}>
-                <Text style={styles.resultName}>{result.name}</Text>
-                <Text style={styles.resultMeta}>
-                  {[
-                    result.provider === 'yahoo' ? 'Yahooショッピング' : '楽天市場',
-                    result.shopName,
-                    result.price ? `${result.price.toLocaleString()}円` : undefined,
-                  ]
-                    .filter(Boolean)
-                    .join(' ・ ')}
-                </Text>
-                <View style={styles.resultActions}>
-                  <AppButton
-                    title="URLだけ反映"
-                    variant="secondary"
-                    onPress={() => applyRakutenResult(result, { includeName: false })}
-                    style={styles.resultAction}
-                  />
-                  <AppButton
-                    title="商品名も反映"
-                    variant="secondary"
-                    onPress={() => applyRakutenResult(result, { includeName: true })}
-                    style={styles.resultAction}
-                  />
-                </View>
-              </View>
-            ))}
-          </>
-        ) : null}
-      </AppCard>
-
-      <AppTextInput
-        label="価格"
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="numeric"
-        error={errors.price}
-        requirement="optional"
-      />
+      <View onLayout={setFormFieldY('price')}>
+        <AppTextInput
+          label="価格"
+          value={price}
+          onChangeText={setPrice}
+          keyboardType="numeric"
+          error={errors.price}
+          requirement="optional"
+        />
+      </View>
 
       <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} requirement="optional" />
 
@@ -1337,9 +1079,13 @@ function getProductCategoryFilterLabel(category: ProductCategoryFilter): string 
   return category === 'all' ? 'すべて' : productCategoryLabels[category];
 }
 
-function normalizeBarcodeParam(value: string | string[] | undefined): string {
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  return rawValue?.replace(/\D/g, '') ?? '';
+function getProductNameWithBrand(product: ProductMaster): string {
+  const brand = product.brand?.trim();
+  const name = product.name.trim();
+  if (!brand) return name;
+  return name.normalize('NFKC').toLowerCase().includes(brand.normalize('NFKC').toLowerCase())
+    ? name
+    : `${brand} ${name}`;
 }
 
 const styles = StyleSheet.create({
@@ -1383,21 +1129,6 @@ const styles = StyleSheet.create({
   searchCard: {
     gap: 12,
   },
-  collapsibleHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  collapsibleTitleWrap: {
-    flex: 1,
-    gap: 4,
-  },
-  affiliate: {
-    color: colors.subText,
-    fontSize: 12,
-    lineHeight: 18,
-  },
   errorText: {
     color: colors.danger,
     fontSize: 13,
@@ -1408,12 +1139,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
-  },
-  barcodeResultBox: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: 10,
-    paddingTop: 12,
   },
   searchResult: {
     borderTopColor: colors.border,

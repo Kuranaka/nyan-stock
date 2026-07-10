@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -14,6 +15,7 @@ import { deleteInventoryItemsForCat, getInventoryItems } from '@/features/invent
 import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
+import { canCreateCat, getSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
 import { formatAgeFromBirthday, isFutureIsoDate, nowIso } from '@/utils/date';
 import { createId, parseOptionalNumber } from '@/utils/validation';
 
@@ -38,6 +40,8 @@ export default function CatProfileScreen() {
   const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const initialProfileSnapshotRef = useRef<CatProfileSnapshot | undefined>(undefined);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const fieldYRefs = useRef<Partial<Record<'name' | 'birthday', number>>>({});
   const allowNextRemoveRef = useRef(false);
   const [cats, setCats] = useState<Cat[]>([]);
   const [current, setCurrent] = useState<Cat | undefined>();
@@ -72,6 +76,21 @@ export default function CatProfileScreen() {
     if (!formInitialized || !initialSnapshot) return false;
     return JSON.stringify(initialSnapshot) !== JSON.stringify(profileSnapshot);
   }, [formInitialized, profileSnapshot]);
+
+  const scrollToY = useCallback((y: number) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(y - 12, 0),
+        animated: true,
+      });
+    }, 100);
+  }, []);
+
+  const setFieldY = useCallback((field: 'name' | 'birthday') => {
+    return (event: LayoutChangeEvent) => {
+      fieldYRefs.current[field] = event.nativeEvent.layout.y;
+    };
+  }, []);
 
   const confirmDiscardChanges = useCallback(
     (onDiscard: () => void) => {
@@ -190,12 +209,31 @@ export default function CatProfileScreen() {
   const save = async () => {
     if (savingProfile) return;
     if (!name.trim()) {
+      scrollToY(fieldYRefs.current.name ?? 0);
       Alert.alert('入力を確認してください', '猫の名前は必須です。');
       return;
     }
     if (birthday && isFutureIsoDate(birthday)) {
+      scrollToY(fieldYRefs.current.birthday ?? 0);
       Alert.alert('入力を確認してください', '誕生日は今日以前の日付を選んでください。');
       return;
+    }
+    let shouldNavigateToInventoryAfterSave = false;
+    if (!current) {
+      const entitlement = await getSubscriptionEntitlement();
+      const latestCats = await getCats();
+      if (!canCreateCat(entitlement, latestCats.length)) {
+        Alert.alert(
+          '無料プランでは猫は2匹までです',
+          'Plusにすると、猫プロフィールを無制限に登録できます。',
+          [
+            { text: 'あとで', style: 'cancel' },
+            { text: 'Plusを見る', onPress: () => router.push('/subscription') },
+          ],
+        );
+        return;
+      }
+      shouldNavigateToInventoryAfterSave = latestCats.length === 0;
     }
     const now = nowIso();
     const catId = current?.id ?? draftCatId;
@@ -218,6 +256,11 @@ export default function CatProfileScreen() {
       const savedCat = await getCat(catId);
       setCats(nextCats);
       if (savedCat) fillForm(savedCat);
+      if (shouldNavigateToInventoryAfterSave) {
+        allowNextRemoveRef.current = true;
+        router.replace('/');
+        return;
+      }
       Alert.alert('保存しました', `${name.trim()}のプロフィールを保存しました。`);
     } catch (error) {
       Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
@@ -226,7 +269,19 @@ export default function CatProfileScreen() {
     }
   };
 
-  const startNew = () => {
+  const startNew = async () => {
+    const entitlement = await getSubscriptionEntitlement();
+    if (!canCreateCat(entitlement, cats.length)) {
+      Alert.alert(
+        '無料プランでは猫は2匹までです',
+        'Plusにすると、猫プロフィールを無制限に登録できます。',
+        [
+          { text: 'あとで', style: 'cancel' },
+          { text: 'Plusを見る', onPress: () => router.push('/subscription') },
+        ],
+      );
+      return;
+    }
     setIsCreatingNew(true);
     resetForm();
   };
@@ -291,7 +346,7 @@ export default function CatProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
       <Text style={styles.lead}>猫ごとにプロフィールと在庫を分けて記録できます。</Text>
 
       {cats.length > 0 ? (
@@ -308,7 +363,7 @@ export default function CatProfileScreen() {
               />
             ))}
           </View>
-          <AppButton title="新しく追加" variant="secondary" onPress={startNew} />
+          <AppButton title="新しく追加" variant="secondary" onPress={() => void startNew()} />
         </AppCard>
       ) : null}
 
@@ -332,14 +387,18 @@ export default function CatProfileScreen() {
           {iconUrl ? <AppButton title="削除" variant="ghost" onPress={() => setIconUrl(undefined)} /> : null}
         </View>
       </View>
-      <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" requirement="required" />
-      <DatePickerField
-        label="誕生日"
-        value={birthday}
-        onChange={setBirthday}
-        requirement="optional"
-        placeholder="未設定"
-      />
+      <View onLayout={setFieldY('name')}>
+        <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" requirement="required" />
+      </View>
+      <View onLayout={setFieldY('birthday')}>
+        <DatePickerField
+          label="誕生日"
+          value={birthday}
+          onChange={setBirthday}
+          requirement="optional"
+          placeholder="未設定"
+        />
+      </View>
       <View style={styles.ageBox}>
         <Text style={styles.ageLabel}>年齢</Text>
         <Text style={styles.ageValue}>{formatAgeFromBirthday(birthday)}</Text>
