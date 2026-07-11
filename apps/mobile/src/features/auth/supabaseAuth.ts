@@ -168,6 +168,21 @@ export async function signOutSupabaseAuth(): Promise<void> {
   await clearAuthSession();
 }
 
+/**
+ * Permanently removes the current Supabase account through the server-side
+ * delete-account function. The service-role credential remains on the server.
+ */
+export async function deleteSupabaseAccount(): Promise<void> {
+  const client = requireSupabaseClient();
+  const { error } = await client.functions.invoke('delete-account', {
+    method: 'POST',
+  });
+  if (error) {
+    throw new Error('アカウントを削除できませんでした。通信状況を確認して、しばらくしてからお試しください。');
+  }
+  await clearAuthSession();
+}
+
 function getStringMetadata(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
 }

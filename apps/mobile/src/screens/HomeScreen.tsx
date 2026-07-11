@@ -37,6 +37,7 @@ import { getSettings, hasSavedSettings, updateSettings } from '@/features/settin
 import { AppSettings } from '@/features/settings/settingsTypes';
 import {
   canCreateInventoryItem,
+  freePlanInventoryLimit,
   getSubscriptionEntitlement,
 } from '@/features/subscription/subscriptionService';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
@@ -56,6 +57,7 @@ export default function HomeScreen() {
   const [settings, setSettings] = useState<AppSettings | undefined>();
   const [loading, setLoading] = useState(true);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter | undefined>();
+  const [openingInventoryForm, setOpeningInventoryForm] = useState(false);
 
   const confirmInitialNotificationSetting = async (
     currentSettings: AppSettings,
@@ -95,6 +97,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setOpeningInventoryForm(false);
       void load();
     }, [load]),
   );
@@ -156,30 +159,43 @@ export default function HomeScreen() {
   };
 
   const openInventoryForm = async () => {
-    if (cats.length > 0) {
-      const entitlement = await getSubscriptionEntitlement();
-      if (!canCreateInventoryItem(entitlement, items.length)) {
-        Alert.alert(
-          '無料プランでは在庫は10件までです',
-          'Plusにすると、在庫を無制限に登録でき、広告も非表示になります。',
-          [
-            { text: 'あとで', style: 'cancel' },
-            { text: 'Plusを見る', onPress: () => router.push('/subscription') },
-          ],
-        );
+    if (openingInventoryForm) return;
+    setOpeningInventoryForm(true);
+    let didNavigate = false;
+    try {
+      if (cats.length > 0) {
+        const entitlement = await getSubscriptionEntitlement();
+        if (!canCreateInventoryItem(entitlement, items.length)) {
+          Alert.alert(
+            `無料プランでは在庫は${freePlanInventoryLimit}件までです`,
+            'Plusにすると、在庫を無制限に登録でき、広告も非表示になります。',
+            [
+              { text: 'あとで', style: 'cancel' },
+              { text: 'Plusを見る', onPress: () => router.push('/subscription') },
+            ],
+          );
+          return;
+        }
+        router.push('/inventory-form');
+        didNavigate = true;
         return;
       }
-      router.push('/inventory-form');
-      return;
+      Alert.alert(
+        '先に猫プロフィールを登録してください',
+        '商品は猫ごとに在庫を記録します。猫プロフィールを登録してから商品を追加できます。',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: '登録する', onPress: () => router.push('/cat-profile') },
+        ],
+      );
+    } catch (error) {
+      Alert.alert(
+        '商品登録を開けませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
+    } finally {
+      if (!didNavigate) setOpeningInventoryForm(false);
     }
-    Alert.alert(
-      '先に猫プロフィールを登録してください',
-      '商品は猫ごとに在庫を記録します。猫プロフィールを登録してから商品を追加できます。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        { text: '登録する', onPress: () => router.push('/cat-profile') },
-      ],
-    );
   };
 
   return (
@@ -197,21 +213,29 @@ export default function HomeScreen() {
         <AppButton title="設定" variant="secondary" onPress={() => router.push('/settings')} />
       </View>
 
-      <View style={styles.catTabs}>
-        {cats.map((nextCat) => (
-          <CatTab
-            key={nextCat.id}
-            cat={nextCat}
-            selected={nextCat.id === selectedCatId}
-            onPress={() => void selectCat(nextCat.id)}
-          />
-        ))}
-        <AppButton
-          title="猫管理"
-          variant="secondary"
-          onPress={() => router.push('/cat-profile')}
-          style={[styles.catTab, styles.catManageTab]}
-        />
+      <View style={styles.catSection}>
+        <View style={styles.catSectionHeader}>
+          <Text style={styles.catSectionTitle}>猫を選択</Text>
+          <Pressable
+            accessibilityLabel="猫を追加・編集する"
+            accessibilityRole="button"
+            onPress={() => router.push('/cat-profile')}
+            style={({ pressed }) => [styles.catManageLink, pressed && styles.catManageLinkPressed]}
+          >
+            <Text style={styles.catManageLinkText}>猫を管理</Text>
+            <Text style={styles.catManageLinkArrow}>›</Text>
+          </Pressable>
+        </View>
+        <View style={styles.catTabs}>
+          {cats.map((nextCat) => (
+            <CatTab
+              key={nextCat.id}
+              cat={nextCat}
+              selected={nextCat.id === selectedCatId}
+              onPress={() => void selectCat(nextCat.id)}
+            />
+          ))}
+        </View>
       </View>
 
       <AppCard>
@@ -242,7 +266,12 @@ export default function HomeScreen() {
       </AppCard>
 
       <View style={styles.actions}>
-        <AppButton title="商品を追加する" onPress={() => void openInventoryForm()} />
+        <AppButton
+          title="商品を追加する"
+          onPress={() => void openInventoryForm()}
+          disabled={openingInventoryForm}
+          loading={openingInventoryForm}
+        />
         <AppButton
           title="費用を見る"
           variant="secondary"
@@ -266,6 +295,8 @@ export default function HomeScreen() {
           }
           actionTitle={inventoryFilter ? undefined : '商品を追加する'}
           onAction={inventoryFilter ? undefined : () => void openInventoryForm()}
+          actionDisabled={openingInventoryForm}
+          actionLoading={openingInventoryForm}
         />
       ) : (
         <View style={styles.list}>
@@ -396,6 +427,19 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  catSection: {
+    gap: 8,
+  },
+  catSectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  catSectionTitle: {
+    color: colors.subText,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   catTab: {
     alignItems: 'center',
     borderRadius: 14,
@@ -436,9 +480,30 @@ const styles = StyleSheet.create({
   catTabTextSelected: {
     color: colors.card,
   },
-  catManageTab: {
-    backgroundColor: colors.accent,
-    borderColor: colors.primaryDark,
+  catManageLink: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 3,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  catManageLinkPressed: {
+    opacity: 0.65,
+  },
+  catManageLinkText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  catManageLinkArrow: {
+    color: colors.primaryDark,
+    fontSize: 23,
+    fontWeight: '400',
+    lineHeight: 24,
   },
   sectionTitle: {
     color: colors.text,

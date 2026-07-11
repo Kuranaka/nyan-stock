@@ -1,18 +1,19 @@
 import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
 import './globals.css';
 
 const description =
   'にゃんストックは、フード・猫砂・おやつなど猫用品の残り日数を管理し、なくなる前にお知らせする猫向け在庫管理アプリです。';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://nyan-stock.example.com'),
+  metadataBase: new URL(siteUrl ?? 'http://localhost:3000'),
   title: 'にゃんストック｜猫用品の買い忘れを防ぐ在庫管理アプリ',
   description,
   openGraph: {
     title: 'にゃんストック｜猫用品の買い忘れを防ぐ在庫管理アプリ',
     description,
     type: 'website',
-    url: 'https://nyan-stock.example.com',
+    ...(siteUrl ? { url: siteUrl } : {}),
     images: [{ url: '/og-image.svg', width: 1200, height: 630 }]
   }
 };

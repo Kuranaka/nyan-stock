@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { supportEmail } from '@/lib/site';
 
 const links = [
   { href: '/privacy', label: 'プライバシーポリシー' },
   { href: '/terms', label: '利用規約' },
   { href: '/affiliate', label: 'アフィリエイトについて' },
-  { href: 'mailto:contact@example.com', label: 'お問い合わせ' }
+  ...(supportEmail ? [{ href: `mailto:${supportEmail}`, label: 'お問い合わせ' }] : [])
 ];
 
 export function Footer() {
@@ -14,6 +15,7 @@ export function Footer() {
         <div>
           <p className="text-lg font-black text-ink">にゃんストック</p>
           <p className="mt-1 text-sm text-muted">猫用品の買い忘れを防ぐアプリ</p>
+          {supportEmail ? <p className="mt-2 text-sm text-muted">お問い合わせ: {supportEmail}</p> : null}
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-muted">
           {links.map((link) => (

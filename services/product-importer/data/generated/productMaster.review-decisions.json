@@ -1,0 +1,25 @@
+{
+  "reviewedAt": "2026-07-11T13:01:57.373Z",
+  "totalProducts": 914,
+  "decisions": [
+    {
+      "productId": "pm-seed-product_0203_v01",
+      "purchaseLinks": {
+        "yahoo": ""
+      },
+      "imageUrl": ""
+    },
+    {
+      "productId": "pm-seed-product_0116",
+      "imageUrl": ""
+    },
+    {
+      "productId": "pm-seed-product_0237_r21f001",
+      "imageUrl": ""
+    },
+    {
+      "productId": "pm-seed-product_0348_v01",
+      "imageUrl": "https://item-shopping.c.yimg.jp/i/g/chanet_295064"
+    }
+  ]
+}

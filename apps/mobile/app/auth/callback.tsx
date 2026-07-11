@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, DeviceEventEmitter, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/constants/colors';
 import { completeSupabaseOAuthCallback } from '@/features/auth/supabaseAuth';
 import { updateSettings } from '@/features/settings/settingsStorage';
-import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
-import { activateSignedInAccountHouseholdSync } from '@/features/sync/householdSyncService';
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -23,11 +21,7 @@ export default function AuthCallbackScreen() {
     const completeSignIn = async () => {
       try {
         await completeSupabaseOAuthCallback(callbackUrl);
-        setMessage('同期設定を準備しています...');
-        const result = await activateSignedInAccountHouseholdSync();
-        if (result.state) {
-          DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
-        }
+        setMessage('ログインを完了しています...');
         await updateSettings({ onboardingCompleted: true });
         if (!cancelled) {
           router.replace('/cat-profile');

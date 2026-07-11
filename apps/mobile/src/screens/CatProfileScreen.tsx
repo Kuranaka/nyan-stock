@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
@@ -22,6 +21,7 @@ import {
   saveIconReference,
 } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { usePreventUnsavedChanges } from '@/hooks/usePreventUnsavedChanges';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import {
   canCreateCat,
@@ -53,7 +53,6 @@ export default function CatProfileScreen() {
   const initialProfileSnapshotRef = useRef<CatProfileSnapshot | undefined>(undefined);
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldYRefs = useRef<Partial<Record<'name' | 'birthday', number>>>({});
-  const allowNextRemoveRef = useRef(false);
   const [cats, setCats] = useState<Cat[]>([]);
   const [current, setCurrent] = useState<Cat | undefined>();
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -122,30 +121,15 @@ export default function CatProfileScreen() {
   );
 
   const goBackWithDiscardConfirmation = useCallback(() => {
-    confirmDiscardChanges(() => {
-      allowNextRemoveRef.current = true;
-      router.back();
-    });
-  }, [confirmDiscardChanges, router]);
+    navigation.goBack();
+  }, [navigation]);
+
+  const allowRemoval = usePreventUnsavedChanges(hasUnsavedChanges, confirmDiscardChanges);
 
   useEffect(() => {
     if (!formInitialized || initialProfileSnapshotRef.current) return;
     initialProfileSnapshotRef.current = profileSnapshot;
   }, [formInitialized, profileSnapshot]);
-
-  useEffect(() => {
-    return navigation.addListener(
-      'beforeRemove',
-      (event: EventArg<'beforeRemove', true, { action: NavigationAction }>) => {
-        if (allowNextRemoveRef.current || !hasUnsavedChanges) return;
-        event.preventDefault();
-        confirmDiscardChanges(() => {
-          allowNextRemoveRef.current = true;
-          navigation.dispatch(event.data.action);
-        });
-      },
-    );
-  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
 
   const resetForm = useCallback(() => {
     const nextDraftCatId = createId('cat');
@@ -268,8 +252,7 @@ export default function CatProfileScreen() {
       setCats(nextCats);
       if (savedCat) fillForm(savedCat);
       if (shouldNavigateToInventoryAfterSave) {
-        allowNextRemoveRef.current = true;
-        router.replace('/');
+        allowRemoval(() => router.replace('/'));
         return;
       }
       Alert.alert('保存しました', `${name.trim()}のプロフィールを保存しました。`);

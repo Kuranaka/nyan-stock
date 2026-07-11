@@ -73,8 +73,6 @@ export default function CostDashboardScreen() {
     [visibleItems],
   );
   const pricedRows = costRows.filter((row) => row.monthlyCost !== undefined);
-  const missingPriceCount = visibleItems.filter((item) => item.price === undefined).length;
-  const missingCycleCount = visibleItems.filter((item) => item.price !== undefined && calculateInventoryCycleDays(item) === undefined).length;
   const monthlyEstimate = pricedRows.reduce((sum, row) => sum + (row.monthlyCost ?? 0), 0);
   const monthlyActual = history
     .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
@@ -137,15 +135,6 @@ export default function CostDashboardScreen() {
         </View>
         <AppButton title="購入履歴を見る" variant="secondary" onPress={() => router.push('/purchase-history')} />
         <Text style={styles.note}>価格未入力、または使い切る周期を計算できない商品は目安から除外しています。</Text>
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <Text style={styles.sectionTitle}>登録状況</Text>
-        <View style={styles.summaryGrid}>
-          <Summary label="対象商品" value={`${visibleItems.length}件`} tone="normal" />
-          <Summary label="価格未入力" value={`${missingPriceCount}件`} tone="warning" />
-          <Summary label="周期未計算" value={`${missingCycleCount}件`} tone="warning" />
-        </View>
       </AppCard>
 
       <AppCard style={styles.card}>

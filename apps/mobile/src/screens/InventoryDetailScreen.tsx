@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, format, parseISO } from 'date-fns';
-import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -50,6 +49,7 @@ import {
   saveIconReference,
 } from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { usePreventUnsavedChanges } from '@/hooks/usePreventUnsavedChanges';
 import { submitProductLinkReport } from '@/features/reports/productLinkReportService';
 import { recordReviewEligibleAction } from '@/features/review/reviewPrompt';
 import { getSettings } from '@/features/settings/settingsStorage';
@@ -80,7 +80,6 @@ function areNumberArraysEqual(first: number[], second: number[]): boolean {
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const { id, action } = useLocalSearchParams<{ id: string; action?: string }>();
   const initialItem = id ? getCachedInventoryItem(id) : undefined;
   const scrollViewRef = useRef<ScrollView>(null);
@@ -88,7 +87,6 @@ export default function InventoryDetailScreen() {
   const purchaseCardYRef = useRef(0);
   const historyCardYRef = useRef(0);
   const bottomActionsYRef = useRef(0);
-  const allowNextRemoveRef = useRef(false);
   const hasScrolledToActionRef = useRef(false);
   const shouldScrollToReplenishRef = useRef(false);
   const shouldScrollToHistoryRef = useRef(false);
@@ -224,19 +222,7 @@ export default function InventoryDetailScreen() {
     [hasUnsavedChanges],
   );
 
-  useEffect(() => {
-    return navigation.addListener(
-      'beforeRemove',
-      (event: EventArg<'beforeRemove', true, { action: NavigationAction }>) => {
-        if (allowNextRemoveRef.current || !hasUnsavedChanges) return;
-        event.preventDefault();
-        confirmDiscardChanges(() => {
-          allowNextRemoveRef.current = true;
-          navigation.dispatch(event.data.action);
-        });
-      },
-    );
-  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
+  const allowRemoval = usePreventUnsavedChanges(hasUnsavedChanges, confirmDiscardChanges);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -548,8 +534,7 @@ export default function InventoryDetailScreen() {
             await clearIconReference('inventory_item', item.id);
             const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
             await scheduleInventoryNotifications(items, settings);
-            allowNextRemoveRef.current = true;
-            router.back();
+            allowRemoval(() => router.back());
           } catch (error) {
             Alert.alert(
               '削除できませんでした',

@@ -28,8 +28,7 @@
       "package": "com.nyanstock.app",
       "versionCode": 1,
       "permissions": [
-        "com.android.vending.BILLING",
-        "android.permission.RECORD_AUDIO"
+        "com.android.vending.BILLING"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",

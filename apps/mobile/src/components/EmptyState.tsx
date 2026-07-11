@@ -9,15 +9,19 @@ type Props = {
   message: string;
   actionTitle?: string;
   onAction?: () => void;
+  actionDisabled?: boolean;
+  actionLoading?: boolean;
 };
 
-export function EmptyState({ title, message, actionTitle, onAction }: Props) {
+export function EmptyState({ title, message, actionTitle, onAction, actionDisabled, actionLoading }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>🐾</Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
-      {actionTitle && onAction ? <AppButton title={actionTitle} onPress={onAction} /> : null}
+      {actionTitle && onAction ? (
+        <AppButton title={actionTitle} onPress={onAction} disabled={actionDisabled} loading={actionLoading} />
+      ) : null}
     </View>
   );
 }

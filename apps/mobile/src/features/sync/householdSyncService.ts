@@ -36,10 +36,18 @@ type HouseholdMembershipResult = {
   invite_code: string;
 };
 
-export type ActivateAccountHouseholdSyncResult = {
-  state?: HouseholdSyncState;
-  mode: 'guest' | 'pulled_remote' | 'pushed_local' | 'skipped';
-  remoteHadData: boolean;
+type HouseholdMemberRow = {
+  member_user_id: string;
+  role: 'owner' | 'member';
+  display_name?: string | null;
+  joined_at: string;
+};
+
+export type HouseholdMember = {
+  userId: string;
+  role: 'owner' | 'member';
+  displayName?: string;
+  joinedAt: string;
 };
 
 type HouseholdEntityRow<T> = {
@@ -106,7 +114,10 @@ export async function joinHouseholdSyncSpace(
   const participantName = participantNameInput?.trim();
 
   await ensureSupabaseSessionForSharing();
-  const { household_id: householdId, invite_code: joinedInviteCode } = await joinRemoteHouseholdByInviteCode(inviteCode);
+  const { household_id: householdId, invite_code: joinedInviteCode } = await joinRemoteHouseholdByInviteCode(
+    inviteCode,
+    participantName,
+  );
   const remote = await fetchRemoteHouseholdData(householdId);
   if (!remote) {
     throw new Error('共有データが見つかりませんでした。共有コードを確認してください。');
@@ -123,39 +134,52 @@ export async function joinHouseholdSyncSpace(
   return state;
 }
 
-export async function activateSignedInAccountHouseholdSync(options?: {
-  onRemoteDataWillOverwriteLocal?: () => Promise<void>;
-}): Promise<ActivateAccountHouseholdSyncResult> {
-  const authSession = await getCurrentAuthSession();
-  if (!authSession) return { mode: 'skipped', remoteHadData: false };
-  if (authSession.provider === 'guest') return { mode: 'guest', remoteHadData: false };
-
-  const { household_id: householdId, invite_code: inviteCode } = await getOrCreateAccountHousehold();
-  const joinedAt = nowIso();
-  const baseState: HouseholdSyncState = {
-    householdId,
-    inviteCode,
-    joinedAt,
-    createdBy: await getCurrentUserLabel(),
-    joinedBy: await getCurrentUserLabel(),
-  };
-  const remote = await fetchRemoteHouseholdData(householdId);
-  const remoteHadData = Boolean(remote && hasSnapshotData(remote.snapshot));
-  const localSnapshot = await createLocalSnapshot();
-
-  if (remoteHadData && remote) {
-    if (hasSnapshotData(localSnapshot)) {
-      await options?.onRemoteDataWillOverwriteLocal?.();
-    }
-    await applyRemoteSnapshot(remote.snapshot);
-    const nextState = { ...baseState, lastPulledAt: nowIso() };
-    await saveHouseholdSyncState(nextState);
-    return { state: nextState, mode: 'pulled_remote', remoteHadData };
+/** Invalidates the current invite code without removing existing members. */
+export async function regenerateHouseholdInviteCode(): Promise<HouseholdSyncState> {
+  const state = await requireHouseholdSyncState();
+  const client = requireSupabaseClient();
+  const { data, error } = await client.rpc('regenerate_household_invite_code', {
+    p_household_id: state.householdId,
+  });
+  if (error) {
+    logSupabaseRpcError('regenerate_household_invite_code', error);
+    throw new Error('共有コードを再発行できませんでした。作成者としてログインしているか確認してください。');
   }
+  const result = parseMembershipResult(data, '共有コードを再発行できませんでした。');
+  const nextState = { ...state, inviteCode: result.invite_code };
+  await saveHouseholdSyncState(nextState);
+  return nextState;
+}
 
-  await saveHouseholdSyncState(baseState);
-  const nextState = await pushLocalSnapshotToHousehold(baseState);
-  return { state: nextState, mode: 'pushed_local', remoteHadData };
+export async function listHouseholdMembers(): Promise<HouseholdMember[]> {
+  const state = await requireHouseholdSyncState();
+  const client = requireSupabaseClient();
+  const { data, error } = await client.rpc('list_household_members', { p_household_id: state.householdId });
+  if (error) {
+    logSupabaseRpcError('list_household_members', error);
+    throw new Error('参加者一覧を取得できませんでした。');
+  }
+  return ((data ?? []) as HouseholdMemberRow[])
+    .filter((member) => member.member_user_id && (member.role === 'owner' || member.role === 'member'))
+    .map((member) => ({
+      userId: member.member_user_id,
+      role: member.role,
+      displayName: member.display_name?.trim() || undefined,
+      joinedAt: member.joined_at,
+    }));
+}
+
+export async function removeHouseholdMember(memberUserId: string): Promise<void> {
+  const state = await requireHouseholdSyncState();
+  const client = requireSupabaseClient();
+  const { error } = await client.rpc('remove_household_member', {
+    p_household_id: state.householdId,
+    p_member_user_id: memberUserId,
+  });
+  if (error) {
+    logSupabaseRpcError('remove_household_member', error);
+    throw new Error('参加者を共有スペースから外せませんでした。');
+  }
 }
 
 export async function pushCurrentHouseholdSnapshot(): Promise<HouseholdSyncState> {
@@ -392,31 +416,20 @@ async function createRemoteHouseholdWithOwner(): Promise<HouseholdMembershipResu
   return parseMembershipResult(data, '共有スペースを作成できませんでした。');
 }
 
-async function joinRemoteHouseholdByInviteCode(inviteCode: string): Promise<HouseholdMembershipResult> {
+async function joinRemoteHouseholdByInviteCode(
+  inviteCode: string,
+  participantName?: string,
+): Promise<HouseholdMembershipResult> {
   const client = requireSupabaseClient();
   const { data, error } = await client.rpc('join_household_by_invite_code', {
     p_invite_code: inviteCode,
+    p_display_name: participantName,
   });
   if (error) {
     logSupabaseRpcError('join_household_by_invite_code', error);
     throw new Error('共有スペースに参加できませんでした。共有コードを確認してください。');
   }
   return parseMembershipResult(data, '共有スペースに参加できませんでした。');
-}
-
-async function getOrCreateAccountHousehold(): Promise<HouseholdMembershipResult> {
-  const client = requireSupabaseClient();
-  const { data, error } = await client.rpc('get_or_create_account_household');
-  if (error) {
-    logSupabaseRpcError('get_or_create_account_household', error);
-    if (error.code === '23514') {
-      throw new Error(
-        'ログインアカウントの共有スペースを準備できませんでした。Supabaseのhouseholds制約更新マイグレーションを適用してください。',
-      );
-    }
-    throw new Error('ログインアカウントの共有スペースを準備できませんでした。Supabaseの共有権限設定を確認してください。');
-  }
-  return parseMembershipResult(data, 'ログインアカウントの共有スペースを準備できませんでした。');
 }
 
 function logSupabaseRpcError(
@@ -442,14 +455,6 @@ function parseMembershipResult(data: unknown, fallbackMessage: string): Househol
     throw new Error(fallbackMessage);
   }
   return { household_id: householdId, invite_code: inviteCode };
-}
-
-function hasSnapshotData(snapshot: HouseholdSnapshot): boolean {
-  return Boolean(
-    snapshot.cats?.length ||
-      snapshot.inventoryItems?.length ||
-      snapshot.purchaseHistory?.length,
-  );
 }
 
 async function createLocalSnapshot(): Promise<HouseholdSnapshot> {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { addDays, format, parseISO } from 'date-fns';
@@ -26,6 +25,7 @@ import {
   InventoryUnit,
 } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
+import { usePreventUnsavedChanges } from '@/hooks/usePreventUnsavedChanges';
 import { hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
 import {
   findProductsByKeywordAsync,
@@ -38,7 +38,11 @@ import {
 import { ProductCategory, ProductMaster } from '@/features/products/productTypes';
 import { collectUserProductSuggestion } from '@/features/products/userProductSuggestionService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
-import { canCreateInventoryItem, getSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
+import {
+  canCreateInventoryItem,
+  freePlanInventoryLimit,
+  getSubscriptionEntitlement,
+} from '@/features/subscription/subscriptionService';
 import { nowIso, todayIso } from '@/utils/date';
 import {
   createId,
@@ -92,8 +96,9 @@ export default function InventoryFormScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const formFieldYRefs = useRef<Partial<Record<FormErrorKey | 'estimation', number>>>({});
   const masterResultsYRef = useRef(0);
+  const scrollOffsetYRef = useRef(0);
+  const pendingMasterSearchScrollYRef = useRef<number | undefined>(undefined);
   const initialFormSnapshotRef = useRef<FormSnapshot | undefined>(undefined);
-  const allowNextRemoveRef = useRef(false);
   const pendingScrollToNameRef = useRef(false);
   const [draftItemId] = useState(() => createId('item'));
   const [cats, setCats] = useState<Cat[]>([]);
@@ -179,6 +184,15 @@ export default function InventoryFormScreen() {
     });
   }, []);
 
+  const restoreMasterSearchScrollPosition = useCallback(() => {
+    const scrollY = pendingMasterSearchScrollYRef.current;
+    if (scrollY === undefined) return;
+    pendingMasterSearchScrollYRef.current = undefined;
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({ y: scrollY, animated: false });
+    });
+  }, []);
+
   const changeMasterResultPage = useCallback(
     (nextPage: number) => {
       setMasterResultPage(nextPage);
@@ -244,41 +258,22 @@ export default function InventoryFormScreen() {
       }
       Alert.alert('編集内容を破棄しますか？', '保存していない編集内容は消えます。', [
         { text: '戻る', style: 'cancel' },
-        {
-          text: '破棄する',
-          style: 'destructive',
-          onPress: onDiscard,
-        },
+        { text: '破棄する', style: 'destructive', onPress: onDiscard },
       ]);
     },
     [hasUnsavedChanges],
   );
 
   const goBackWithDiscardConfirmation = useCallback(() => {
-    confirmDiscardChanges(() => {
-      allowNextRemoveRef.current = true;
-      router.back();
-    });
-  }, [confirmDiscardChanges, router]);
+    navigation.goBack();
+  }, [navigation]);
+
+  const allowRemoval = usePreventUnsavedChanges(hasUnsavedChanges, confirmDiscardChanges);
 
   useEffect(() => {
     if (!formInitialized || initialFormSnapshotRef.current) return;
     initialFormSnapshotRef.current = formSnapshot;
   }, [formInitialized, formSnapshot]);
-
-  useEffect(() => {
-    return navigation.addListener(
-      'beforeRemove',
-      (event: EventArg<'beforeRemove', true, { action: NavigationAction }>) => {
-        if (allowNextRemoveRef.current || !hasUnsavedChanges) return;
-        event.preventDefault();
-        confirmDiscardChanges(() => {
-          allowNextRemoveRef.current = true;
-          navigation.dispatch(event.data.action);
-        });
-      },
-    );
-  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -353,6 +348,7 @@ export default function InventoryFormScreen() {
             limit: null,
           });
           if (!isActive) return;
+          pendingMasterSearchScrollYRef.current = scrollOffsetYRef.current;
           setMasterSearchResults(results);
           setMasterResultPage(0);
           setMasterSearchMessage(
@@ -596,7 +592,7 @@ export default function InventoryFormScreen() {
       const latestItems = await getInventoryItems();
       if (!canCreateInventoryItem(entitlement, latestItems.length)) {
         Alert.alert(
-          '無料プランでは在庫は10件までです',
+          `無料プランでは在庫は${freePlanInventoryLimit}件までです`,
           'Plusにすると、在庫を無制限に登録でき、広告も非表示になります。',
           [
             { text: 'あとで', style: 'cancel' },
@@ -666,8 +662,7 @@ export default function InventoryFormScreen() {
       await updateSettings({ selectedCatId: primaryCatId });
       const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
       await scheduleInventoryNotifications(items, settings);
-      allowNextRemoveRef.current = true;
-      router.back();
+      allowRemoval(() => router.back());
     } catch (error) {
       Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
     } finally {
@@ -684,8 +679,7 @@ export default function InventoryFormScreen() {
           <AppButton
             title="猫プロフィールを登録する"
             onPress={() => {
-              allowNextRemoveRef.current = true;
-              router.replace('/cat-profile');
+              allowRemoval(() => router.replace('/cat-profile'));
             }}
           />
         </AppCard>
@@ -694,7 +688,15 @@ export default function InventoryFormScreen() {
   }
 
   return (
-    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+    <ScrollView
+      ref={scrollViewRef}
+      contentContainerStyle={styles.container}
+      onScroll={(event) => {
+        scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
+      }}
+      onContentSizeChange={restoreMasterSearchScrollPosition}
+      scrollEventThrottle={16}
+    >
       {cats.length > 1 ? (
         <>
           <FieldLabel label="対象の猫（複数選択可）" requirement="required" />

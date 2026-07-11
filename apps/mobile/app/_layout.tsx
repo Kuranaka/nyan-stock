@@ -16,6 +16,8 @@ import {
   subscribeToHouseholdRealtime,
 } from '@/features/sync/householdRealtime';
 
+const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID?.trim();
+
 export default function RootLayout() {
   const router = useRouter();
 
@@ -67,6 +69,7 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    if (!__DEV__ && !productionBannerUnitId) return;
     const googleMobileAds = getGoogleMobileAdsPackage();
     if (!googleMobileAds) return;
 
@@ -94,6 +97,7 @@ export default function RootLayout() {
             gestureEnabled: true,
             fullScreenGestureEnabled: true,
             headerBackTitle: '戻る',
+            headerBackButtonMenuEnabled: false,
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false, gestureEnabled: false }} />
@@ -104,6 +108,7 @@ export default function RootLayout() {
           <Stack.Screen name="cost-dashboard" options={{ title: '費用ダッシュボード' }} />
           <Stack.Screen name="purchase-history" options={{ title: '購入履歴' }} />
           <Stack.Screen name="settings" options={{ title: '設定' }} />
+          <Stack.Screen name="help" options={{ title: 'ヘルプ' }} />
           <Stack.Screen name="subscription" options={{ title: 'にゃんストック Plus' }} />
           <Stack.Screen name="privacy" options={{ title: 'プライバシーポリシー' }} />
           <Stack.Screen name="terms" options={{ title: '利用規約' }} />

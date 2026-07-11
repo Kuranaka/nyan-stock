@@ -21,8 +21,10 @@ const sections = [
     title: '3. アカウント・共有同期',
     body: [
       '利用者は、GoogleまたはAppleによるログイン、匿名ゲスト参加、共有コードを利用して、家族や他アカウントと在庫データを共有できる場合があります。',
+      'Googleログインでは、ログインの本人確認およびアカウント識別に必要な基本プロフィール情報のみを利用します。Googleアカウントのメール本文、Google Drive、カレンダー、連絡先その他のGoogleサービス上のデータにはアクセスしません。',
       '共有コードを第三者に渡した場合、その第三者が猫プロフィール、在庫、購入履歴等を閲覧・更新できることがあります。利用者は、共有コードを自己の責任で管理するものとします。',
       'ログアウト、共有解除、端末内データの初期化を行っても、クラウド側の共有データが直ちに削除されるとは限りません。',
+      'アカウントを削除する場合は、設定画面の「アカウントを削除」から削除を開始できます。共有スペースに他の参加者がいる場合、その共有データは他の参加者のために残ります。',
     ],
   },
   {
@@ -93,7 +95,7 @@ export default function TermsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <AppCard>
-        <Text style={styles.meta}>施行日: 2026年7月3日</Text>
+        <Text style={styles.meta}>施行日: 2026年7月11日</Text>
         <Text style={styles.title}>利用規約</Text>
         {sections.map((section) => (
           <View key={section.title} style={styles.section}>

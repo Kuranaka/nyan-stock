@@ -40,9 +40,9 @@ npm install
 npm run dev
 ```
 
-## Vercel公開設定
+## Cloudflare Pages 公開設定
 
-VercelでLPを公開する場合は、GitHubリポジトリをImportし、Root Directoryに以下を指定してください。
+Cloudflare PagesでLPを公開する場合は、GitHubリポジトリを接続し、Root Directoryに以下を指定してください。
 
 ```text
 apps/web
@@ -51,16 +51,16 @@ apps/web
 Build Command:
 
 ```bash
-npm run build
+npm ci && npm run build
 ```
 
 Output Directory:
 
 ```text
-.next
+out
 ```
 
-通常はNext.jsプリセットのデフォルトでOKです。
+詳細は [apps/web/CLOUDFLARE_PAGES.md](apps/web/CLOUDFLARE_PAGES.md) を参照してください。
 
 ## 注意点
 

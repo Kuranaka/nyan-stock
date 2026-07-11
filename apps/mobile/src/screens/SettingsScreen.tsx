@@ -23,7 +23,7 @@ import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
 import { clearAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
-import { getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
+import { deleteSupabaseAccount, getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import {
   cancelAllInventoryNotifications,
@@ -40,10 +40,14 @@ import {
 } from '@/features/subscription/subscriptionService';
 import {
   createHouseholdSyncSpace,
+  HouseholdMember,
   isHouseholdSyncConfigured,
   joinHouseholdSyncSpace,
+  listHouseholdMembers,
   pullCurrentHouseholdSnapshot,
   pushCurrentHouseholdSnapshot,
+  regenerateHouseholdInviteCode,
+  removeHouseholdMember,
 } from '@/features/sync/householdSyncService';
 import {
   clearHouseholdSyncState,
@@ -60,6 +64,7 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | undefined>();
   const [authSession, setAuthSession] = useState<AuthSession | undefined>();
   const [syncState, setSyncState] = useState<HouseholdSyncState | undefined>();
+  const [sharedMembers, setSharedMembers] = useState<HouseholdMember[]>([]);
   const [joinCode, setJoinCode] = useState('');
   const [joinName, setJoinName] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
@@ -68,6 +73,7 @@ export default function SettingsScreen() {
   const [minute, setMinute] = useState('0');
   const [supportMessage, setSupportMessage] = useState('');
   const [supportSubmitting, setSupportSubmitting] = useState(false);
+  const [accountDeleting, setAccountDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const [next, nextAuthSession, nextSyncState, items] = await Promise.all([
@@ -76,10 +82,14 @@ export default function SettingsScreen() {
       getHouseholdSyncState(),
       getInventoryItems(),
     ]);
+    const nextSharedMembers = nextSyncState?.createdBy
+      ? await listHouseholdMembers().catch(() => [])
+      : [];
     await scheduleInventoryNotifications(items, next);
     setSettings(next);
     setAuthSession(nextAuthSession);
     setSyncState(nextSyncState);
+    setSharedMembers(nextSharedMembers);
     setHour(String(next.notificationHour));
     setMinute(String(next.notificationMinute));
   }, []);
@@ -219,6 +229,39 @@ export default function SettingsScreen() {
     );
   };
 
+  const deleteAccount = () => {
+    Alert.alert(
+      'アカウントを削除しますか？',
+      'Google・Apple・ゲストのログイン情報、個人用のクラウドデータ、アップロードしたアイコンを削除します。共有スペースに他の参加者がいる場合、その共有データは他の参加者のために残ります。この操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'アカウントを削除',
+          style: 'destructive',
+          onPress: async () => {
+            setAccountDeleting(true);
+            try {
+              await deleteSupabaseAccount();
+              await clearLocalDeviceData();
+              setAuthSession(undefined);
+              setSyncState(undefined);
+              DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
+              Alert.alert('アカウントを削除しました', 'この端末内のデータも削除しました。');
+              router.replace('/');
+            } catch (error) {
+              Alert.alert(
+                'アカウントを削除できませんでした',
+                error instanceof Error ? error.message : 'しばらくしてからお試しください。',
+              );
+            } finally {
+              setAccountDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const runSyncAction = async (
     successTitle: string,
     action: () => Promise<HouseholdSyncState>,
@@ -256,7 +299,7 @@ export default function SettingsScreen() {
     }
 
     void runSyncAction(
-      '共有コードを作成しました',
+      '共有スペースを作成しました',
       createHouseholdSyncSpace,
       (state) =>
         `このコードを共有したい相手に渡してください。\n${state.inviteCode ?? state.householdId}`,
@@ -329,6 +372,57 @@ export default function SettingsScreen() {
     }
   };
 
+  const regenerateHouseholdCode = () => {
+    Alert.alert(
+      '共有コードを再発行しますか？',
+      '古いコードはすぐに使えなくなります。すでに参加している人の共有は続きます。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '再発行する',
+          style: 'destructive',
+          onPress: () => {
+            void runSyncAction(
+              '共有コードを再発行しました',
+              regenerateHouseholdInviteCode,
+              (state) => `新しい共有コード:\n${state.inviteCode ?? state.householdId}`,
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  const removeSharedMember = (member: HouseholdMember) => {
+    const memberLabel = member.displayName || 'この参加者';
+    Alert.alert(
+      `${memberLabel}を共有から外しますか？`,
+      'この参加者は共有データを読み書きできなくなります。参加者の端末内にあるデータは削除されません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '共有から外す',
+          style: 'destructive',
+          onPress: async () => {
+            setSyncBusy(true);
+            try {
+              await removeHouseholdMember(member.userId);
+              setSharedMembers((members) => members.filter((nextMember) => nextMember.userId !== member.userId));
+              Alert.alert('共有から外しました', `${memberLabel}は共有データにアクセスできなくなりました。`);
+            } catch (error) {
+              Alert.alert(
+                '共有から外せませんでした',
+                error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+              );
+            } finally {
+              setSyncBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const leaveSharedSpace = () => {
     Alert.alert(
       '共有を解除しますか？',
@@ -378,6 +472,7 @@ export default function SettingsScreen() {
       : `${authProviderLabels[authSession.provider]}でログイン中`
     : '未ログイン';
   const syncLabel = syncState ? '共有中' : isHouseholdSyncConfigured() ? '未参加' : '未設定';
+  const canLeaveSharedSpace = Boolean(syncState && !syncState.createdBy);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -410,7 +505,7 @@ export default function SettingsScreen() {
 
       <SettingSection
         title="アカウント"
-        description="ログインすると、共有コードの作成ができます。"
+        description="ログインをすると共有コードの作成ができます。"
       >
         <View style={styles.accountPanel}>
           <AccountProviderIcon session={authSession} />
@@ -520,18 +615,60 @@ export default function SettingsScreen() {
                 disabled={syncBusy}
                 onPress={shareHouseholdCode}
               />
-              <AppButton
-                title="この端末だけ共有を解除"
-                variant="danger"
-                disabled={syncBusy}
-                onPress={leaveSharedSpace}
-              />
+              {syncState.createdBy ? (
+                <AppButton
+                  title="共有コードを再発行"
+                  variant="secondary"
+                  disabled={syncBusy}
+                  onPress={regenerateHouseholdCode}
+                />
+              ) : null}
+              {canLeaveSharedSpace ? (
+                <AppButton
+                  title="この端末だけ共有を解除"
+                  variant="danger"
+                  disabled={syncBusy}
+                  onPress={leaveSharedSpace}
+                />
+              ) : null}
             </View>
+            {syncState.createdBy ? (
+              <View style={styles.memberList}>
+                <Text style={styles.memberListTitle}>参加者</Text>
+                {sharedMembers.filter((member) => member.role === 'member').length === 0 ? (
+                  <Text style={styles.note}>まだ参加者はいません。</Text>
+                ) : (
+                  sharedMembers
+                    .filter((member) => member.role === 'member')
+                    .map((member, index) => (
+                      <View key={member.userId} style={styles.memberRow}>
+                        <View style={styles.memberText}>
+                          <Text style={styles.rowTitle}>{member.displayName || `参加者 ${index + 1}`}</Text>
+                          <Text style={styles.rowDescription}>共有中</Text>
+                        </View>
+                        <Pressable
+                          accessibilityLabel={`${member.displayName || `参加者 ${index + 1}`}を共有から外す`}
+                          accessibilityRole="button"
+                          disabled={syncBusy}
+                          onPress={() => removeSharedMember(member)}
+                          style={({ pressed }) => [
+                            styles.memberRemoveButton,
+                            syncBusy && styles.memberRemoveButtonDisabled,
+                            pressed && !syncBusy && styles.memberRemoveButtonPressed,
+                          ]}
+                        >
+                          <Text style={styles.memberRemoveButtonText}>外す</Text>
+                        </Pressable>
+                      </View>
+                    ))
+                )}
+              </View>
+            ) : null}
           </>
         ) : (
           <>
             <AppButton
-              title="共有コードを作成"
+              title="共有スペースを作成"
               disabled={syncBusy || !isHouseholdSyncConfigured()}
               onPress={createSharedSpace}
             />
@@ -568,9 +705,9 @@ export default function SettingsScreen() {
 
       <SettingSection title="管理メニュー">
         <SettingRow
-          title="猫プロフィール管理"
-          description="猫ごとの登録情報を編集"
-          onPress={() => router.push('/cat-profile')}
+          title="ヘルプ・使い方"
+          description="商品の登録、通知、共有のしくみを確認"
+          onPress={() => router.push('/help')}
         />
         <SettingRow
           title="アフィリエイトについて"
@@ -608,8 +745,22 @@ export default function SettingsScreen() {
         />
       </SettingSection>
 
-      <SettingSection title="データ管理" description="端末内のデータを扱う操作です。">
+      <SettingSection title="データ管理" description="端末内のデータとログインアカウントを扱う操作です。">
         <AppButton title="データ初期化" variant="danger" onPress={resetData} />
+        {authSession?.supabaseUserId ? (
+          <>
+            <Text style={styles.note}>
+              アカウント削除では、ログイン情報と個人用のクラウドデータを削除します。共有相手がいる共有データは残ります。
+            </Text>
+            <AppButton
+              title={accountDeleting ? 'アカウントを削除中...' : 'アカウントを削除'}
+              variant="danger"
+              loading={accountDeleting}
+              disabled={accountDeleting}
+              onPress={deleteAccount}
+            />
+          </>
+        ) : null}
       </SettingSection>
 
       {__DEV__ ? (
@@ -1029,6 +1180,56 @@ const styles = StyleSheet.create({
   },
   buttonStack: {
     gap: 10,
+  },
+  memberList: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: 10,
+    marginTop: 4,
+    paddingTop: 14,
+  },
+  memberListTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  memberRow: {
+    alignItems: 'center',
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  memberText: {
+    flex: 1,
+    gap: 2,
+  },
+  memberRemoveButton: {
+    alignItems: 'center',
+    borderColor: colors.danger,
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 38,
+    minWidth: 56,
+    paddingHorizontal: 10,
+  },
+  memberRemoveButtonDisabled: {
+    opacity: 0.45,
+  },
+  memberRemoveButtonPressed: {
+    backgroundColor: colors.dangerLight,
+    opacity: 0.82,
+  },
+  memberRemoveButtonText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '800',
   },
   timeSettingRow: {
     alignItems: 'flex-end',

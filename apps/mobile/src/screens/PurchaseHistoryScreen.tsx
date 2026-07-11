@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useFocusEffect } from 'expo-router';
 
@@ -76,6 +76,14 @@ export default function PurchaseHistoryScreen() {
     .filter((entry) => entry.price)
     .reduce((sum, entry) => sum + (entry.price ?? 0), 0);
   const activeMonthLabel = monthOptions.find((month) => month.value === activeMonth)?.label ?? '購入履歴';
+  const monthlyTrend = useMemo(() => buildMonthlyTrend(history), [history]);
+  const currentMonthActual = monthlyTrend.at(-1)?.total ?? 0;
+  const previousMonthActual = monthlyTrend.at(-2)?.total ?? 0;
+  const monthOverMonthDifference = currentMonthActual - previousMonthActual;
+  const monthOverMonthRate = previousMonthActual > 0
+    ? (monthOverMonthDifference / previousMonthActual) * 100
+    : undefined;
+  const sixMonthAverage = monthlyTrend.reduce((sum, month) => sum + month.total, 0) / monthlyTrend.length;
 
   function startEditingPrice(entry: PurchaseHistory) {
     setEditingHistoryId(entry.id);
@@ -157,6 +165,27 @@ export default function PurchaseHistoryScreen() {
         <Text style={styles.note}>価格未入力の履歴は合計から除外しています。</Text>
       </AppCard>
 
+      {history.length > 0 ? (
+        <AppCard style={styles.trendCard}>
+          <Text style={styles.sectionTitle}>月別の費用推移</Text>
+          <View style={styles.comparisonGrid}>
+            <ComparisonMetric
+              label="前月との差額"
+              value={formatSignedCurrency(monthOverMonthDifference)}
+              warning={monthOverMonthDifference > 0}
+            />
+            <ComparisonMetric
+              label="前月比"
+              value={formatMonthOverMonthRate(monthOverMonthRate, currentMonthActual)}
+              warning={monthOverMonthDifference > 0}
+            />
+            <ComparisonMetric label="6か月平均" value={`${Math.round(sixMonthAverage).toLocaleString()}円`} />
+          </View>
+          <MonthlyTrendChart rows={monthlyTrend} />
+          <Text style={styles.note}>価格未入力の履歴は集計から除外しています。「未」は各月の未入力件数です。</Text>
+        </AppCard>
+      ) : null}
+
       {history.length === 0 ? (
         <EmptyState
           title="購入履歴はまだありません"
@@ -236,6 +265,78 @@ export default function PurchaseHistoryScreen() {
   );
 }
 
+type MonthlyTrendRow = {
+  key: string;
+  label: string;
+  total: number;
+  missingPriceCount: number;
+};
+
+function ComparisonMetric({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
+  return (
+    <View style={styles.comparisonMetric}>
+      <Text style={[styles.comparisonValue, warning && styles.warningValue]}>{value}</Text>
+      <Text style={styles.comparisonLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function MonthlyTrendChart({ rows }: { rows: MonthlyTrendRow[] }) {
+  const maxTotal = Math.max(...rows.map((row) => row.total), 1);
+
+  return (
+    <View style={styles.trendChart}>
+      {rows.map((row, index) => {
+        const isCurrentMonth = index === rows.length - 1;
+        const barHeight = row.total > 0 ? Math.max((row.total / maxTotal) * 112, 4) : 0;
+        return (
+          <View key={row.key} style={styles.trendColumn}>
+            <Text style={styles.trendValue} numberOfLines={1} adjustsFontSizeToFit>
+              {formatCompactCurrency(row.total)}
+            </Text>
+            <View style={styles.trendBarTrack}>
+              <View style={[styles.trendBar, { height: barHeight }, isCurrentMonth && styles.currentTrendBar]} />
+            </View>
+            <Text style={[styles.trendLabel, isCurrentMonth && styles.currentTrendLabel]}>{row.label}</Text>
+            {row.missingPriceCount > 0 ? <Text style={styles.missingMark}>未{row.missingPriceCount}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function buildMonthlyTrend(history: PurchaseHistory[]): MonthlyTrendRow[] {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, index) => {
+    const month = subMonths(now, 5 - index);
+    const key = format(month, 'yyyy-MM');
+    const entries = history.filter((entry) => monthKeyOf(entry.purchasedAt) === key);
+    return {
+      key,
+      label: format(month, 'M月'),
+      total: entries.reduce((sum, entry) => sum + (entry.price ?? 0), 0),
+      missingPriceCount: entries.filter((entry) => entry.price === undefined).length,
+    };
+  });
+}
+
+function formatSignedCurrency(value: number): string {
+  if (value === 0) return '±0円';
+  return `${value > 0 ? '+' : '-'}${Math.abs(value).toLocaleString()}円`;
+}
+
+function formatMonthOverMonthRate(rate: number | undefined, currentTotal: number): string {
+  if (rate === undefined) return currentTotal > 0 ? '比較なし' : '±0%';
+  if (Math.abs(rate) < 0.05) return '±0%';
+  return `${rate > 0 ? '+' : ''}${rate.toFixed(1)}%`;
+}
+
+function formatCompactCurrency(value: number): string {
+  if (value >= 10000) return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万`;
+  return value.toLocaleString();
+}
+
 function buildMonthOptions(history: PurchaseHistory[]) {
   const monthKeys = Array.from(new Set(history.map((entry) => monthKeyOf(entry.purchasedAt))));
   return monthKeys
@@ -264,6 +365,39 @@ const styles = StyleSheet.create({
   summaryCard: {
     gap: 12,
   },
+  trendCard: {
+    gap: 12,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  comparisonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  comparisonMetric: {
+    backgroundColor: colors.muted,
+    borderRadius: 8,
+    flexGrow: 1,
+    minWidth: 96,
+    padding: 12,
+  },
+  comparisonValue: {
+    color: colors.text,
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  warningValue: {
+    color: colors.warning,
+  },
+  comparisonLabel: {
+    color: colors.subText,
+    fontSize: 12,
+    marginTop: 4,
+  },
   monthTabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -276,6 +410,55 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 12,
     marginTop: 6,
+  },
+  trendChart: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 6,
+    height: 172,
+    justifyContent: 'space-between',
+    paddingTop: 8,
+  },
+  trendColumn: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  trendValue: {
+    color: colors.subText,
+    fontSize: 10,
+    marginBottom: 4,
+    maxWidth: '100%',
+  },
+  trendBarTrack: {
+    alignItems: 'stretch',
+    backgroundColor: colors.muted,
+    borderRadius: 6,
+    height: 112,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    width: '72%',
+  },
+  trendBar: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: 6,
+    width: '100%',
+  },
+  currentTrendBar: {
+    backgroundColor: colors.primary,
+  },
+  trendLabel: {
+    color: colors.subText,
+    fontSize: 11,
+    marginTop: 5,
+  },
+  currentTrendLabel: {
+    color: colors.primaryDark,
+    fontWeight: '800',
+  },
+  missingMark: {
+    color: colors.warning,
+    fontSize: 9,
+    marginTop: 1,
   },
   list: {
     gap: 12,

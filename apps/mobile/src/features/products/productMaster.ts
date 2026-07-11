@@ -178,13 +178,14 @@ function searchProductMasters(
   options: ProductSearchOptions = {},
 ): ProductMaster[] {
   const normalizedKeyword = normalizeProductName(keyword);
+  const searchTerms = splitSearchTerms(keyword);
   const normalizedJanCode = keyword.replace(/\D/g, '');
   const limit = options.limit === undefined ? 20 : options.limit;
 
   const results = products
     .filter((product) => !options.category || product.category === options.category)
     .filter((product) => !options.brand || product.brand === options.brand)
-    .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, normalizedJanCode) }))
+    .map((product) => ({ product, score: scoreProduct(product, normalizedKeyword, searchTerms, normalizedJanCode) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || compareProductsByCategoryAndMaker(a.product, b.product))
     .map(({ product }) => product);
@@ -219,9 +220,23 @@ export function getProductMasterImageUrl(product: ProductMaster): string | undef
   return candidates.find((url) => url && /^https?:\/\//i.test(url));
 }
 
-function scoreProduct(product: ProductMaster, normalizedKeyword: string, normalizedJanCode: string): number {
+function splitSearchTerms(keyword: string): string[] {
+  return keyword
+    .normalize('NFKC')
+    .trim()
+    .split(/\s+/)
+    .map(normalizeProductName)
+    .filter(Boolean);
+}
+
+function scoreProduct(
+  product: ProductMaster,
+  normalizedKeyword: string,
+  searchTerms: string[],
+  normalizedJanCode: string,
+): number {
   if (!normalizedKeyword) return Math.max(product.confidence, 1);
-  if (normalizedJanCode && (product.janCode === normalizedJanCode || product.gtin === normalizedJanCode)) {
+  if (searchTerms.length === 1 && normalizedJanCode && (product.janCode === normalizedJanCode || product.gtin === normalizedJanCode)) {
     return 1000 + product.confidence;
   }
 
@@ -233,12 +248,18 @@ function scoreProduct(product: ProductMaster, normalizedKeyword: string, normali
     ...product.searchKeywords.map(normalizeProductName),
   ].filter(Boolean);
 
-  return normalizedFields.reduce((score, field) => {
-    if (field === normalizedKeyword) return score + 20;
-    if (field.includes(normalizedKeyword)) return score + 8;
-    if (normalizedKeyword.includes(field)) return score + 3;
-    return score;
-  }, 0);
+  let score = 0;
+  for (const term of searchTerms) {
+    const termScore = normalizedFields.reduce((currentScore, field) => {
+      if (field === term) return currentScore + 20;
+      if (field.includes(term)) return currentScore + 8;
+      if (term.includes(field)) return currentScore + 3;
+      return currentScore;
+    }, 0);
+    if (termScore === 0) return 0;
+    score += termScore;
+  }
+  return score;
 }
 
 function compareProductsByCategoryAndMaker(a: ProductMaster, b: ProductMaster): number {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, DeviceEventEmitter, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -7,8 +7,6 @@ import { AppButton } from '@/components/AppButton';
 import { colors } from '@/constants/colors';
 import { AuthSession } from '@/features/auth/authTypes';
 import { signInWithSupabaseAppleNative, signInWithSupabaseOAuth } from '@/features/auth/supabaseAuth';
-import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
-import { activateSignedInAccountHouseholdSync } from '@/features/sync/householdSyncService';
 import googleLogo from '@/assets/google-g-logo.png';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -29,7 +27,6 @@ export function SignInButtons({ onSignedIn }: Props) {
     setBusyProvider('google');
     try {
       const session = await signInWithSupabaseOAuth('google');
-      await activateAccountSyncAfterLogin();
       onSignedIn?.(session);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
@@ -43,7 +40,6 @@ export function SignInButtons({ onSignedIn }: Props) {
     setBusyProvider('apple');
     try {
       const session = await signInWithSupabaseAppleNative();
-      await activateAccountSyncAfterLogin();
       onSignedIn?.(session);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
@@ -137,19 +133,3 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
 });
-
-async function activateAccountSyncAfterLogin(): Promise<void> {
-  const result = await activateSignedInAccountHouseholdSync({
-    onRemoteDataWillOverwriteLocal: () =>
-      new Promise((resolve) => {
-        Alert.alert(
-          'ログイン先のデータを取り込みます',
-          'このアカウントにはすでにSupabase側のデータがあります。この端末の猫プロフィール、在庫、購入履歴はログイン先アカウントのデータで上書きされます。',
-          [{ text: 'OK', onPress: () => resolve() }],
-        );
-      }),
-  });
-  if (result.state) {
-    DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
-  }
-}

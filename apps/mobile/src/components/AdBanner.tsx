@@ -21,10 +21,11 @@ export function AdBanner() {
   const [adFailed, setAdFailed] = useState(false);
   const [entitlement, setEntitlement] = useState<SubscriptionEntitlement | undefined>();
   const googleMobileAds = getGoogleMobileAdsPackage();
-  const bannerUnitId =
-    googleMobileAds && (__DEV__ || !productionBannerUnitId)
+  const bannerUnitId = googleMobileAds
+    ? __DEV__
       ? googleMobileAds.TestIds.ADAPTIVE_BANNER
-      : productionBannerUnitId;
+      : productionBannerUnitId
+    : undefined;
   const shouldShowShortcuts = !shortcutHiddenPathnames.has(pathname);
 
   useEffect(() => {
@@ -42,8 +43,8 @@ export function AdBanner() {
 
   return (
     <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      <View style={styles.banner}>
-        {googleMobileAds && bannerUnitId && !adFailed ? (
+      {bannerUnitId ? <View style={styles.banner}>
+        {googleMobileAds && !adFailed ? (
           <googleMobileAds.BannerAd
             unitId={bannerUnitId}
             size={googleMobileAds.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
@@ -51,10 +52,10 @@ export function AdBanner() {
           />
         ) : (
           <Text style={styles.placeholderText}>
-            {adFailed ? '広告を読み込めませんでした' : '開発ビルドで広告を表示します'}
+            {adFailed ? '広告を読み込めませんでした' : '広告を読み込んでいます'}
           </Text>
         )}
-      </View>
+      </View> : null}
       {shouldShowShortcuts ? (
         <View style={styles.shortcutRow}>
           <ShortcutButton
