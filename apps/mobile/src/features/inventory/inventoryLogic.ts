@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 
 import { InventoryItem, InventoryStatus } from './inventoryTypes';
 
@@ -16,11 +16,11 @@ function baseDateOf(item: InventoryItem) {
 
 export function calculateEstimatedEndDate(item: InventoryItem): string | undefined {
   if (item.estimationMode === 'lasting_days' && item.lastingDays && item.lastingDays > 0) {
-    return addDays(parseISO(item.purchaseDate), item.lastingDays).toISOString().slice(0, 10);
+    return format(addDays(parseISO(item.purchaseDate), item.lastingDays), 'yyyy-MM-dd');
   }
   if (!item.dailyUsage || item.dailyUsage <= 0 || item.amount <= 0) return undefined;
   const totalDays = Math.ceil(item.amount / item.dailyUsage);
-  return addDays(parseISO(baseDateOf(item)), totalDays).toISOString().slice(0, 10);
+  return format(addDays(parseISO(baseDateOf(item)), totalDays), 'yyyy-MM-dd');
 }
 
 export function calculateRemainingDays(

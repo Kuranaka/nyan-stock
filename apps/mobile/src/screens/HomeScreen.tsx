@@ -29,8 +29,11 @@ import {
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { InventoryItem } from '@/features/inventory/inventoryTypes';
-import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
-import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
+import {
+  requestNotificationPermission,
+  scheduleInventoryNotifications,
+} from '@/features/notifications/notificationService';
+import { getSettings, hasSavedSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import {
   canCreateInventoryItem,
@@ -54,14 +57,29 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter | undefined>();
 
+  const confirmInitialNotificationSetting = async (
+    currentSettings: AppSettings,
+    settingsAlreadySaved: boolean,
+  ): Promise<AppSettings> => {
+    if (currentSettings.notificationPermissionPrompted || settingsAlreadySaved) return currentSettings;
+
+    const notificationsEnabled = await requestNotificationPermission();
+    return updateSettings({
+      notificationPermissionPrompted: true,
+      notificationsEnabled,
+    });
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextCat, nextItems, nextSettings] = await Promise.all([
+      const [nextCat, nextItems, storedSettings, settingsAlreadySaved] = await Promise.all([
         getCats(),
         getInventoryItems(),
         getSettings(),
+        hasSavedSettings(),
       ]);
+      const nextSettings = await confirmInitialNotificationSetting(storedSettings, settingsAlreadySaved);
       const selectedId = nextCat.some((cat) => cat.id === nextSettings.selectedCatId)
         ? nextSettings.selectedCatId
         : nextCat[0]?.id;

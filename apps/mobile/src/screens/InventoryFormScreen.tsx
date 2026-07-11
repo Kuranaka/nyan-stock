@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
-import { addDays, parseISO } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
@@ -612,7 +612,7 @@ export default function InventoryFormScreen() {
     const dailyUsageNumber = estimationMode === 'usage' ? parseOptionalNumber(dailyUsage) : undefined;
     const lastingDaysNumber = parseOptionalNumber(lastingDays);
     const estimatedEndDate = estimationMode === 'lasting_days' && lastingDaysNumber
-      ? addDays(parseISO(purchaseDate), lastingDaysNumber).toISOString().slice(0, 10)
+      ? format(addDays(parseISO(purchaseDate), lastingDaysNumber), 'yyyy-MM-dd')
       : undefined;
     const purchaseLinks = {
       amazon: amazon.trim() || undefined,

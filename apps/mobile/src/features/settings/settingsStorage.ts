@@ -9,6 +9,10 @@ export async function getSettings(): Promise<AppSettings> {
   return raw ? { ...defaultSettings, ...(JSON.parse(raw) as Partial<AppSettings>) } : defaultSettings;
 }
 
+export async function hasSavedSettings(): Promise<boolean> {
+  return (await AsyncStorage.getItem(storageKeys.settings)) !== null;
+}
+
 export async function saveSettings(settings: AppSettings): Promise<void> {
   await AsyncStorage.setItem(storageKeys.settings, JSON.stringify(settings));
 }

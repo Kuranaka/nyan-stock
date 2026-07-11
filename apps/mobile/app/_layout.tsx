@@ -91,6 +91,8 @@ export default function RootLayout() {
             headerTintColor: colors.text,
             headerTitleStyle: { fontWeight: '700' },
             contentStyle: { backgroundColor: colors.background },
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
             headerLeft: ({ canGoBack }) =>
               canGoBack ? (
                 <Pressable
@@ -105,7 +107,7 @@ export default function RootLayout() {
               ) : null,
           }}
         >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="cat-profile" options={{ title: '猫プロフィール' }} />
           <Stack.Screen name="inventory-form" options={{ title: '商品登録' }} />
           <Stack.Screen name="barcode-scan" options={{ title: 'バーコード読み取り' }} />

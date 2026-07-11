@@ -6,7 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { AppButton } from '@/components/AppButton';
 import { colors } from '@/constants/colors';
 import { AuthSession } from '@/features/auth/authTypes';
-import { signInWithSupabaseOAuth } from '@/features/auth/supabaseAuth';
+import { signInWithSupabaseAppleNative, signInWithSupabaseOAuth } from '@/features/auth/supabaseAuth';
 import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
 import { activateSignedInAccountHouseholdSync } from '@/features/sync/householdSyncService';
 import googleLogo from '@/assets/google-g-logo.png';
@@ -42,7 +42,7 @@ export function SignInButtons({ onSignedIn }: Props) {
   const signInWithApple = useCallback(async () => {
     setBusyProvider('apple');
     try {
-      const session = await signInWithSupabaseOAuth('apple');
+      const session = await signInWithSupabaseAppleNative();
       await activateAccountSyncAfterLogin();
       onSignedIn?.(session);
     } catch (error: unknown) {

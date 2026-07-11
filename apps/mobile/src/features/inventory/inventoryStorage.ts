@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 
 import { storageKeys } from '@/features/storageKeys';
 import {
@@ -212,12 +212,12 @@ function calculateReplenishedEstimatedEndDate(
       lastingDaysReplenishMode === 'add_remaining'
         ? remainingDays + item.lastingDays
         : item.lastingDays;
-    return addDays(replenishedAt, nextDays).toISOString().slice(0, 10);
+    return format(addDays(replenishedAt, nextDays), 'yyyy-MM-dd');
   }
 
   if ((!item.estimationMode || item.estimationMode === 'usage') && item.dailyUsage && item.dailyUsage > 0) {
     const addedDays = Math.ceil(history.amount / item.dailyUsage);
-    return addDays(replenishedAt, remainingDays + addedDays).toISOString().slice(0, 10);
+    return format(addDays(replenishedAt, remainingDays + addedDays), 'yyyy-MM-dd');
   }
 
   if (item.estimationMode === 'purchase_frequency') {
@@ -251,5 +251,5 @@ function calculatePurchaseFrequencyEstimatedEndDate(
     Math.round(intervals.reduce((total, days) => total + days, 0) / intervals.length),
   );
   const latestPurchaseDate = purchaseDates[purchaseDates.length - 1];
-  return addDays(latestPurchaseDate, averageIntervalDays).toISOString().slice(0, 10);
+  return format(addDays(latestPurchaseDate, averageIntervalDays), 'yyyy-MM-dd');
 }

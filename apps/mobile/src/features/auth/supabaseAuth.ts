@@ -1,5 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 
 import { clearAuthSession, getAuthSession, saveAuthSession } from './authStorage';
@@ -94,6 +96,44 @@ export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<
   }
 
   return completeSupabaseOAuthCallback(result.url, provider);
+}
+
+export async function signInWithSupabaseAppleNative(): Promise<AuthSession> {
+  const client = requireSupabaseClient();
+  const nonce = createNonce();
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, nonce);
+  const credential = await AppleAuthentication.signInAsync({
+    nonce: hashedNonce,
+    requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL],
+  });
+
+  if (!credential.identityToken) {
+    throw new Error('Appleログインの認証情報を取得できませんでした。');
+  }
+
+  const appleTokenClaims = decodeJwtPayload(credential.identityToken);
+  console.log('[auth] Apple id token aud:', appleTokenClaims?.aud);
+  console.log('[auth] Apple id token iss:', appleTokenClaims?.iss);
+
+  const { data, error } = await client.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+    nonce,
+  });
+
+  if (error || !data.session) {
+    const message = getAuthErrorMessage(error);
+    console.warn('[auth] Apple id token sign-in failed', {
+      aud: appleTokenClaims?.aud,
+      iss: appleTokenClaims?.iss,
+      message,
+    });
+    throw new Error(`Supabaseログインセッションを作成できませんでした。\n\n詳細: ${message}`);
+  }
+
+  const session = createAuthSessionFromSupabaseSession(data.session, 'apple');
+  await saveAuthSession(session);
+  return session;
 }
 
 export async function completeSupabaseOAuthCallback(
@@ -235,4 +275,41 @@ function getOAuthRedirectUrl(): string {
 
 function getAllowedOAuthRedirectUrls(): string[] {
   return Array.from(new Set([getOAuthRedirectUrl(), 'nyanstock://auth/callback'].filter(Boolean)));
+}
+
+function createNonce(length = 32): string {
+  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+  const bytes = Crypto.getRandomValues(new Uint8Array(length));
+
+  return Array.from(bytes, (byte) => charset[byte % charset.length]).join('');
+}
+
+function getAuthErrorMessage(error: unknown): string {
+  if (!error) return 'セッションが空でした。';
+
+  if (typeof error === 'object' && error !== null) {
+    const details = error as { message?: unknown; code?: unknown; status?: unknown; name?: unknown };
+    const parts = [
+      typeof details.message === 'string' ? details.message : undefined,
+      typeof details.code === 'string' ? `code=${details.code}` : undefined,
+      typeof details.status === 'number' || typeof details.status === 'string' ? `status=${details.status}` : undefined,
+      typeof details.name === 'string' ? `name=${details.name}` : undefined,
+    ].filter(Boolean);
+    if (parts.length) return parts.join(' / ');
+  }
+
+  return String(error);
+}
+
+function decodeJwtPayload(token: string): { aud?: unknown; iss?: unknown } | undefined {
+  const payload = token.split('.')[1];
+  if (!payload) return undefined;
+
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    return JSON.parse(globalThis.atob(padded)) as { aud?: unknown; iss?: unknown };
+  } catch {
+    return undefined;
+  }
 }

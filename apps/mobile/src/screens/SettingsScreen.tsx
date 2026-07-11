@@ -410,7 +410,7 @@ export default function SettingsScreen() {
 
       <SettingSection
         title="アカウント"
-        description="ログインすると、共有コードの作成や別端末での利用準備ができます。"
+        description="ログインすると、共有コードの作成ができます。"
       >
         <View style={styles.accountPanel}>
           <AccountProviderIcon session={authSession} />
@@ -427,7 +427,7 @@ export default function SettingsScreen() {
             このゲストは端末に紐づきます。アプリ削除や端末変更では復元できない場合があります。
           </Text>
         ) : null}
-        {authSession ? (
+        {isSignedInAccount(authSession) ? (
           <AppButton title="ログアウト" variant="secondary" onPress={signOut} />
         ) : (
           <SignInButtons onSignedIn={setAuthSession} />
@@ -484,7 +484,7 @@ export default function SettingsScreen() {
 
       <SettingSection
         title="家族・他アカウントと共有"
-        description="猫プロフィール、在庫、購入履歴を共有スペースで参照・更新します。"
+        description="猫プロフィール、在庫、購入履歴を共有できます。"
       >
         <View style={styles.syncStatusRow}>
           <Text style={styles.rowTitle}>共有ステータス</Text>

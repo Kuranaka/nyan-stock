@@ -394,7 +394,7 @@ export default function CatProfileScreen() {
             ))}
             <AppButton
               title="+"
-              variant="secondary"
+              variant={isCreatingNew ? 'primary' : 'secondary'}
               onPress={() => void startNew()}
               style={styles.addCatButton}
             />

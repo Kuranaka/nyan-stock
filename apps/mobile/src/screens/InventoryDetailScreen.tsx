@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { EventArg, NavigationAction } from '@react-navigation/native';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDays, parseISO } from 'date-fns';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { addDays, format, parseISO } from 'date-fns';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -71,8 +72,15 @@ const estimationModeOptions: { value: InventoryEstimationMode; label: string }[]
   { value: 'usage', label: '内容量と1日の使用量' },
   { value: 'purchase_frequency', label: '購入頻度から自動計算' },
 ];
+
+function areNumberArraysEqual(first: number[], second: number[]): boolean {
+  if (first.length !== second.length) return false;
+  return first.every((value, index) => value === second[index]);
+}
+
 export default function InventoryDetailScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id, action } = useLocalSearchParams<{ id: string; action?: string }>();
   const initialItem = id ? getCachedInventoryItem(id) : undefined;
   const scrollViewRef = useRef<ScrollView>(null);
@@ -80,6 +88,7 @@ export default function InventoryDetailScreen() {
   const purchaseCardYRef = useRef(0);
   const historyCardYRef = useRef(0);
   const bottomActionsYRef = useRef(0);
+  const allowNextRemoveRef = useRef(false);
   const hasScrolledToActionRef = useRef(false);
   const shouldScrollToReplenishRef = useRef(false);
   const shouldScrollToHistoryRef = useRef(false);
@@ -160,6 +169,74 @@ export default function InventoryDetailScreen() {
       nextRemainingAmount === undefined ? '' : formatQuantity(nextRemainingAmount),
     );
   };
+
+  const hasUnsavedChanges = item
+    ? (showStockEdit &&
+        (editName !== item.name ||
+          editEstimationMode !== (item.estimationMode ?? 'usage') ||
+          editPurchaseDate !== item.purchaseDate ||
+          editPrice !== (item.price?.toString() ?? '') ||
+          editAmount !== String(item.amount) ||
+          editUnit !== item.unit ||
+          editDailyUsage !== (item.dailyUsage?.toString() ?? '') ||
+          editLastingDays !== (item.lastingDays?.toString() ?? '') ||
+          !areNumberArraysEqual(editNotifyBeforeDays, item.notifyBeforeDays) ||
+          editMemo !== (item.memo ?? ''))) ||
+      (showQuickAdjust &&
+        (quickAdjustMode !== 'days' ||
+          quickRemainingDays !==
+            String(Math.max(0, calculateRemainingDays(item) ?? Number.NaN)).replace('NaN', '') ||
+          quickRemainingAmount !==
+            (calculateRemainingAmount(item) === undefined
+              ? ''
+              : formatQuantity(calculateRemainingAmount(item) ?? 0)))) ||
+      (showPurchaseLinkEdit &&
+        (editAmazonUrl !== (item.purchaseLinks.amazon ?? '') ||
+          editRakutenUrl !== (item.purchaseLinks.rakuten ?? '') ||
+          editYahooUrl !== (item.purchaseLinks.yahoo ?? '') ||
+          editOtherUrl !== (item.purchaseLinks.other ?? ''))) ||
+      (showReplenish &&
+        (replenishDate !== todayIso() ||
+          price !== (item.price?.toString() ?? '') ||
+          memo.trim().length > 0)) ||
+      (showHistoryAdd &&
+        (historyDate !== todayIso() ||
+          historyPrice !== (item.price?.toString() ?? '') ||
+          historyMemo.trim().length > 0)) ||
+      (showProductLinkReport && productLinkIssueMessage.trim().length > 0)
+    : false;
+
+  const confirmDiscardChanges = useCallback(
+    (onDiscard: () => void) => {
+      if (!hasUnsavedChanges) {
+        onDiscard();
+        return;
+      }
+      Alert.alert('編集内容を破棄しますか？', '保存していない編集内容は消えます。', [
+        { text: '戻る', style: 'cancel' },
+        {
+          text: '破棄する',
+          style: 'destructive',
+          onPress: onDiscard,
+        },
+      ]);
+    },
+    [hasUnsavedChanges],
+  );
+
+  useEffect(() => {
+    return navigation.addListener(
+      'beforeRemove',
+      (event: EventArg<'beforeRemove', true, { action: NavigationAction }>) => {
+        if (allowNextRemoveRef.current || !hasUnsavedChanges) return;
+        event.preventDefault();
+        confirmDiscardChanges(() => {
+          allowNextRemoveRef.current = true;
+          navigation.dispatch(event.data.action);
+        });
+      },
+    );
+  }, [confirmDiscardChanges, hasUnsavedChanges, navigation]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -386,19 +463,21 @@ export default function InventoryDetailScreen() {
               (item.amount - Math.min(adjustedRemainingAmount, item.amount)) / item.dailyUsage,
             ),
           )
-            .toISOString()
-            .slice(0, 10)
         : item.openedDate;
+    const formattedAdjustedOpenedDate =
+      adjustedOpenedDate instanceof Date ? format(adjustedOpenedDate, 'yyyy-MM-dd') : adjustedOpenedDate;
+    const adjustedEstimatedEndDate =
+      nextRemainingDays === undefined ? undefined : format(addDays(today, nextRemainingDays), 'yyyy-MM-dd');
     const nextItem: InventoryItem = {
       ...item,
       amount: item.amount,
-      openedDate: adjustedOpenedDate,
+      openedDate: formattedAdjustedOpenedDate,
       estimatedEndDate:
-        nextRemainingDays === undefined
+        adjustedEstimatedEndDate === undefined
           ? shouldAdjustUsageRemaining
             ? undefined
             : item.estimatedEndDate
-          : addDays(today, nextRemainingDays).toISOString().slice(0, 10),
+          : adjustedEstimatedEndDate,
       updatedAt: nowIso(),
     };
 
@@ -469,6 +548,7 @@ export default function InventoryDetailScreen() {
             await clearIconReference('inventory_item', item.id);
             const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
             await scheduleInventoryNotifications(items, settings);
+            allowNextRemoveRef.current = true;
             router.back();
           } catch (error) {
             Alert.alert(
