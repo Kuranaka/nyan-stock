@@ -62,7 +62,7 @@ export function AdBanner() {
             label="在庫一覧"
             selected={pathname === '/'}
             onPress={() => {
-              if (pathname !== '/') router.push('/');
+              if (pathname !== '/') router.dismissTo('/');
             }}
           />
           <ShortcutButton
@@ -70,7 +70,7 @@ export function AdBanner() {
             label="費用確認"
             selected={pathname === '/cost-dashboard'}
             onPress={() => {
-              if (pathname !== '/cost-dashboard') router.push('/cost-dashboard');
+              if (pathname !== '/cost-dashboard') router.dismissTo('/cost-dashboard');
             }}
           />
           <ShortcutButton
@@ -78,7 +78,7 @@ export function AdBanner() {
             label="設定"
             selected={pathname === '/settings'}
             onPress={() => {
-              if (pathname !== '/settings') router.push('/settings');
+              if (pathname !== '/settings') router.dismissTo('/settings');
             }}
           />
         </View>

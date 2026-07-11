@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DeviceEventEmitter, StyleSheet, View } from 'react-native';
 
 import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
@@ -93,18 +93,7 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: colors.background },
             gestureEnabled: true,
             fullScreenGestureEnabled: true,
-            headerLeft: ({ canGoBack }) =>
-              canGoBack ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="戻る"
-                  hitSlop={12}
-                  onPress={() => router.back()}
-                  style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-                >
-                  <Text style={styles.backButtonText}>‹ 戻る</Text>
-                </Pressable>
-              ) : null,
+            headerBackTitle: '戻る',
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false, gestureEnabled: false }} />
@@ -134,24 +123,5 @@ const styles = StyleSheet.create({
   },
   stack: {
     flex: 1,
-  },
-  backButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 2,
-    minHeight: 44,
-    minWidth: 72,
-    paddingHorizontal: 8,
-  },
-  backButtonPressed: {
-    opacity: 0.6,
-  },
-  backButtonText: {
-    color: colors.primaryDark,
-    fontSize: 17,
-    fontWeight: '700',
-    lineHeight: 22,
-    textAlign: 'center',
-    transform: [{ translateY: -3 }],
   },
 });
