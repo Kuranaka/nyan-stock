@@ -15,7 +15,7 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
 ## App Store Connect
 
 - Appカテゴリを決める。推奨: `Lifestyle`、副カテゴリ候補: `Productivity`
-- 年齢制限を確認する。医療・診断アプリではない前提で回答する。想定: 4+
+- 年齢制限を確認する。想定: 4+
 - サポートURLを用意する。草案は `docs/app-store-metadata.md` を参照。
 - マーケティングURLを用意する場合はLPを指定する。
 - プライバシーポリシーURLを正式な公開URLにする。
@@ -69,7 +69,6 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
 - 広告関連データ: 広告SDKを有効化する場合はAdMobのデータ利用に合わせて入力する
 - 通知設定: ローカル通知の設定
 - 位置情報: 取得しない
-- 健康とフィットネス: 獣医療上の診断情報を目的として取得しない
 - トラッキング: IDFAや他社アプリ/サイト横断のトラッキング広告を使わない構成に寄せる場合は原則なし。AdMob設定とApp Store Privacy回答を必ず一致させる
 
 ## Sign in with Apple / Supabase
@@ -101,7 +100,6 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
 - アプリ内の利用規約を最終レビューする。
 - アフィリエイト表示を最終レビューする。
 - LP側の `/privacy`, `/terms`, `/affiliate` も同じ方針で更新する。
-- 医療・診断・治療を示すコピーがないか確認する。
 
 ## Ads / Affiliate
 
@@ -140,7 +138,6 @@ npx expo export --platform ios
 にゃんストックは、猫用品の在庫、残り日数、購入履歴、商品リンクを記録するアプリです。
 ログインなしでも基本機能を確認できます。
 GoogleまたはAppleログインを行うと、共有コードを使った家族・他アカウントとの在庫共有を利用できます。
-本アプリは獣医療上の診断、治療、予防、助言を行うものではありません。
 Plusは広告非表示と、猫プロフィール・在庫登録数の上限解除を提供します。
 無料プランでは猫プロフィール2匹、在庫10件まで登録できます。
 家族共有、購入履歴、月別費用レポート、複数端末同期は無料プランでも利用できます。

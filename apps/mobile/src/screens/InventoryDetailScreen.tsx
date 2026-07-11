@@ -36,8 +36,18 @@ import {
   LastingDaysReplenishMode,
   PurchaseHistory,
 } from '@/features/inventory/inventoryTypes';
-import { getPurchaseUrl, hasSavedPurchaseUrl, openPurchaseUrl, ShopType } from '@/features/inventory/purchaseLink';
-import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
+import {
+  getPurchaseUrl,
+  hasSavedPurchaseUrl,
+  openPurchaseUrl,
+  ShopType,
+} from '@/features/inventory/purchaseLink';
+import {
+  clearIconReference,
+  hasIconUploadStorage,
+  pickAndUploadIcon,
+  saveIconReference,
+} from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { submitProductLinkReport } from '@/features/reports/productLinkReportService';
 import { recordReviewEligibleAction } from '@/features/review/reviewPrompt';
@@ -87,7 +97,9 @@ export default function InventoryDetailScreen() {
   const [deletingItem, setDeletingItem] = useState(false);
   const [showHistoryAdd, setShowHistoryAdd] = useState(false);
   const [replenishDate, setReplenishDate] = useState(todayIso());
-  const [price, setPrice] = useState(action === 'replenish' ? initialItem?.price?.toString() ?? '' : '');
+  const [price, setPrice] = useState(
+    action === 'replenish' ? (initialItem?.price?.toString() ?? '') : '',
+  );
   const [memo, setMemo] = useState('');
   const [historyDate, setHistoryDate] = useState(todayIso());
   const [historyPrice, setHistoryPrice] = useState('');
@@ -141,8 +153,12 @@ export default function InventoryDetailScreen() {
   const resetQuickAdjustFields = (nextItem: InventoryItem) => {
     const nextRemainingDays = calculateRemainingDays(nextItem);
     const nextRemainingAmount = calculateRemainingAmount(nextItem);
-    setQuickRemainingDays(nextRemainingDays === undefined ? '' : String(Math.max(0, nextRemainingDays)));
-    setQuickRemainingAmount(nextRemainingAmount === undefined ? '' : formatQuantity(nextRemainingAmount));
+    setQuickRemainingDays(
+      nextRemainingDays === undefined ? '' : String(Math.max(0, nextRemainingDays)),
+    );
+    setQuickRemainingAmount(
+      nextRemainingAmount === undefined ? '' : formatQuantity(nextRemainingAmount),
+    );
   };
 
   const load = useCallback(async () => {
@@ -188,7 +204,10 @@ export default function InventoryDetailScreen() {
     if (hasScrolledToActionRef.current) return;
     if (action !== 'purchase' && action !== 'replenish') return;
     if (action === 'replenish' && !showReplenish) return;
-    const targetY = action === 'purchase' ? purchaseCardYRef.current : bottomActionsYRef.current + replenishCardYRef.current;
+    const targetY =
+      action === 'purchase'
+        ? purchaseCardYRef.current
+        : bottomActionsYRef.current + replenishCardYRef.current;
     if (targetY <= 0) return;
     hasScrolledToActionRef.current = true;
     requestAnimationFrame(() => {
@@ -275,57 +294,111 @@ export default function InventoryDetailScreen() {
     const remainingAmountNumber = parseOptionalNumber(quickRemainingAmount);
     const canAdjustAmount = item.estimationMode !== 'purchase_frequency';
 
-    if (quickAdjustMode === 'days' && (!quickRemainingDays.trim() || remainingDaysNumber === undefined || remainingDaysNumber < 0)) {
+    if (
+      quickAdjustMode === 'days' &&
+      (!quickRemainingDays.trim() || remainingDaysNumber === undefined || remainingDaysNumber < 0)
+    ) {
       Alert.alert('入力を確認してください', '残り日数は0以上の数字で入力してください。');
       return;
     }
-    if (quickAdjustMode === 'amount' && (!canAdjustAmount || !quickRemainingAmount.trim() || remainingAmountNumber === undefined || remainingAmountNumber < 0)) {
+    if (
+      quickAdjustMode === 'amount' &&
+      (!canAdjustAmount ||
+        !quickRemainingAmount.trim() ||
+        remainingAmountNumber === undefined ||
+        remainingAmountNumber < 0)
+    ) {
       Alert.alert('入力を確認してください', '残量は0以上の数字で入力してください。');
       return;
     }
-    if (quickAdjustMode === 'amount' && item.estimationMode === 'lasting_days' && (!item.amount || item.amount <= 0 || !item.lastingDays || item.lastingDays <= 0)) {
-      Alert.alert('入力を確認してください', '残量から残り日数を計算するには、商品情報の内容量と使い切る日数を設定してください。');
+    if (
+      quickAdjustMode === 'amount' &&
+      item.estimationMode === 'lasting_days' &&
+      (!item.amount || item.amount <= 0 || !item.lastingDays || item.lastingDays <= 0)
+    ) {
+      Alert.alert(
+        '入力を確認してください',
+        '残量から残り日数を計算するには、商品情報の内容量と使い切る日数を設定してください。',
+      );
       return;
     }
-    if (quickAdjustMode === 'amount' && remainingAmountNumber !== undefined && item.amount > 0 && remainingAmountNumber > item.amount) {
+    if (
+      quickAdjustMode === 'amount' &&
+      remainingAmountNumber !== undefined &&
+      item.amount > 0 &&
+      remainingAmountNumber > item.amount
+    ) {
       Alert.alert('入力を確認してください', '残量は内容量以下で入力してください。');
       return;
     }
-    if (quickAdjustMode === 'days' && (!item.estimationMode || item.estimationMode === 'usage') && (!item.dailyUsage || item.dailyUsage <= 0)) {
-      Alert.alert('入力を確認してください', '残り日数から残量を計算するには、商品情報の消費ペースを設定してください。');
+    if (
+      quickAdjustMode === 'days' &&
+      (!item.estimationMode || item.estimationMode === 'usage') &&
+      (!item.dailyUsage || item.dailyUsage <= 0)
+    ) {
+      Alert.alert(
+        '入力を確認してください',
+        '残り日数から残量を計算するには、商品情報の消費ペースを設定してください。',
+      );
       return;
     }
 
     const today = parseISO(todayIso());
-    const lastingDaysForAdjustment = item.estimationMode === 'lasting_days' ? item.lastingDays : undefined;
+    const lastingDaysForAdjustment =
+      item.estimationMode === 'lasting_days' ? item.lastingDays : undefined;
     const amountBasedRemainingDays =
-      quickAdjustMode === 'amount' && item.estimationMode === 'lasting_days' && remainingAmountNumber !== undefined && lastingDaysForAdjustment
+      quickAdjustMode === 'amount' &&
+      item.estimationMode === 'lasting_days' &&
+      remainingAmountNumber !== undefined &&
+      lastingDaysForAdjustment
         ? Math.ceil((remainingAmountNumber / item.amount) * lastingDaysForAdjustment)
         : undefined;
     const usageAmountBasedRemainingDays =
-      quickAdjustMode === 'amount' && (!item.estimationMode || item.estimationMode === 'usage') && remainingAmountNumber !== undefined && item.dailyUsage
+      quickAdjustMode === 'amount' &&
+      (!item.estimationMode || item.estimationMode === 'usage') &&
+      remainingAmountNumber !== undefined &&
+      item.dailyUsage
         ? Math.ceil(remainingAmountNumber / item.dailyUsage)
         : undefined;
-    const nextRemainingDays = quickAdjustMode === 'days' ? remainingDaysNumber : amountBasedRemainingDays ?? usageAmountBasedRemainingDays;
+    const nextRemainingDays =
+      quickAdjustMode === 'days'
+        ? remainingDaysNumber
+        : (amountBasedRemainingDays ?? usageAmountBasedRemainingDays);
     const daysBasedRemainingAmount =
-      quickAdjustMode === 'days' && (!item.estimationMode || item.estimationMode === 'usage') && remainingDaysNumber !== undefined && item.dailyUsage
+      quickAdjustMode === 'days' &&
+      (!item.estimationMode || item.estimationMode === 'usage') &&
+      remainingDaysNumber !== undefined &&
+      item.dailyUsage
         ? remainingDaysNumber * item.dailyUsage
         : undefined;
     const adjustedRemainingAmount = daysBasedRemainingAmount ?? remainingAmountNumber;
-    const shouldAdjustUsageRemaining = Boolean((!item.estimationMode || item.estimationMode === 'usage') && adjustedRemainingAmount !== undefined && item.dailyUsage);
+    const shouldAdjustUsageRemaining = Boolean(
+      (!item.estimationMode || item.estimationMode === 'usage') &&
+      adjustedRemainingAmount !== undefined &&
+      item.dailyUsage,
+    );
     const adjustedOpenedDate =
       shouldAdjustUsageRemaining && item.dailyUsage && adjustedRemainingAmount !== undefined
-        ? addDays(today, -Math.max(0, (item.amount - Math.min(adjustedRemainingAmount, item.amount)) / item.dailyUsage)).toISOString().slice(0, 10)
+        ? addDays(
+            today,
+            -Math.max(
+              0,
+              (item.amount - Math.min(adjustedRemainingAmount, item.amount)) / item.dailyUsage,
+            ),
+          )
+            .toISOString()
+            .slice(0, 10)
         : item.openedDate;
     const nextItem: InventoryItem = {
       ...item,
       amount: item.amount,
       openedDate: adjustedOpenedDate,
-      estimatedEndDate: nextRemainingDays === undefined
-        ? shouldAdjustUsageRemaining
-          ? undefined
-          : item.estimatedEndDate
-        : addDays(today, nextRemainingDays).toISOString().slice(0, 10),
+      estimatedEndDate:
+        nextRemainingDays === undefined
+          ? shouldAdjustUsageRemaining
+            ? undefined
+            : item.estimatedEndDate
+          : addDays(today, nextRemainingDays).toISOString().slice(0, 10),
       updatedAt: nowIso(),
     };
 
@@ -342,7 +415,10 @@ export default function InventoryDetailScreen() {
       }
       setShowQuickAdjust(false);
     } catch (error) {
-      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSavingQuickAdjust(false);
     }
@@ -350,7 +426,10 @@ export default function InventoryDetailScreen() {
 
   const selectProductIcon = async () => {
     if (!hasIconUploadStorage()) {
-      Alert.alert('保存先が未設定です', 'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。');
+      Alert.alert(
+        '保存先が未設定です',
+        'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。',
+      );
       return;
     }
 
@@ -367,7 +446,10 @@ export default function InventoryDetailScreen() {
       await saveIconReference('inventory_item', item.id, result.url);
       setItem(nextItem);
     } catch (error) {
-      Alert.alert('アイコンを保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        'アイコンを保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setImageUploading(false);
     }
@@ -389,7 +471,10 @@ export default function InventoryDetailScreen() {
             await scheduleInventoryNotifications(items, settings);
             router.back();
           } catch (error) {
-            Alert.alert('削除できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+            Alert.alert(
+              '削除できませんでした',
+              error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+            );
             setDeletingItem(false);
           }
         },
@@ -431,7 +516,10 @@ export default function InventoryDetailScreen() {
     const replenishAmount = getReplenishAmount(item);
     const priceNumber = parseOptionalNumber(price);
     if ((!item.estimationMode || item.estimationMode === 'usage') && replenishAmount <= 0) {
-      Alert.alert('入力を確認してください', '設定済みの内容量が0以下です。残量・計算設定から内容量を確認してください。');
+      Alert.alert(
+        '入力を確認してください',
+        '設定済みの内容量が0以下です。残量・計算設定から内容量を確認してください。',
+      );
       return;
     }
     if (price.trim() && (priceNumber === undefined || priceNumber < 0)) {
@@ -444,17 +532,32 @@ export default function InventoryDetailScreen() {
         `${formatDisplayDate(replenishDate)}の補充として記録します。残っている日数をどう扱いますか？`,
         [
           { text: 'キャンセル', style: 'cancel' },
-          { text: '残りに足す', onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'add_remaining') },
-          { text: '周期に戻す', onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'reset_cycle') },
+          {
+            text: '残りに足す',
+            onPress: () =>
+              confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'add_remaining'),
+          },
+          {
+            text: '周期に戻す',
+            onPress: () =>
+              confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'reset_cycle'),
+          },
         ],
       );
       return;
     }
 
-    Alert.alert('補充を保存しますか？', `${formatDisplayDate(replenishDate)}の補充として記録します。`, [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '保存する', onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber) },
-    ]);
+    Alert.alert(
+      '補充を保存しますか？',
+      `${formatDisplayDate(replenishDate)}の補充として記録します。`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '保存する',
+          onPress: () => confirmPriceAndSaveReplenish(replenishAmount, priceNumber),
+        },
+      ],
+    );
   };
 
   const confirmPriceAndSaveReplenish = (
@@ -468,8 +571,16 @@ export default function InventoryDetailScreen() {
         '商品価格を更新しますか？',
         `補充価格を${priceNumber === undefined ? '未入力' : `${priceNumber.toLocaleString()}円`}で記録します。商品に設定済みの価格も更新しますか？`,
         [
-          { text: '更新しない', onPress: () => void saveReplenish(true, amountNumber, priceNumber, false, lastingDaysReplenishMode) },
-          { text: '更新する', onPress: () => void saveReplenish(true, amountNumber, priceNumber, true, lastingDaysReplenishMode) },
+          {
+            text: '更新しない',
+            onPress: () =>
+              void saveReplenish(true, amountNumber, priceNumber, false, lastingDaysReplenishMode),
+          },
+          {
+            text: '更新する',
+            onPress: () =>
+              void saveReplenish(true, amountNumber, priceNumber, true, lastingDaysReplenishMode),
+          },
         ],
       );
       return;
@@ -500,11 +611,16 @@ export default function InventoryDetailScreen() {
       const settings = await getSettings();
       const itemForReplenish: InventoryItem = shouldUpdateItemPrice
         ? {
-          ...item,
-          price: priceNumber,
-        }
+            ...item,
+            price: priceNumber,
+          }
         : item;
-      const nextItem = await replenishInventoryItem(itemForReplenish, history, resetOpenedDate, lastingDaysReplenishMode);
+      const nextItem = await replenishInventoryItem(
+        itemForReplenish,
+        history,
+        resetOpenedDate,
+        lastingDaysReplenishMode,
+      );
       const items = await getInventoryItems();
       await scheduleInventoryNotifications(items, settings);
       setItem(nextItem);
@@ -512,7 +628,10 @@ export default function InventoryDetailScreen() {
       resetStockEditFields(nextItem);
       await recordReviewEligibleAction('replenish_save');
     } catch (error) {
-      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSavingReplenish(false);
     }
@@ -525,10 +644,14 @@ export default function InventoryDetailScreen() {
       Alert.alert('入力を確認してください', '価格は0以上の数字で入力してください。');
       return;
     }
-    Alert.alert('購入履歴を追加しますか？', `${formatDisplayDate(historyDate)}の購入として記録します。`, [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '追加する', onPress: () => void savePastPurchaseHistory(priceNumber) },
-    ]);
+    Alert.alert(
+      '購入履歴を追加しますか？',
+      `${formatDisplayDate(historyDate)}の購入として記録します。`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '追加する', onPress: () => void savePastPurchaseHistory(priceNumber) },
+      ],
+    );
   };
 
   const savePastPurchaseHistory = async (priceNumber: number | undefined) => {
@@ -551,7 +674,10 @@ export default function InventoryDetailScreen() {
       setHistoryMemo('');
       Alert.alert('追加しました', '購入履歴に追加しました。');
     } catch (error) {
-      Alert.alert('追加できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '追加できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSavingHistoryAdd(false);
     }
@@ -576,7 +702,7 @@ export default function InventoryDetailScreen() {
       Alert.alert('入力を確認してください', '内容量は0以上の数字で入力してください。');
       return;
     }
-    if (editEstimationMode !== 'purchase_frequency' && (!amountNumber || amountNumber <= 0)) {
+    if (editEstimationMode === 'usage' && (!amountNumber || amountNumber <= 0)) {
       Alert.alert('入力を確認してください', '内容量は0より大きくしてください。');
       return;
     }
@@ -586,16 +712,6 @@ export default function InventoryDetailScreen() {
     }
     if (editEstimationMode === 'lasting_days' && (!lastingDaysNumber || lastingDaysNumber <= 0)) {
       Alert.alert('入力を確認してください', '使い切る日数は0より大きくしてください。');
-      return;
-    }
-    if (
-      editEstimationMode === 'lasting_days' &&
-      amountNumber !== undefined &&
-      lastingDaysNumber !== undefined &&
-      lastingDaysNumber > 0 &&
-      amountNumber / lastingDaysNumber <= 0
-    ) {
-      Alert.alert('入力を確認してください', '内容量と使い切る日数を確認してください。');
       return;
     }
     const didChangeUsageBasis =
@@ -619,9 +735,7 @@ export default function InventoryDetailScreen() {
       name: editName.trim(),
       price: priceNumber,
       estimationMode: editEstimationMode,
-      amount: editEstimationMode === 'purchase_frequency'
-        ? item.amount
-        : amountNumber ?? 0,
+      amount: editEstimationMode === 'purchase_frequency' ? item.amount : (amountNumber ?? 0),
       unit: editEstimationMode === 'purchase_frequency' ? item.unit : editUnit,
       dailyUsage: editEstimationMode === 'usage' ? dailyUsageNumber : undefined,
       lastingDays: editEstimationMode === 'lasting_days' ? lastingDaysNumber : undefined,
@@ -653,7 +767,10 @@ export default function InventoryDetailScreen() {
       }
       setShowStockEdit(false);
     } catch (error) {
-      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSavingStockEdit(false);
     }
@@ -703,7 +820,10 @@ export default function InventoryDetailScreen() {
       setPurchaseLinkErrors({});
       setShowPurchaseLinkEdit(false);
     } catch (error) {
-      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSavingPurchaseLinks(false);
     }
@@ -712,7 +832,10 @@ export default function InventoryDetailScreen() {
   const switchToLastingDays = () => {
     if (switchingEstimationMode) return;
     if (!purchaseFrequencyDays) {
-      Alert.alert('まだ切り替えできません', '購入頻度が計算されてから切り替えできます。先に補充を記録してください。');
+      Alert.alert(
+        'まだ切り替えできません',
+        '購入頻度が計算されてから切り替えできます。先に補充を記録してください。',
+      );
       return;
     }
     Alert.alert(
@@ -742,7 +865,10 @@ export default function InventoryDetailScreen() {
                 resetStockEditFields(savedItem);
               }
             } catch (error) {
-              Alert.alert('切り替えできませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+              Alert.alert(
+                '切り替えできませんでした',
+                error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+              );
             } finally {
               setSwitchingEstimationMode(false);
             }
@@ -755,7 +881,10 @@ export default function InventoryDetailScreen() {
   const buy = async (shop: ShopType) => {
     const opened = await openPurchaseUrl(item, shop);
     if (!opened) Alert.alert('URLが未登録です', '編集画面から購入URLを登録できます。');
-    if (opened) await recordReviewEligibleAction('purchase_open');
+    if (opened) {
+      await recordReviewEligibleAction('purchase_open');
+      openReplenish();
+    }
   };
 
   const submitProductLinkIssueReport = async () => {
@@ -792,10 +921,17 @@ export default function InventoryDetailScreen() {
             accessibilityRole="button"
             disabled={imageUploading}
             onPress={() => void selectProductIcon()}
-            style={({ pressed }) => [styles.productImageButton, pressed && styles.productImagePressed]}
+            style={({ pressed }) => [
+              styles.productImageButton,
+              pressed && styles.productImagePressed,
+            ]}
           >
             {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
             ) : (
               <View style={styles.productImagePlaceholder}>
                 <Text style={styles.productImagePlaceholderText}>画像</Text>
@@ -805,12 +941,19 @@ export default function InventoryDetailScreen() {
           </Pressable>
           <View style={styles.titleWrap}>
             <Text style={styles.title}>{item.name}</Text>
-            <Text style={styles.sub}>{catNames ? `${catNames} ・ ${categoryLabels[item.category]}` : categoryLabels[item.category]}</Text>
+            <Text style={styles.sub}>
+              {catNames
+                ? `${catNames} ・ ${categoryLabels[item.category]}`
+                : categoryLabels[item.category]}
+            </Text>
           </View>
           <StatusBadge status={status} />
         </View>
         <View style={styles.metrics}>
-          <Metric label="残り日数" value={remainingDays === undefined ? '未計算' : `${Math.max(0, remainingDays)}日`} />
+          <Metric
+            label="残り日数"
+            value={remainingDays === undefined ? '未計算' : `${Math.max(0, remainingDays)}日`}
+          />
           <Metric label="残量" value={remainingStockLabel} />
         </View>
         <AppButton
@@ -857,7 +1000,9 @@ export default function InventoryDetailScreen() {
                 />
               ) : null
             ) : (
-              <Text style={styles.hint}>購入頻度から自動計算中の商品は、残り日数だけ調整できます。</Text>
+              <Text style={styles.hint}>
+                購入頻度から自動計算中の商品は、残り日数だけ調整できます。
+              </Text>
             )}
             {item.estimationMode === 'lasting_days' ? (
               <Text style={styles.hint}>
@@ -901,10 +1046,10 @@ export default function InventoryDetailScreen() {
             onPress={
               showStockEdit
                 ? () => {
-                  if (savingStockEdit) return;
-                  resetStockEditFields(item);
-                  setShowStockEdit(false);
-                }
+                    if (savingStockEdit) return;
+                    resetStockEditFields(item);
+                    setShowStockEdit(false);
+                  }
                 : openStockEdit
             }
             disabled={savingStockEdit}
@@ -920,7 +1065,12 @@ export default function InventoryDetailScreen() {
               requirement="required"
               placeholder="例：いつものカリカリ"
             />
-            <AppTextInput label="価格" value={editPrice} onChangeText={setEditPrice} keyboardType="numeric" />
+            <AppTextInput
+              label="価格"
+              value={editPrice}
+              onChangeText={setEditPrice}
+              keyboardType="numeric"
+            />
             <DatePickerField
               label="購入日"
               value={editPurchaseDate}
@@ -945,6 +1095,7 @@ export default function InventoryDetailScreen() {
               <>
                 <AppTextInput
                   label={`内容量（${unitLabels[editUnit]}）`}
+                  requirement={editEstimationMode === 'lasting_days' ? 'optional' : undefined}
                   value={editAmount}
                   onChangeText={setEditAmount}
                   keyboardType="decimal-pad"
@@ -974,9 +1125,6 @@ export default function InventoryDetailScreen() {
               />
             ) : null}
             {editEstimationMode === 'lasting_days' ? (
-              <Text style={styles.hint}>消費ペースは内容量と使い切る日数から自動で見積もります。残り日数・残量の調整は、上の調整ボタンから行えます。</Text>
-            ) : null}
-            {editEstimationMode === 'lasting_days' ? (
               <AppTextInput
                 label="使い切る日数"
                 value={editLastingDays}
@@ -985,7 +1133,9 @@ export default function InventoryDetailScreen() {
               />
             ) : null}
             {editEstimationMode === 'purchase_frequency' ? (
-              <Text style={styles.hint}>購入頻度は補充履歴から自動計算します。次に補充を記録すると、購入日どうしの間隔から残り日数を見積もります。</Text>
+              <Text style={styles.hint}>
+                購入頻度は補充履歴から自動計算します。次に補充を記録すると、購入日どうしの間隔から残り日数を見積もります。
+              </Text>
             ) : null}
             <View style={styles.unitBox}>
               <Text style={styles.fieldTitle}>通知タイミング</Text>
@@ -1012,12 +1162,19 @@ export default function InventoryDetailScreen() {
               placeholder="メモ"
               style={styles.memo}
             />
-            <AppButton title={savingStockEdit ? '保存中...' : '保存'} loading={savingStockEdit} onPress={() => void saveStockEdit()} />
+            <AppButton
+              title={savingStockEdit ? '保存中...' : '保存'}
+              loading={savingStockEdit}
+              onPress={() => void saveStockEdit()}
+            />
           </>
         ) : (
           <>
             <Info label="商品名" value={item.name} />
-            <Info label="価格" value={item.price === undefined ? '未入力' : `${item.price.toLocaleString()}円`} />
+            <Info
+              label="価格"
+              value={item.price === undefined ? '未入力' : `${item.price.toLocaleString()}円`}
+            />
             <Info label="購入日" value={formatDisplayDate(item.purchaseDate)} />
             <Info label="推定終了日" value={formatDisplayDate(item.estimatedEndDate)} />
             <Info label="残り日数の計算方法" value={estimationLabel} />
@@ -1025,11 +1182,21 @@ export default function InventoryDetailScreen() {
             <Info label="内容量" value={contentAmountLabel} />
             <Info label="残量" value={remainingStockLabel} />
             {item.estimationMode === 'lasting_days' ? (
-              <Info label="使い切る日数" value={item.lastingDays === undefined ? '未設定' : `${item.lastingDays}日`} />
+              <Info
+                label="使い切る日数"
+                value={item.lastingDays === undefined ? '未設定' : `${item.lastingDays}日`}
+              />
             ) : null}
             {item.estimationMode === 'purchase_frequency' ? (
               <>
-                <Info label="現在の購入頻度" value={purchaseFrequencyDays === undefined ? '未計算' : `${purchaseFrequencyDays}日ごと`} />
+                <Info
+                  label="現在の購入頻度"
+                  value={
+                    purchaseFrequencyDays === undefined
+                      ? '未計算'
+                      : `${purchaseFrequencyDays}日ごと`
+                  }
+                />
                 <AppButton
                   title="使い切る日数方式に切り替える"
                   variant="secondary"
@@ -1065,11 +1232,11 @@ export default function InventoryDetailScreen() {
               onPress={
                 showPurchaseLinkEdit
                   ? () => {
-                    if (savingPurchaseLinks) return;
-                    resetPurchaseLinkFields(item);
-                    setPurchaseLinkErrors({});
-                    setShowPurchaseLinkEdit(false);
-                  }
+                      if (savingPurchaseLinks) return;
+                      resetPurchaseLinkFields(item);
+                      setPurchaseLinkErrors({});
+                      setShowPurchaseLinkEdit(false);
+                    }
                   : openPurchaseLinkEdit
               }
               disabled={savingPurchaseLinks}
@@ -1084,7 +1251,10 @@ export default function InventoryDetailScreen() {
                 value={editAmazonUrl}
                 onChangeText={(value) => {
                   setEditAmazonUrl(value);
-                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, amazon: undefined }));
+                  setPurchaseLinkErrors((currentErrors) => ({
+                    ...currentErrors,
+                    amazon: undefined,
+                  }));
                 }}
                 keyboardType="url"
                 autoCapitalize="none"
@@ -1095,7 +1265,10 @@ export default function InventoryDetailScreen() {
                 value={editRakutenUrl}
                 onChangeText={(value) => {
                   setEditRakutenUrl(value);
-                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, rakuten: undefined }));
+                  setPurchaseLinkErrors((currentErrors) => ({
+                    ...currentErrors,
+                    rakuten: undefined,
+                  }));
                 }}
                 keyboardType="url"
                 autoCapitalize="none"
@@ -1106,7 +1279,10 @@ export default function InventoryDetailScreen() {
                 value={editYahooUrl}
                 onChangeText={(value) => {
                   setEditYahooUrl(value);
-                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, yahoo: undefined }));
+                  setPurchaseLinkErrors((currentErrors) => ({
+                    ...currentErrors,
+                    yahoo: undefined,
+                  }));
                 }}
                 keyboardType="url"
                 autoCapitalize="none"
@@ -1117,7 +1293,10 @@ export default function InventoryDetailScreen() {
                 value={editOtherUrl}
                 onChangeText={(value) => {
                   setEditOtherUrl(value);
-                  setPurchaseLinkErrors((currentErrors) => ({ ...currentErrors, other: undefined }));
+                  setPurchaseLinkErrors((currentErrors) => ({
+                    ...currentErrors,
+                    other: undefined,
+                  }));
                 }}
                 keyboardType="url"
                 autoCapitalize="none"
@@ -1135,7 +1314,6 @@ export default function InventoryDetailScreen() {
                 label="Amazon"
                 configured={Boolean(getPurchaseUrl(item, 'amazon'))}
                 saved={hasSavedPurchaseUrl(item, 'amazon')}
-                primary
                 onPress={() => void buy('amazon')}
               />
               <PurchaseButton
@@ -1215,10 +1393,30 @@ export default function InventoryDetailScreen() {
                 onChange={setReplenishDate}
                 requirement="required"
               />
-              <AppTextInput label="価格" value={price} onChangeText={setPrice} keyboardType="numeric" />
-              <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} />
-              <AppButton title={savingReplenish ? '保存中...' : '補充を保存'} loading={savingReplenish} onPress={submitReplenish} />
-              <AppButton title="閉じる" variant="secondary" disabled={savingReplenish} onPress={closeReplenish} />
+              <AppTextInput
+                label="価格"
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="numeric"
+              />
+              <AppTextInput
+                label="メモ"
+                value={memo}
+                onChangeText={setMemo}
+                multiline
+                style={styles.memo}
+              />
+              <AppButton
+                title={savingReplenish ? '保存中...' : '補充を保存'}
+                loading={savingReplenish}
+                onPress={submitReplenish}
+              />
+              <AppButton
+                title="閉じる"
+                variant="secondary"
+                disabled={savingReplenish}
+                onPress={closeReplenish}
+              />
             </AppCard>
           </View>
         ) : null}
@@ -1245,14 +1443,30 @@ export default function InventoryDetailScreen() {
                 onChange={setHistoryDate}
                 requirement="required"
               />
-              <AppTextInput label="価格" value={historyPrice} onChangeText={setHistoryPrice} keyboardType="numeric" />
-              <AppTextInput label="メモ" value={historyMemo} onChangeText={setHistoryMemo} multiline style={styles.memo} />
+              <AppTextInput
+                label="価格"
+                value={historyPrice}
+                onChangeText={setHistoryPrice}
+                keyboardType="numeric"
+              />
+              <AppTextInput
+                label="メモ"
+                value={historyMemo}
+                onChangeText={setHistoryMemo}
+                multiline
+                style={styles.memo}
+              />
               <AppButton
                 title={savingHistoryAdd ? '追加中...' : '購入履歴を追加'}
                 loading={savingHistoryAdd}
                 onPress={submitPastPurchaseHistory}
               />
-              <AppButton title="閉じる" variant="secondary" disabled={savingHistoryAdd} onPress={closeHistoryAdd} />
+              <AppButton
+                title="閉じる"
+                variant="secondary"
+                disabled={savingHistoryAdd}
+                onPress={closeHistoryAdd}
+              />
             </AppCard>
           </View>
         ) : null}
@@ -1260,7 +1474,9 @@ export default function InventoryDetailScreen() {
 
       <AppCard style={styles.dangerZone}>
         <Text style={styles.dangerZoneTitle}>削除</Text>
-        <Text style={styles.dangerZoneText}>商品だけを削除します。購入履歴は購入履歴画面から削除できます。</Text>
+        <Text style={styles.dangerZoneText}>
+          商品だけを削除します。購入履歴は購入履歴画面から削除できます。
+        </Text>
         <AppButton
           title={deletingItem ? '削除中...' : 'この商品を削除'}
           variant="danger"
@@ -1294,19 +1510,17 @@ function PurchaseButton({
   label,
   configured,
   saved,
-  primary,
   onPress,
 }: {
   label: string;
   configured: boolean;
   saved: boolean;
-  primary?: boolean;
   onPress: () => void;
 }) {
   return (
     <AppButton
       title={configured ? `${label}で${saved ? '買う' : '探す'}` : `${label} URL未設定`}
-      variant={configured && primary ? 'primary' : 'secondary'}
+      variant={saved ? 'primary' : 'secondary'}
       disabled={!configured}
       onPress={onPress}
     />
@@ -1332,7 +1546,10 @@ function formatRemainingStockValue(item: InventoryItem, percent: number | undefi
 
 function formatNotifyBeforeDays(days: number[]): string {
   if (days.length === 0) return '通知なし';
-  return [...days].sort((a, b) => b - a).map((day) => `残り${day}日`).join('・');
+  return [...days]
+    .sort((a, b) => b - a)
+    .map((day) => `残り${day}日`)
+    .join('・');
 }
 
 function calculateRemainingAmount(item: InventoryItem): number | undefined {

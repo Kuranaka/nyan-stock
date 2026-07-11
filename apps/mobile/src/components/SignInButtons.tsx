@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, DeviceEventEmitter, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, DeviceEventEmitter, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -9,6 +9,7 @@ import { AuthSession } from '@/features/auth/authTypes';
 import { signInWithSupabaseOAuth } from '@/features/auth/supabaseAuth';
 import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
 import { activateSignedInAccountHouseholdSync } from '@/features/sync/householdSyncService';
+import googleLogo from '@/assets/google-g-logo.png';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -65,7 +66,7 @@ export function SignInButtons({ onSignedIn }: Props) {
         onPress={() => void signInWithGoogle()}
       >
         <View style={styles.googleIcon}>
-          <Text style={styles.googleIconText}>G</Text>
+          <Image accessibilityIgnoresInvertColors source={googleLogo} style={styles.googleLogo} />
         </View>
         <Text style={styles.googleButtonText}>
           {busyProvider === 'google' ? 'Googleでログイン中...' : 'Googleでログイン'}
@@ -110,19 +111,14 @@ const styles = StyleSheet.create({
   googleIcon: {
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 10,
-    borderWidth: 1,
     height: 24,
     justifyContent: 'center',
     marginRight: 10,
     width: 24,
   },
-  googleIconText: {
-    color: '#4285F4',
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 20,
+  googleLogo: {
+    height: 18,
+    width: 18,
   },
   googleButtonText: {
     color: colors.text,

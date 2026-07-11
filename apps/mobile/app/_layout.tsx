@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
     minHeight: 44,
     minWidth: 72,
-    paddingRight: 12,
+    paddingHorizontal: 8,
   },
   backButtonPressed: {
     opacity: 0.6,
@@ -148,5 +148,8 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     fontSize: 17,
     fontWeight: '700',
+    lineHeight: 22,
+    textAlign: 'center',
+    transform: [{ translateY: -3 }],
   },
 });

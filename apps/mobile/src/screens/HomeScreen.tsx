@@ -1,5 +1,15 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,9 +32,13 @@ import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
-import { canCreateInventoryItem, getSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
+import {
+  canCreateInventoryItem,
+  getSubscriptionEntitlement,
+} from '@/features/subscription/subscriptionService';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatTodayJapanese } from '@/utils/date';
+import appIcon from '../../assets/icon.png';
 
 import OnboardingScreen from './OnboardingScreen';
 
@@ -83,10 +97,7 @@ export default function HomeScreen() {
 
   if (settings && !settings.onboardingCompleted) {
     return (
-      <OnboardingScreen
-        onStart={startAsGuest}
-        onSignedIn={() => void completeOnboarding(true)}
-      />
+      <OnboardingScreen onStart={startAsGuest} onSignedIn={() => void completeOnboarding(true)} />
     );
   }
 
@@ -95,7 +106,9 @@ export default function HomeScreen() {
   }
 
   const selectedCat = cats.find((nextCat) => nextCat.id === selectedCatId);
-  const catItems = selectedCatId ? items.filter((item) => isInventoryItemForCat(item, selectedCatId)) : items;
+  const catItems = selectedCatId
+    ? items.filter((item) => isInventoryItemForCat(item, selectedCatId))
+    : items;
   const outItems = catItems.filter((item) => getInventoryStatus(item) === 'out');
   const warningItems = catItems.filter((item) => {
     const days = calculateRemainingDays(item);
@@ -158,7 +171,9 @@ export default function HomeScreen() {
     >
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{selectedCat ? `${selectedCat.name}の在庫` : '猫用品の在庫'}</Text>
+          <Text style={styles.greeting}>
+            {selectedCat ? `${selectedCat.name}の在庫` : '猫用品の在庫'}
+          </Text>
           <Text style={styles.date}>{formatTodayJapanese()}</Text>
         </View>
         <AppButton title="設定" variant="secondary" onPress={() => router.push('/settings')} />
@@ -226,7 +241,11 @@ export default function HomeScreen() {
                 ? `${selectedCat.name}の用品を登録しましょう`
                 : 'まずは、いつものフードや猫砂を登録しましょう'
           }
-          message={inventoryFilter ? '在庫状況の項目をもう一度押すと絞り込みを解除できます。' : '登録すると、残り何日でなくなるか自動で分かります'}
+          message={
+            inventoryFilter
+              ? '在庫状況の項目をもう一度押すと絞り込みを解除できます。'
+              : '登録すると、残り何日でなくなるか自動で分かります'
+          }
           actionTitle={inventoryFilter ? undefined : '商品を追加する'}
           onAction={inventoryFilter ? undefined : () => void openInventoryForm()}
         />
@@ -236,9 +255,21 @@ export default function HomeScreen() {
             <InventoryCard
               key={item.id}
               item={item}
-              onPurchase={() => router.push({ pathname: '/inventory-detail', params: { id: item.id, action: 'purchase' } })}
-              onReplenish={() => router.push({ pathname: '/inventory-detail', params: { id: item.id, action: 'replenish' } })}
-              onDetail={() => router.push({ pathname: '/inventory-detail', params: { id: item.id } })}
+              onPurchase={() =>
+                router.push({
+                  pathname: '/inventory-detail',
+                  params: { id: item.id, action: 'purchase' },
+                })
+              }
+              onReplenish={() =>
+                router.push({
+                  pathname: '/inventory-detail',
+                  params: { id: item.id, action: 'replenish' },
+                })
+              }
+              onDetail={() =>
+                router.push({ pathname: '/inventory-detail', params: { id: item.id } })
+              }
             />
           ))}
         </View>
@@ -251,7 +282,7 @@ function HomeLoading() {
   return (
     <View style={styles.loadingScreen}>
       <View style={styles.loadingMark}>
-        <Text style={styles.loadingMarkText}>に</Text>
+        <Image accessibilityIgnoresInvertColors source={appIcon} style={styles.loadingIcon} />
       </View>
       <Text style={styles.loadingTitle}>にゃんストック</Text>
       <Text style={styles.loadingText}>在庫を読み込んでいます...</Text>
@@ -272,7 +303,9 @@ function CatTab({ cat, selected, onPress }: { cat: Cat; selected: boolean; onPre
         pressed && styles.catTabPressed,
       ]}
     >
-      {cat.iconUrl ? <Image source={{ uri: cat.iconUrl }} style={styles.catTabIcon} resizeMode="cover" /> : null}
+      {cat.iconUrl ? (
+        <Image source={{ uri: cat.iconUrl }} style={styles.catTabIcon} resizeMode="cover" />
+      ) : null}
       <Text style={[styles.catTabText, selected && styles.catTabTextSelected]} numberOfLines={1}>
         {cat.name}
       </Text>
@@ -298,9 +331,19 @@ function Summary({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.summaryItem, selected && styles.summaryItemSelected, pressed && styles.summaryItemPressed]}
+      style={({ pressed }) => [
+        styles.summaryItem,
+        selected && styles.summaryItemSelected,
+        pressed && styles.summaryItemPressed,
+      ]}
     >
-      <Text style={[styles.summaryValue, tone === 'danger' && styles.danger, tone === 'warning' && styles.warning]}>
+      <Text
+        style={[
+          styles.summaryValue,
+          tone === 'danger' && styles.danger,
+          tone === 'warning' && styles.warning,
+        ]}
+      >
         {value}
       </Text>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -438,16 +481,22 @@ const styles = StyleSheet.create({
   },
   loadingMark: {
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 1,
     height: 64,
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
     width: 64,
   },
-  loadingMarkText: {
-    color: colors.card,
-    fontSize: 30,
-    fontWeight: '900',
+  loadingIcon: {
+    borderRadius: 16,
+    height: 52,
+    width: 52,
   },
   loadingTitle: {
     color: colors.text,

@@ -11,11 +11,22 @@ import { DatePickerField } from '@/components/DatePickerField';
 import { colors } from '@/constants/colors';
 import { deleteCat, getCat, getCats, saveCat } from '@/features/cats/catStorage';
 import { Cat, CatGender } from '@/features/cats/catTypes';
-import { deleteInventoryItemsForCat, getInventoryItems } from '@/features/inventory/inventoryStorage';
-import { clearIconReference, hasIconUploadStorage, pickAndUploadIcon, saveIconReference } from '@/features/media/iconUpload';
+import {
+  deleteInventoryItemsForCat,
+  getInventoryItems,
+} from '@/features/inventory/inventoryStorage';
+import {
+  clearIconReference,
+  hasIconUploadStorage,
+  pickAndUploadIcon,
+  saveIconReference,
+} from '@/features/media/iconUpload';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
-import { canCreateCat, getSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
+import {
+  canCreateCat,
+  getSubscriptionEntitlement,
+} from '@/features/subscription/subscriptionService';
 import { formatAgeFromBirthday, isFutureIsoDate, nowIso } from '@/utils/date';
 import { createId, parseOptionalNumber } from '@/utils/validation';
 
@@ -263,7 +274,10 @@ export default function CatProfileScreen() {
       }
       Alert.alert('保存しました', `${name.trim()}のプロフィールを保存しました。`);
     } catch (error) {
-      Alert.alert('保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSavingProfile(false);
     }
@@ -289,7 +303,10 @@ export default function CatProfileScreen() {
   const selectIcon = async () => {
     const catId = current?.id ?? draftCatId;
     if (!hasIconUploadStorage()) {
-      Alert.alert('保存先が未設定です', 'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。');
+      Alert.alert(
+        '保存先が未設定です',
+        'SupabaseのURLとAnon Keyを設定すると、アイコンをサーバーに保存できます。',
+      );
       return;
     }
 
@@ -300,7 +317,10 @@ export default function CatProfileScreen() {
         setIconUrl(result.url);
       }
     } catch (error) {
-      Alert.alert('アイコンを保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        'アイコンを保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setIconUploading(false);
     }
@@ -323,11 +343,18 @@ export default function CatProfileScreen() {
               await deleteInventoryItemsForCat(deletedCatId);
               await deleteCat(deletedCatId);
               await clearIconReference('cat', deletedCatId);
-              const [nextCats, items, settings] = await Promise.all([getCats(), getInventoryItems(), getSettings()]);
+              const [nextCats, items, settings] = await Promise.all([
+                getCats(),
+                getInventoryItems(),
+                getSettings(),
+              ]);
               const nextSelectedCatId =
                 settings.selectedCatId === deletedCatId ? nextCats[0]?.id : settings.selectedCatId;
               await updateSettings({ selectedCatId: nextSelectedCatId });
-              await scheduleInventoryNotifications(items, { ...settings, selectedCatId: nextSelectedCatId });
+              await scheduleInventoryNotifications(items, {
+                ...settings,
+                selectedCatId: nextSelectedCatId,
+              });
               setCats(nextCats);
               if (nextCats[0]) {
                 fillForm(nextCats[0]);
@@ -335,7 +362,10 @@ export default function CatProfileScreen() {
                 resetForm();
               }
             } catch (error) {
-              Alert.alert('削除できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+              Alert.alert(
+                '削除できませんでした',
+                error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+              );
             } finally {
               setDeletingProfile(false);
             }
@@ -362,8 +392,13 @@ export default function CatProfileScreen() {
                 style={styles.catButton}
               />
             ))}
+            <AppButton
+              title="+"
+              variant="secondary"
+              onPress={() => void startNew()}
+              style={styles.addCatButton}
+            />
           </View>
-          <AppButton title="新しく追加" variant="secondary" onPress={() => void startNew()} />
         </AppCard>
       ) : null}
 
@@ -379,16 +414,30 @@ export default function CatProfileScreen() {
         )}
         <View style={styles.iconActions}>
           <AppButton
-            title={iconUploading ? 'アップロード中...' : iconUrl ? '別のアイコンに変更' : 'アイコンを選ぶ'}
+            title={
+              iconUploading
+                ? 'アップロード中...'
+                : iconUrl
+                  ? '別のアイコンに変更'
+                  : 'アイコンを選ぶ'
+            }
             variant="secondary"
             disabled={iconUploading}
             onPress={() => void selectIcon()}
           />
-          {iconUrl ? <AppButton title="削除" variant="ghost" onPress={() => setIconUrl(undefined)} /> : null}
+          {iconUrl ? (
+            <AppButton title="削除" variant="ghost" onPress={() => setIconUrl(undefined)} />
+          ) : null}
         </View>
       </View>
       <View onLayout={setFieldY('name')}>
-        <AppTextInput label="猫の名前" value={name} onChangeText={setName} placeholder="例：ミルク" requirement="required" />
+        <AppTextInput
+          label="猫の名前"
+          value={name}
+          onChangeText={setName}
+          placeholder="例：ミルク"
+          requirement="required"
+        />
       </View>
       <View onLayout={setFieldY('birthday')}>
         <DatePickerField
@@ -432,12 +481,23 @@ export default function CatProfileScreen() {
         style={styles.memo}
         requirement="optional"
       />
-      <AppButton title={savingProfile ? '保存中...' : '保存する'} loading={savingProfile} onPress={() => void save()} />
-      <AppButton title="閉じる" variant="secondary" disabled={savingProfile} onPress={goBackWithDiscardConfirmation} />
+      <AppButton
+        title={savingProfile ? '保存中...' : '保存する'}
+        loading={savingProfile}
+        onPress={() => void save()}
+      />
+      <AppButton
+        title="閉じる"
+        variant="secondary"
+        disabled={savingProfile}
+        onPress={goBackWithDiscardConfirmation}
+      />
       {current ? (
         <AppCard style={styles.dangerZone}>
           <Text style={styles.dangerZoneTitle}>削除</Text>
-          <Text style={styles.dangerZoneText}>この猫だけに紐づく在庫を削除します。購入履歴は残ります。</Text>
+          <Text style={styles.dangerZoneText}>
+            この猫だけに紐づく在庫を削除します。購入履歴は残ります。
+          </Text>
           <AppButton
             title={deletingProfile ? '削除中...' : 'この猫を削除'}
             variant="danger"
@@ -450,11 +510,22 @@ export default function CatProfileScreen() {
   );
 }
 
-function FieldLabel({ label, requirement }: { label: string; requirement: 'required' | 'optional' }) {
+function FieldLabel({
+  label,
+  requirement,
+}: {
+  label: string;
+  requirement: 'required' | 'optional';
+}) {
   return (
     <View style={styles.labelRow}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.requirementBadge, requirement === 'required' ? styles.requiredBadge : styles.optionalBadge]}>
+      <Text
+        style={[
+          styles.requirementBadge,
+          requirement === 'required' ? styles.requiredBadge : styles.optionalBadge,
+        ]}
+      >
         {requirement === 'required' ? '必須' : '任意'}
       </Text>
     </View>
@@ -502,6 +573,10 @@ const styles = StyleSheet.create({
   },
   catButton: {
     minWidth: 96,
+  },
+  addCatButton: {
+    minWidth: 48,
+    paddingHorizontal: 0,
   },
   iconRow: {
     alignItems: 'center',

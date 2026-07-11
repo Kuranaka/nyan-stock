@@ -26,7 +26,6 @@ export async function submitProductLinkReport({
     user_id: supabaseSession.user.id,
     provider: authSession?.provider,
     provider_user_id: authSession?.providerUserId,
-    user_email: authSession?.email,
     household_id: syncState?.householdId,
     inventory_item_id: item.id,
     product_master_id: item.productMasterId,

@@ -39,8 +39,6 @@ App Store Connectに入力するための草案です。公開URL、価格、連
 
 家族共有、購入履歴、月別費用レポート、複数端末同期は無料プランでも利用できます。Plusは、よく使う家庭向けに登録数の上限解除と広告非表示を提供します。
 
-本アプリは、猫用品の在庫や購入記録を管理するためのアプリです。獣医療上の診断、治療、予防、助言を行うものではありません。猫の健康状態、食事、薬、サプリメント等に不安がある場合は獣医師に相談してください。
-
 商品リンクにはアフィリエイトリンクが含まれる場合があります。外部サイトでの価格、在庫、配送、返品、決済、個人情報の取扱いは各外部サイトの表示と規約をご確認ください。
 
 ## Keywords
@@ -60,8 +58,6 @@ App Store Connectに入力するための草案です。公開URL、価格、連
 ```text
 にゃんストックは、猫用品の在庫、残り日数、購入履歴、商品リンクを記録するアプリです。
 ログインなしでも基本機能を確認できます。GoogleまたはAppleログインを行うと、共有コードを使った家族・他アカウントとの在庫共有を利用できます。
-
-本アプリは獣医療上の診断、治療、予防、助言を行うものではありません。猫用品の在庫管理アプリです。
 
 Plusは広告非表示と、猫プロフィール・在庫登録数の上限解除を提供します。
 無料プランでは猫プロフィール2匹、在庫10件まで登録できます。
@@ -91,8 +87,8 @@ Recommended sizes:
 
 - Entitlement: `nyanstock_plus`
 - Offering: `default`
-- Monthly product: `nyan_stock_plus_monthly`
-- Annual product: `nyan_stock_plus_annual`
+- Monthly product: `nyan_stock_plus_monthly` / 300円
+- Annual product: `nyan_stock_plus_annual` / 3,000円
 - Env key: `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
 
 ## Privacy Nutrition Label Inventory

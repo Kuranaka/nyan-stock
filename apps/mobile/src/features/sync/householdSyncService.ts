@@ -774,7 +774,7 @@ async function requireHouseholdSyncState(): Promise<HouseholdSyncState> {
 
 async function getCurrentUserLabel(): Promise<string | undefined> {
   const session = await getCurrentAuthSession();
-  return session?.email ?? session?.name ?? session?.providerUserId;
+  return session?.supabaseUserId ?? session?.providerUserId ?? session?.name;
 }
 
 function getRestEndpoint(tableName: string = householdSnapshotsTable): string {

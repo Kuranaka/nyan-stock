@@ -1,5 +1,16 @@
-import { useCallback, useState } from 'react';
-import { Alert, DeviceEventEmitter, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
+import { ReactNode, useCallback, useState } from 'react';
+import {
+  Alert,
+  DeviceEventEmitter,
+  Image,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -16,8 +27,6 @@ import { getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supa
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import {
   cancelAllInventoryNotifications,
-  getInventoryNotificationSummary,
-  InventoryNotificationSummary,
   scheduleInventoryNotifications,
   scheduleTestInventoryNotification,
 } from '@/features/notifications/notificationService';
@@ -28,8 +37,6 @@ import { AppSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
 import {
   createSubscriptionEntitlement,
-  freePlanCatLimit,
-  freePlanInventoryLimit,
 } from '@/features/subscription/subscriptionService';
 import {
   createHouseholdSyncSpace,
@@ -38,11 +45,15 @@ import {
   pullCurrentHouseholdSnapshot,
   pushCurrentHouseholdSnapshot,
 } from '@/features/sync/householdSyncService';
-import { clearHouseholdSyncState, getHouseholdSyncState } from '@/features/sync/householdSyncStorage';
+import {
+  clearHouseholdSyncState,
+  getHouseholdSyncState,
+} from '@/features/sync/householdSyncStorage';
 import { HouseholdSyncState } from '@/features/sync/householdSyncTypes';
 import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
+import googleLogo from '@/assets/google-g-logo.png';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -53,7 +64,6 @@ export default function SettingsScreen() {
   const [joinName, setJoinName] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
   const [notificationBusy, setNotificationBusy] = useState(false);
-  const [notificationSummary, setNotificationSummary] = useState<InventoryNotificationSummary | undefined>();
   const [hour, setHour] = useState('9');
   const [minute, setMinute] = useState('0');
   const [supportMessage, setSupportMessage] = useState('');
@@ -72,7 +82,6 @@ export default function SettingsScreen() {
     setSyncState(nextSyncState);
     setHour(String(next.notificationHour));
     setMinute(String(next.notificationMinute));
-    setNotificationSummary(await getInventoryNotificationSummary(next));
   }, []);
 
   useFocusEffect(
@@ -93,9 +102,11 @@ export default function SettingsScreen() {
       await saveSettings(next);
       const items = await getInventoryItems();
       await scheduleInventoryNotifications(items, next);
-      setNotificationSummary(await getInventoryNotificationSummary(next));
     } catch (error) {
-      Alert.alert('通知設定を保存できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '通知設定を保存できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
       await load();
     } finally {
       setNotificationBusy(false);
@@ -115,7 +126,6 @@ export default function SettingsScreen() {
     try {
       const items = await getInventoryItems();
       const sent = await scheduleTestInventoryNotification(items[0]);
-      setNotificationSummary(settings ? await getInventoryNotificationSummary(settings) : undefined);
       Alert.alert(
         sent ? 'テスト通知を予約しました' : 'テスト通知を送れませんでした',
         sent
@@ -123,7 +133,10 @@ export default function SettingsScreen() {
           : 'この環境では通知に対応していないか、端末側で通知が許可されていません。',
       );
     } catch (error) {
-      Alert.alert('テスト通知を送れませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        'テスト通知を送れませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setNotificationBusy(false);
     }
@@ -151,20 +164,27 @@ export default function SettingsScreen() {
   };
 
   const addSeedData = () => {
-    Alert.alert('サンプルデータを追加しますか？', '開発確認用の猫プロフィールと在庫2件を追加します。既存データは削除しません。', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '追加する',
-        onPress: async () => {
-          const result = await insertSeedData();
-          const nextSettings = await getSettings();
-          const items = await getInventoryItems();
-          setSettings(nextSettings);
-          await scheduleInventoryNotifications(items, nextSettings);
-          Alert.alert('追加しました', `${result.cat.name} と在庫${result.items.length}件を追加しました。`);
+    Alert.alert(
+      'サンプルデータを追加しますか？',
+      '開発確認用の猫プロフィールと在庫2件を追加します。既存データは削除しません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '追加する',
+          onPress: async () => {
+            const result = await insertSeedData();
+            const nextSettings = await getSettings();
+            const items = await getInventoryItems();
+            setSettings(nextSettings);
+            await scheduleInventoryNotifications(items, nextSettings);
+            Alert.alert(
+              '追加しました',
+              `${result.cat.name} と在庫${result.items.length}件を追加しました。`,
+            );
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const resetReviewPrompt = async () => {
@@ -177,24 +197,24 @@ export default function SettingsScreen() {
       'ログアウトしますか？',
       'ログアウトすると、この端末内の猫プロフィール、在庫、購入履歴、設定が初期化されます。クラウド側の共有データは削除されません。',
       [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: 'ログアウト',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOutSupabaseAuth();
-          } catch {
-            await clearAuthSession();
-          }
-          await clearLocalDeviceData();
-          setAuthSession(undefined);
-          setSyncState(undefined);
-          DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
-          await load();
-          router.replace('/');
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'ログアウト',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOutSupabaseAuth();
+            } catch {
+              await clearAuthSession();
+            }
+            await clearLocalDeviceData();
+            setAuthSession(undefined);
+            setSyncState(undefined);
+            DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
+            await load();
+            router.replace('/');
+          },
         },
-      },
       ],
     );
   };
@@ -213,10 +233,13 @@ export default function SettingsScreen() {
       DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
       const message = successMessage?.(nextState);
       const guestMessage =
-        nextAuthSession?.provider === 'guest' ? 'ゲストとして共有に参加しました。このゲストはこの端末に紐づきます。' : undefined;
+        nextAuthSession?.provider === 'guest'
+          ? 'ゲストとして共有に参加しました。このゲストはこの端末に紐づきます。'
+          : undefined;
       Alert.alert(successTitle, [message, guestMessage].filter(Boolean).join('\n\n') || undefined);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
+      const message =
+        error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
       Alert.alert('共有に失敗しました', message);
     } finally {
       setSyncBusy(false);
@@ -235,7 +258,8 @@ export default function SettingsScreen() {
     void runSyncAction(
       '共有コードを作成しました',
       createHouseholdSyncSpace,
-      (state) => `このコードを共有したい相手に渡してください。\n${state.inviteCode ?? state.householdId}`,
+      (state) =>
+        `このコードを共有したい相手に渡してください。\n${state.inviteCode ?? state.householdId}`,
     );
   };
 
@@ -244,36 +268,48 @@ export default function SettingsScreen() {
   };
 
   const pullSharedData = () => {
-    Alert.alert('共有データを取り込みますか？', 'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '取り込む',
-        onPress: () => {
-          void runSyncAction('共有データを取り込みました', pullCurrentHouseholdSnapshot);
+    Alert.alert(
+      '共有データを取り込みますか？',
+      'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '取り込む',
+          onPress: () => {
+            void runSyncAction('共有データを取り込みました', pullCurrentHouseholdSnapshot);
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const joinSharedSpace = () => {
-    Alert.alert('共有スペースに参加しますか？', 'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '参加する',
-        onPress: () => {
-          void runSyncAction('共有スペースに参加しました', () => joinHouseholdSyncSpace(joinCode, joinName), (state) => {
-            setJoinCode('');
-            setJoinName('');
-            return [
-              `共有コード: ${state.inviteCode ?? state.householdId}`,
-              state.joinedBy ? `参加名: ${state.joinedBy}` : undefined,
-            ]
-              .filter(Boolean)
-              .join('\n');
-          });
+    Alert.alert(
+      '共有スペースに参加しますか？',
+      'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '参加する',
+          onPress: () => {
+            void runSyncAction(
+              '共有スペースに参加しました',
+              () => joinHouseholdSyncSpace(joinCode, joinName),
+              (state) => {
+                setJoinCode('');
+                setJoinName('');
+                return [
+                  `共有コード: ${state.inviteCode ?? state.householdId}`,
+                  state.joinedBy ? `参加名: ${state.joinedBy}` : undefined,
+                ]
+                  .filter(Boolean)
+                  .join('\n');
+              },
+            );
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const shareHouseholdCode = () => {
@@ -325,138 +361,86 @@ export default function SettingsScreen() {
       setSupportMessage('');
       Alert.alert('送信しました', 'お問い合わせありがとうございます。内容を確認します。');
     } catch (error) {
-      Alert.alert('送信できませんでした', error instanceof Error ? error.message : '時間をおいてもう一度お試しください。');
+      Alert.alert(
+        '送信できませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
     } finally {
       setSupportSubmitting(false);
     }
   };
 
+  const plan = settings?.subscriptionPlan ?? 'free';
+  const entitlement = createSubscriptionEntitlement(plan);
+  const accountLabel = authSession
+    ? authSession.provider === 'guest'
+      ? 'ゲスト利用中'
+      : `${authProviderLabels[authSession.provider]}でログイン中`
+    : '未ログイン';
+  const syncLabel = syncState ? '共有中' : isHouseholdSyncConfigured() ? '未参加' : '未設定';
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>プラン</Text>
-        <Text style={styles.planName}>{settings?.subscriptionPlan === 'plus' ? 'にゃんストック Plus' : '無料プラン'}</Text>
-        <Text style={styles.note}>
-          {settings?.subscriptionPlan === 'plus'
-            ? '猫プロフィールと在庫を無制限に登録でき、広告は非表示です。'
-            : `無料では猫プロフィール${freePlanCatLimit}匹、在庫${freePlanInventoryLimit}件まで登録できます。`}
-        </Text>
-        <View style={styles.planLimitBox}>
-          <Text style={styles.statusLine}>
-            猫プロフィール: {formatLimit(createSubscriptionEntitlement(settings?.subscriptionPlan ?? 'free').catLimit)}
-          </Text>
-          <Text style={styles.statusLine}>
-            在庫登録: {formatLimit(createSubscriptionEntitlement(settings?.subscriptionPlan ?? 'free').inventoryLimit)}
-          </Text>
-          <Text style={styles.statusLine}>
-            広告: {createSubscriptionEntitlement(settings?.subscriptionPlan ?? 'free').shouldShowAds ? '表示あり' : '非表示'}
-          </Text>
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>設定</Text>
+        <Text style={styles.screenLead}>通知、共有、アカウントまわりをまとめて管理できます。</Text>
+      </View>
+
+      <AppCard style={[styles.card, styles.summaryCard]}>
+        <View style={styles.planHeader}>
+          <View style={styles.planCopy}>
+            <Text style={styles.sectionEyebrow}>現在のプラン</Text>
+            <Text style={styles.planName}>
+              {plan === 'plus' ? 'にゃんストック Plus' : '無料プラン'}
+            </Text>
+          </View>
+          <View style={[styles.planBadge, plan === 'plus' && styles.planBadgePlus]}>
+            <Text style={[styles.planBadgeText, plan === 'plus' && styles.planBadgeTextPlus]}>
+              {plan === 'plus' ? 'Plus' : 'Free'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.statGrid}>
+          <StatChip label="猫プロフィール" value={formatLimit(entitlement.catLimit)} />
+          <StatChip label="在庫登録" value={formatLimit(entitlement.inventoryLimit)} />
+          <StatChip label="広告" value={entitlement.shouldShowAds ? '表示あり' : '非表示'} />
         </View>
         <AppButton title="にゃんストック Plusを見る" onPress={() => router.push('/subscription')} />
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>アカウント</Text>
-        {authSession ? (
-          <>
-            <Text style={styles.note}>
-              {authSession.provider === 'guest' ? 'ゲストで利用中' : `${authProviderLabels[authSession.provider]}でログイン中`}
-              {authSession.name ? `：${authSession.name}` : ''}
-            </Text>
-            {authSession.email ? <Text style={styles.note}>{authSession.email}</Text> : null}
-            {authSession.provider === 'guest' ? (
-              <Text style={styles.note}>このゲストは端末に紐づきます。アプリ削除や端末変更では復元できない場合があります。</Text>
+      <SettingSection
+        title="アカウント"
+        description="ログインすると、共有コードの作成や別端末での利用準備ができます。"
+      >
+        <View style={styles.accountPanel}>
+          <AccountProviderIcon session={authSession} />
+          <View style={styles.accountBody}>
+            <Text style={styles.accountTitle}>{accountLabel}</Text>
+            {authSession?.name ? <Text style={styles.accountMeta}>{authSession.name}</Text> : null}
+            {authSession?.email ? (
+              <Text style={styles.accountMeta}>{authSession.email}</Text>
             ) : null}
-            <AppButton title="ログアウト" variant="secondary" onPress={signOut} />
-          </>
-        ) : (
-          <>
-            <Text style={styles.note}>GoogleまたはAppleでログインできます。</Text>
-            <SignInButtons onSignedIn={setAuthSession} />
-          </>
-        )}
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>家族・他アカウントと共有</Text>
-        <Text style={styles.note}>
-          共有コードで参加すると、猫プロフィール、在庫、購入履歴はクラウド側を保存先として参照・更新します。
-        </Text>
-        {!isHouseholdSyncConfigured() ? (
-          <Text style={styles.warningText}>Supabase URLとAnon Keyを設定すると共有を使えます。</Text>
+          </View>
+        </View>
+        {authSession?.provider === 'guest' ? (
+          <Text style={styles.note}>
+            このゲストは端末に紐づきます。アプリ削除や端末変更では復元できない場合があります。
+          </Text>
         ) : null}
-        {syncState ? (
-          <>
-            <View style={styles.codeBox}>
-              <Text style={styles.codeLabel}>共有コード</Text>
-              <Text style={styles.codeText}>{syncState.inviteCode ?? syncState.householdId}</Text>
-              {syncState.joinedBy ? (
-                <Text style={styles.codeNote}>参加アカウント: {syncState.joinedBy}</Text>
-              ) : null}
-              {syncState.lastPushedAt ? (
-                <Text style={styles.codeNote}>最終保存: {formatDisplayDate(syncState.lastPushedAt)}</Text>
-              ) : null}
-              {syncState.lastPulledAt ? (
-                <Text style={styles.codeNote}>最終取り込み: {formatDisplayDate(syncState.lastPulledAt)}</Text>
-              ) : null}
-            </View>
-            <AppButton
-              title="共有コードをコピー"
-              disabled={syncBusy}
-              onPress={() => void copyHouseholdCode()}
-            />
-            <AppButton
-              title="共有コードを送る"
-              variant="secondary"
-              disabled={syncBusy}
-              onPress={shareHouseholdCode}
-            />
-            <AppButton
-              title="この端末だけ共有を解除"
-              variant="danger"
-              disabled={syncBusy}
-              onPress={leaveSharedSpace}
-            />
-          </>
+        {authSession ? (
+          <AppButton title="ログアウト" variant="secondary" onPress={signOut} />
         ) : (
-          <>
-            <AppButton
-              title="共有コードを作成"
-              disabled={syncBusy || !isHouseholdSyncConfigured()}
-              onPress={createSharedSpace}
-            />
-            {!isSignedInAccount(authSession) ? (
-              <Text style={styles.note}>共有コードを作成するには、先にGoogleまたはAppleでログインしてください。</Text>
-            ) : null}
-            <AppTextInput
-              label="共有コード"
-              value={joinCode}
-              onChangeText={setJoinCode}
-              autoCapitalize="characters"
-              placeholder="NYAN-XXXX-XXXX"
-            />
-            <AppTextInput
-              label="参加名"
-              value={joinName}
-              onChangeText={setJoinName}
-              placeholder="例: ママのiPhone"
-              maxLength={40}
-            />
-            <AppButton
-              title="共有スペースに参加"
-              variant="secondary"
-              disabled={syncBusy || !joinCode.trim() || !isHouseholdSyncConfigured()}
-              onPress={joinSharedSpace}
-            />
-          </>
+          <SignInButtons onSignedIn={setAuthSession} />
         )}
-      </AppCard>
+      </SettingSection>
 
-      <AppCard style={styles.card}>
+      <SettingSection title="通知" description="在庫切れの前に、指定した時間で通知します。">
         <View style={styles.switchRow}>
           <View style={styles.switchText}>
-            <Text style={styles.title}>通知</Text>
-            <Text style={styles.note}>在庫切れの前に通知でお知らせします。</Text>
+            <Text style={styles.rowTitle}>在庫通知</Text>
+            <Text style={styles.rowDescription}>
+              {settings?.notificationsEnabled ? 'オン' : 'オフ'}
+            </Text>
           </View>
           <Switch
             value={Boolean(settings?.notificationsEnabled)}
@@ -466,41 +450,149 @@ export default function SettingsScreen() {
             thumbColor={settings?.notificationsEnabled ? colors.primary : colors.card}
           />
         </View>
-        <View style={styles.timeRow}>
-          <AppTextInput label="時" value={hour} onChangeText={setHour} keyboardType="numeric" />
-          <AppTextInput label="分" value={minute} onChangeText={setMinute} keyboardType="numeric" />
-        </View>
-        {notificationSummary ? (
-          <View style={styles.notificationStatusBox}>
-            <Text style={styles.statusLine}>端末の通知許可: {notificationPermissionLabels[notificationSummary.permissionState]}</Text>
-            <Text style={styles.statusLine}>登録済みの在庫通知: {notificationSummary.scheduledCount}件</Text>
+        <View style={styles.timeSettingRow}>
+          <View style={styles.timeInputItem}>
+            <AppTextInput
+              label="時"
+              value={hour}
+              onChangeText={setHour}
+              keyboardType="numeric"
+              maxLength={2}
+              style={styles.timeNumberInput}
+            />
           </View>
+          <Text style={styles.timeSeparator}>:</Text>
+          <View style={styles.timeInputItem}>
+            <AppTextInput
+              label="分"
+              value={minute}
+              onChangeText={setMinute}
+              keyboardType="numeric"
+              maxLength={2}
+              style={styles.timeNumberInput}
+            />
+          </View>
+          <AppButton
+            title="保存"
+            variant="secondary"
+            loading={notificationBusy}
+            onPress={() => void saveTime()}
+            style={styles.saveTimeButton}
+          />
+        </View>
+      </SettingSection>
+
+      <SettingSection
+        title="家族・他アカウントと共有"
+        description="猫プロフィール、在庫、購入履歴を共有スペースで参照・更新します。"
+      >
+        <View style={styles.syncStatusRow}>
+          <Text style={styles.rowTitle}>共有ステータス</Text>
+          <Text style={[styles.syncBadge, syncState && styles.syncBadgeActive]}>{syncLabel}</Text>
+        </View>
+        {!isHouseholdSyncConfigured() ? (
+          <Text style={styles.warningText}>Supabase URLとAnon Keyを設定すると共有を使えます。</Text>
         ) : null}
-        <AppButton
-          title="通知時間を保存"
-          variant="secondary"
-          loading={notificationBusy}
-          onPress={() => void saveTime()}
-        />
-        <AppButton
-          title="テスト通知を送る"
-          variant="ghost"
-          disabled={notificationBusy}
-          onPress={() => void sendTestNotification()}
-        />
-      </AppCard>
+        {syncState ? (
+          <>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeLabel}>共有コード</Text>
+              <Text style={styles.codeText}>{syncState.inviteCode ?? syncState.householdId}</Text>
+              {syncState.joinedBy ? (
+                <InfoLine label="参加アカウント" value={syncState.joinedBy} />
+              ) : null}
+              {syncState.lastPushedAt ? (
+                <InfoLine label="最終保存" value={formatDisplayDate(syncState.lastPushedAt)} />
+              ) : null}
+              {syncState.lastPulledAt ? (
+                <InfoLine label="最終取り込み" value={formatDisplayDate(syncState.lastPulledAt)} />
+              ) : null}
+            </View>
+            <View style={styles.buttonStack}>
+              <AppButton
+                title="共有コードをコピー"
+                disabled={syncBusy}
+                onPress={() => void copyHouseholdCode()}
+              />
+              <AppButton
+                title="共有コードを送る"
+                variant="secondary"
+                disabled={syncBusy}
+                onPress={shareHouseholdCode}
+              />
+              <AppButton
+                title="この端末だけ共有を解除"
+                variant="danger"
+                disabled={syncBusy}
+                onPress={leaveSharedSpace}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <AppButton
+              title="共有コードを作成"
+              disabled={syncBusy || !isHouseholdSyncConfigured()}
+              onPress={createSharedSpace}
+            />
+            {!isSignedInAccount(authSession) ? (
+              <Text style={styles.note}>
+                共有コードを作成するには、先にGoogleまたはAppleでログインしてください。
+              </Text>
+            ) : null}
+            <View style={styles.joinForm}>
+              <AppTextInput
+                label="共有コード"
+                value={joinCode}
+                onChangeText={setJoinCode}
+                autoCapitalize="characters"
+                placeholder="NYAN-XXXX-XXXX"
+              />
+              <AppTextInput
+                label="参加名"
+                value={joinName}
+                onChangeText={setJoinName}
+                placeholder="例: ママのiPhone"
+                maxLength={40}
+              />
+              <AppButton
+                title="共有スペースに参加"
+                variant="secondary"
+                disabled={syncBusy || !joinCode.trim() || !isHouseholdSyncConfigured()}
+                onPress={joinSharedSpace}
+              />
+            </View>
+          </>
+        )}
+      </SettingSection>
 
-      <AppCard style={styles.card}>
-        <AppButton title="猫プロフィール管理" onPress={() => router.push('/cat-profile')} />
-        <AppButton title="アフィリエイトについて" variant="secondary" onPress={() => router.push('/affiliate')} />
-        <AppButton title="プライバシーポリシー" variant="secondary" onPress={() => router.push('/privacy')} />
-        <AppButton title="利用規約" variant="secondary" onPress={() => router.push('/terms')} />
-        <AppButton title="データ初期化" variant="danger" onPress={resetData} />
-      </AppCard>
+      <SettingSection title="管理メニュー">
+        <SettingRow
+          title="猫プロフィール管理"
+          description="猫ごとの登録情報を編集"
+          onPress={() => router.push('/cat-profile')}
+        />
+        <SettingRow
+          title="アフィリエイトについて"
+          description="購入リンクの表示方針"
+          onPress={() => router.push('/affiliate')}
+        />
+        <SettingRow
+          title="プライバシーポリシー"
+          description="データの扱いについて"
+          onPress={() => router.push('/privacy')}
+        />
+        <SettingRow
+          title="利用規約"
+          description="利用条件を確認"
+          onPress={() => router.push('/terms')}
+        />
+      </SettingSection>
 
-      <AppCard style={styles.card}>
-        <Text style={styles.title}>お問い合わせ</Text>
-        <Text style={styles.note}>不具合、使い方で困ったこと、機能のご要望などがあればお知らせください。内容を確認し、今後の改善に活用します。</Text>
+      <SettingSection
+        title="お問い合わせ"
+        description="不具合、使い方で困ったこと、機能のご要望などがあればお知らせください。"
+      >
         <AppTextInput
           label="内容"
           value={supportMessage}
@@ -514,17 +606,38 @@ export default function SettingsScreen() {
           loading={supportSubmitting}
           onPress={() => void sendSupportInquiry()}
         />
-      </AppCard>
+      </SettingSection>
+
+      <SettingSection title="データ管理" description="端末内のデータを扱う操作です。">
+        <AppButton title="データ初期化" variant="danger" onPress={resetData} />
+      </SettingSection>
 
       {__DEV__ ? (
         <>
           <AppCard style={styles.card}>
             <Text style={styles.title}>開発用データ</Text>
+            <Text style={styles.note}>通知の動作確認用です。本番ビルドには表示されません。</Text>
+            <AppButton
+              title="テスト通知を送る"
+              variant="secondary"
+              disabled={notificationBusy}
+              onPress={() => void sendTestNotification()}
+            />
             <Text style={styles.note}>動作確認用のプロフィールと在庫を端末内に追加します。</Text>
             <AppButton title="サンプルデータを追加" variant="secondary" onPress={addSeedData} />
-            <Text style={styles.note}>レビュー案内の動作確認用です。本番ビルドには表示されません。</Text>
-            <AppButton title="レビュー案内をテスト表示" variant="secondary" onPress={showReviewPromptForDebug} />
-            <AppButton title="レビュー案内をリセット" variant="secondary" onPress={() => void resetReviewPrompt()} />
+            <Text style={styles.note}>
+              レビュー案内の動作確認用です。本番ビルドには表示されません。
+            </Text>
+            <AppButton
+              title="レビュー案内をテスト表示"
+              variant="secondary"
+              onPress={showReviewPromptForDebug}
+            />
+            <AppButton
+              title="レビュー案内をリセット"
+              variant="secondary"
+              onPress={() => void resetReviewPrompt()}
+            />
             {syncState ? (
               <>
                 <Text style={styles.note}>同期確認用の手動操作です。</Text>
@@ -550,7 +663,9 @@ export default function SettingsScreen() {
                 <Text style={styles.todoDot}>•</Text>
                 <View style={styles.todoBody}>
                   <Text style={styles.todoText}>{item.label}</Text>
-                  <Text style={[styles.todoStatus, item.done && styles.todoStatusDone]}>{item.status}</Text>
+                  <Text style={[styles.todoStatus, item.done && styles.todoStatusDone]}>
+                    {item.status}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -567,14 +682,242 @@ export default function SettingsScreen() {
   );
 }
 
+type SettingSectionProps = {
+  title: string;
+  description?: string;
+  children: ReactNode;
+};
+
+function SettingSection({ title, description, children }: SettingSectionProps) {
+  return (
+    <AppCard style={styles.card}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.title}>{title}</Text>
+        {description ? <Text style={styles.note}>{description}</Text> : null}
+      </View>
+      {children}
+    </AppCard>
+  );
+}
+
+type SettingRowProps = {
+  title: string;
+  description: string;
+  onPress: () => void;
+};
+
+function SettingRow({ title, description, onPress }: SettingRowProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
+    >
+      <View style={styles.menuText}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowDescription}>{description}</Text>
+      </View>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
+  );
+}
+
+type StatChipProps = {
+  label: string;
+  value: string;
+};
+
+function StatChip({ label, value }: StatChipProps) {
+  return (
+    <View style={styles.statChip}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
+type InfoLineProps = {
+  label: string;
+  value: string;
+};
+
+function InfoLine({ label, value }: InfoLineProps) {
+  return (
+    <View style={styles.infoLine}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+type AccountProviderIconProps = {
+  session: AuthSession | undefined;
+};
+
+function AccountProviderIcon({ session }: AccountProviderIconProps) {
+  if (session?.provider === 'google') {
+    return (
+      <View style={styles.accountLogoAvatar}>
+        <Image
+          accessibilityIgnoresInvertColors
+          source={googleLogo}
+          style={styles.accountGoogleLogo}
+        />
+      </View>
+    );
+  }
+
+  const label = session?.provider === 'apple' ? 'A' : session?.provider === 'guest' ? 'ゲ' : '?';
+
+  return (
+    <View style={styles.accountAvatar}>
+      <Text style={styles.accountAvatarText}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
-    gap: 14,
+    backgroundColor: colors.background,
+    gap: 16,
     padding: 18,
     paddingBottom: 40,
   },
+  header: {
+    gap: 6,
+    paddingHorizontal: 2,
+    paddingTop: 4,
+  },
+  screenTitle: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  screenLead: {
+    color: colors.subText,
+    fontSize: 14,
+    lineHeight: 21,
+  },
   card: {
     gap: 14,
+  },
+  summaryCard: {
+    borderColor: colors.primaryLight,
+    gap: 16,
+  },
+  sectionHeader: {
+    gap: 4,
+  },
+  sectionEyebrow: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  planHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  planCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  planBadge: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  planBadgePlus: {
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.primaryDark,
+  },
+  planBadgeText: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  planBadgeTextPlus: {
+    color: colors.card,
+  },
+  statGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statChip: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: 112,
+    padding: 12,
+  },
+  statLabel: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  statValue: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  accountPanel: {
+    alignItems: 'center',
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+  },
+  accountAvatar: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  accountLogoAvatar: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  accountGoogleLogo: {
+    height: 20,
+    width: 20,
+  },
+  accountAvatarText: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  accountBody: {
+    flex: 1,
+    gap: 2,
+  },
+  accountTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  accountMeta: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   switchRow: {
     alignItems: 'center',
@@ -594,7 +937,6 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 14,
     lineHeight: 21,
-    marginTop: 4,
   },
   warningText: {
     color: colors.danger,
@@ -604,16 +946,41 @@ const styles = StyleSheet.create({
   },
   planName: {
     color: colors.primaryDark,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
   },
-  planLimitBox: {
+  rowTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  rowDescription: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  syncStatusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  syncBadge: {
     backgroundColor: colors.muted,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 999,
     borderWidth: 1,
-    gap: 4,
-    padding: 12,
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  syncBadgeActive: {
+    backgroundColor: colors.successLight,
+    borderColor: colors.success,
+    color: colors.success,
   },
   codeBox: {
     backgroundColor: colors.muted,
@@ -633,12 +1000,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
-  codeNote: {
-    color: colors.subText,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  notificationStatusBox: {
+  infoBox: {
     backgroundColor: colors.muted,
     borderColor: colors.border,
     borderRadius: 12,
@@ -646,10 +1008,77 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: 12,
   },
-  statusLine: {
+  infoLine: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  infoLabel: {
     color: colors.subText,
     fontSize: 13,
     lineHeight: 18,
+  },
+  infoValue: {
+    color: colors.text,
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'right',
+  },
+  buttonStack: {
+    gap: 10,
+  },
+  timeSettingRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  timeInputItem: {
+    flex: 1,
+  },
+  timeSeparator: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '900',
+    paddingBottom: 12,
+  },
+  timeNumberInput: {
+    textAlign: 'center',
+  },
+  saveTimeButton: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  joinForm: {
+    gap: 12,
+  },
+  menuRow: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  menuRowPressed: {
+    backgroundColor: colors.muted,
+    transform: [{ scale: 0.99 }],
+  },
+  menuText: {
+    flex: 1,
+    gap: 3,
+  },
+  chevron: {
+    color: colors.primaryDark,
+    fontSize: 26,
+    fontWeight: '500',
+    lineHeight: 28,
   },
   todoRow: {
     alignItems: 'flex-start',
@@ -678,10 +1107,6 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontWeight: '700',
   },
-  timeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   supportInput: {
     minHeight: 110,
     paddingTop: 12,
@@ -694,9 +1119,17 @@ const todoItems = [
   { label: 'Xログイン', status: '実装下地あり。今は非表示・未使用' },
   { label: '共有コードによるクラウド共有', status: 'Supabase参照・保存に対応済み', done: true },
   { label: 'リアルタイム同期、自動マージ', status: '初期版では未対応' },
-  { label: 'EC API連携、商品検索', status: 'Supabase Edge Function経由の検索に対応済み', done: true },
+  {
+    label: 'EC API連携、商品検索',
+    status: 'Supabase Edge Function経由の検索に対応済み',
+    done: true,
+  },
   { label: 'バーコード、OCR', status: '初期版では未対応' },
-  { label: '多頭飼いUIの完全対応', status: 'プロフィール管理と在庫の猫別表示を追加済み', done: true },
+  {
+    label: '多頭飼いUIの完全対応',
+    status: 'プロフィール管理と在庫の猫別表示を追加済み',
+    done: true,
+  },
   { label: '正式なアプリアイコン/スプラッシュ画像', status: 'Expo設定に追加済み', done: true },
   { label: 'seedデータ投入UI', status: '設定画面に追加済み', done: true },
 ];
@@ -707,13 +1140,6 @@ const authProviderLabels = {
   apple: 'Apple',
   x: 'X',
 } satisfies Record<AuthSession['provider'], string>;
-
-const notificationPermissionLabels = {
-  unsupported: 'この環境では未対応',
-  granted: '許可済み',
-  denied: '端末設定でオフ',
-  undetermined: '未確認',
-} satisfies Record<InventoryNotificationSummary['permissionState'], string>;
 
 function isSignedInAccount(session: AuthSession | undefined): boolean {
   return session?.provider === 'google' || session?.provider === 'apple';

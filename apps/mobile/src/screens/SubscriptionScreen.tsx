@@ -15,6 +15,8 @@ import {
   getSubscriptionErrorMessage,
   hasRevenueCatApiKey,
   isPurchaseCancelled,
+  plusAnnualPriceLabel,
+  plusMonthlyPriceLabel,
   purchasePlusPackage,
   restorePlusPurchase,
   revenueCatPlusEntitlementId,
@@ -77,7 +79,9 @@ export default function SubscriptionScreen() {
       setEntitlement(nextEntitlement);
       Alert.alert(
         nextEntitlement.isPlus ? '購入を復元しました' : '復元できるPlus購入がありません',
-        nextEntitlement.isPlus ? 'Plusの利用状態を反映しました。' : '同じストアアカウントで購入済みか確認してください。',
+        nextEntitlement.isPlus
+          ? 'Plusの利用状態を反映しました。'
+          : '同じストアアカウントで購入済みか確認してください。',
       );
     } catch (error) {
       Alert.alert('復元できませんでした', getSubscriptionErrorMessage(error));
@@ -94,8 +98,12 @@ export default function SubscriptionScreen() {
   const isPlus = entitlement?.isPlus;
   const monthlyPackage = offering?.monthly;
   const annualPackage = offering?.annual;
+  const monthlyPrice = monthlyPackage?.product.priceString ?? plusMonthlyPriceLabel;
+  const annualPrice = annualPackage?.product.priceString ?? plusAnnualPriceLabel;
   const otherPackages = offering?.availablePackages.filter(
-    (nextPackage) => nextPackage.identifier !== monthlyPackage?.identifier && nextPackage.identifier !== annualPackage?.identifier,
+    (nextPackage) =>
+      nextPackage.identifier !== monthlyPackage?.identifier &&
+      nextPackage.identifier !== annualPackage?.identifier,
   );
 
   return (
@@ -103,10 +111,17 @@ export default function SubscriptionScreen() {
       <AppCard style={styles.heroCard}>
         <Text style={styles.badge}>{isPlus ? 'Plus利用中' : '無料プラン'}</Text>
         <Text style={styles.title}>にゃんストック Plus</Text>
-        <Text style={styles.lead}>よく使う家庭向けに、登録数の上限を解除して広告を非表示にします。</Text>
+        <Text style={styles.lead}>
+          よく使う家庭向けに、登録数の上限を解除して広告を非表示にします。
+        </Text>
+        <View style={styles.priceStrip}>
+          <PricePill label="月額" value={monthlyPrice} />
+          <PricePill label="年額" value={annualPrice} />
+        </View>
         {entitlement?.source === 'unconfigured' ? (
           <Text style={styles.warningText}>
-            RevenueCat APIキーが未設定です。iOS/Androidそれぞれの公開APIキーを.envに設定してください。
+            RevenueCat
+            APIキーが未設定です。iOS/Androidそれぞれの公開APIキーを.envに設定してください。
           </Text>
         ) : null}
         {loadError ? <Text style={styles.warningText}>{loadError}</Text> : null}
@@ -116,7 +131,11 @@ export default function SubscriptionScreen() {
         {entitlement?.activeProductIdentifier ? (
           <View style={styles.statusBox}>
             <Text style={styles.statusText}>購入商品: {entitlement.activeProductIdentifier}</Text>
-            {entitlement.expirationDate ? <Text style={styles.statusText}>有効期限: {formatDate(entitlement.expirationDate)}</Text> : null}
+            {entitlement.expirationDate ? (
+              <Text style={styles.statusText}>
+                有効期限: {formatDate(entitlement.expirationDate)}
+              </Text>
+            ) : null}
           </View>
         ) : null}
       </AppCard>
@@ -141,11 +160,13 @@ export default function SubscriptionScreen() {
         <Text style={styles.sectionTitle}>購入</Text>
         {loading ? <Text style={styles.note}>RevenueCatからプランを読み込んでいます。</Text> : null}
         {!loading && hasRevenueCatApiKey() && !offering ? (
-          <Text style={styles.warningText}>RevenueCatのCurrent Offeringが見つかりません。DashboardでOfferingを設定してください。</Text>
+          <Text style={styles.warningText}>
+            RevenueCatのCurrent Offeringが見つかりません。DashboardでOfferingを設定してください。
+          </Text>
         ) : null}
         {monthlyPackage ? (
           <PurchaseButton
-            title={`月額プラン ${monthlyPackage.product.priceString}`}
+            title={`月額プラン ${monthlyPrice}`}
             nextPackage={monthlyPackage}
             disabled={Boolean(isPlus) || Boolean(purchaseTarget)}
             loading={purchaseTarget === monthlyPackage.identifier}
@@ -154,12 +175,17 @@ export default function SubscriptionScreen() {
         ) : null}
         {annualPackage ? (
           <PurchaseButton
-            title={`年額プラン ${annualPackage.product.priceString}`}
+            title={`年額プラン ${annualPrice}`}
             nextPackage={annualPackage}
             disabled={Boolean(isPlus) || Boolean(purchaseTarget)}
             loading={purchaseTarget === annualPackage.identifier}
             onPurchase={purchase}
           />
+        ) : null}
+        {!loading && !monthlyPackage && !annualPackage ? (
+          <Text style={styles.note}>
+            予定価格は{plusMonthlyPriceLabel}、{plusAnnualPriceLabel}です。
+          </Text>
         ) : null}
         {otherPackages?.map((nextPackage) => (
           <PurchaseButton
@@ -179,14 +205,13 @@ export default function SubscriptionScreen() {
           onPress={() => void restore()}
         />
         {entitlement?.managementUrl ? (
-          <AppButton title="サブスクリプションを管理" variant="ghost" onPress={() => void openManagementUrl()} />
+          <AppButton
+            title="サブスクリプションを管理"
+            variant="ghost"
+            onPress={() => void openManagementUrl()}
+          />
         ) : null}
       </AppCard>
-
-      <Text style={styles.footnote}>
-        課金商品はApp StoreとRevenueCat Dashboardで管理します。entitlement IDは「{revenueCatPlusEntitlementId}」です。
-        価格、更新、解約、返金はApp Storeの表示と規約が優先されます。
-      </Text>
       <AppButton title="戻る" variant="secondary" onPress={() => router.back()} />
     </ScrollView>
   );
@@ -226,6 +251,15 @@ function PlanRow({ label }: { label: string }) {
   );
 }
 
+function PricePill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.pricePill}>
+      <Text style={styles.priceLabel}>{label}</Text>
+      <Text style={styles.priceValue}>{value.replace(`${label}`, '')}</Text>
+    </View>
+  );
+}
+
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString('ja-JP');
 }
@@ -238,6 +272,31 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     gap: 14,
+  },
+  priceStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  pricePill: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: 128,
+    padding: 12,
+  },
+  priceLabel: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  priceValue: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 4,
   },
   card: {
     gap: 10,

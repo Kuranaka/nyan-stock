@@ -12,8 +12,11 @@ import { SubscriptionPlan } from '@/features/settings/settingsTypes';
 
 export const freePlanCatLimit = 2;
 export const freePlanInventoryLimit = 10;
+export const plusMonthlyPriceLabel = '月額300円';
+export const plusAnnualPriceLabel = '年額3,000円';
 export const subscriptionChangedEventName = 'nyan-stock:subscription-changed';
-export const revenueCatPlusEntitlementId = process.env.EXPO_PUBLIC_REVENUECAT_PLUS_ENTITLEMENT_ID ?? 'nyanstock_plus';
+export const revenueCatPlusEntitlementId =
+  process.env.EXPO_PUBLIC_REVENUECAT_PLUS_ENTITLEMENT_ID ?? 'nyanstock_plus';
 
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
 const revenueCatAndroidApiKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
@@ -80,7 +83,10 @@ export function canCreateCat(entitlement: SubscriptionEntitlement, catCount: num
   return entitlement.catLimit === undefined || catCount < entitlement.catLimit;
 }
 
-export function canCreateInventoryItem(entitlement: SubscriptionEntitlement, itemCount: number): boolean {
+export function canCreateInventoryItem(
+  entitlement: SubscriptionEntitlement,
+  itemCount: number,
+): boolean {
   return entitlement.inventoryLimit === undefined || itemCount < entitlement.inventoryLimit;
 }
 
@@ -120,7 +126,9 @@ export async function getCurrentOffering(): Promise<PurchasesOffering | undefine
   return offerings.current ?? undefined;
 }
 
-export async function purchasePlusPackage(nextPackage: PurchasesPackage): Promise<SubscriptionEntitlement> {
+export async function purchasePlusPackage(
+  nextPackage: PurchasesPackage,
+): Promise<SubscriptionEntitlement> {
   await configureRevenueCat();
   const result = await Purchases.purchasePackage(nextPackage);
   const entitlement = await persistRevenueCatEntitlement(result.customerInfo);
@@ -137,7 +145,10 @@ export async function restorePlusPurchase(): Promise<SubscriptionEntitlement> {
 }
 
 export function isPurchaseCancelled(error: unknown): boolean {
-  return isPurchasesError(error) && error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR;
+  return (
+    isPurchasesError(error) &&
+    error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR
+  );
 }
 
 export function getSubscriptionErrorMessage(error: unknown): string {
@@ -172,7 +183,9 @@ async function getRevenueCatCustomerInfo(): Promise<CustomerInfo | undefined> {
   }
 }
 
-async function persistRevenueCatEntitlement(customerInfo: CustomerInfo): Promise<SubscriptionEntitlement> {
+async function persistRevenueCatEntitlement(
+  customerInfo: CustomerInfo,
+): Promise<SubscriptionEntitlement> {
   const plusEntitlement = customerInfo.entitlements.active[revenueCatPlusEntitlementId];
   const nextPlan: SubscriptionPlan = plusEntitlement ? 'plus' : 'free';
   const settings = await getSettings();

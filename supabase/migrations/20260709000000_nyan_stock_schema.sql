@@ -864,7 +864,6 @@ create table if not exists product_link_reports (
   user_id uuid references auth.users (id) on delete set null,
   provider text,
   provider_user_id text,
-  user_email text,
   household_id text,
   inventory_item_id text not null,
   product_master_id text,
@@ -901,6 +900,9 @@ create index if not exists product_link_reports_status_created_at_idx
 
 grant insert, select on public.product_link_reports to authenticated;
 
+alter table if exists public.product_link_reports
+  drop column if exists user_email;
+
 -- ============================================================================
 -- Source: 20260708000500_support_inquiries.sql
 -- ============================================================================
@@ -910,7 +912,6 @@ create table if not exists support_inquiries (
   user_id uuid references auth.users (id) on delete set null,
   provider text,
   provider_user_id text,
-  user_email text,
   household_id text,
   message text not null,
   status text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'closed')),
@@ -941,6 +942,9 @@ create index if not exists support_inquiries_status_created_at_idx
 
 grant insert, select on public.support_inquiries to authenticated;
 
+alter table if exists public.support_inquiries
+  drop column if exists user_email;
+
 -- ============================================================================
 -- Source: 20260708001000_product_master_suggestions.sql
 -- ============================================================================
@@ -950,7 +954,6 @@ create table if not exists product_master_suggestions (
   user_id uuid references auth.users (id) on delete set null,
   provider text,
   provider_user_id text,
-  user_email text,
   household_id text,
   inventory_item_id text,
   product_name text not null,
@@ -1004,6 +1007,9 @@ group by normalized_product_name, category
 order by suggestion_count desc, last_suggested_at desc;
 
 grant insert, select on public.product_master_suggestions to authenticated;
+
+alter table if exists public.product_master_suggestions
+  drop column if exists user_email;
 
 -- ============================================================================
 -- Source: 20260709000000_fix_join_household_rpc_ambiguity.sql
