@@ -97,8 +97,8 @@ export default function SubscriptionScreen() {
   const isPlus = entitlement?.isPlus;
   const monthlyPackage = offering?.monthly;
   const annualPackage = offering?.annual;
-  const monthlyPrice = monthlyPackage?.product.priceString ?? plusMonthlyPriceLabel;
-  const annualPrice = annualPackage?.product.priceString ?? plusAnnualPriceLabel;
+  const monthlyPrice = formatPackagePrice(monthlyPackage, plusMonthlyPriceLabel);
+  const annualPrice = formatPackagePrice(annualPackage, plusAnnualPriceLabel);
   const otherPackages = offering?.availablePackages.filter(
     (nextPackage) =>
       nextPackage.identifier !== monthlyPackage?.identifier &&
@@ -120,16 +120,6 @@ export default function SubscriptionScreen() {
         {loadError ? <Text style={styles.warningText}>{loadError}</Text> : null}
         {entitlement?.source === 'error' && entitlement.errorMessage ? (
           <Text style={styles.warningText}>{entitlement.errorMessage}</Text>
-        ) : null}
-        {entitlement?.activeProductIdentifier ? (
-          <View style={styles.statusBox}>
-            <Text style={styles.statusText}>購入商品: {entitlement.activeProductIdentifier}</Text>
-            {entitlement.expirationDate ? (
-              <Text style={styles.statusText}>
-                有効期限: {formatDate(entitlement.expirationDate)}
-              </Text>
-            ) : null}
-          </View>
         ) : null}
       </AppCard>
 
@@ -181,7 +171,7 @@ export default function SubscriptionScreen() {
         {otherPackages?.map((nextPackage) => (
           <PurchaseButton
             key={nextPackage.identifier}
-            title={`${nextPackage.product.title} ${nextPackage.product.priceString}`}
+            title={`${nextPackage.product.title} ${formatPackagePrice(nextPackage, nextPackage.product.priceString)}`}
             nextPackage={nextPackage}
             disabled={Boolean(isPlus) || Boolean(purchaseTarget)}
             loading={purchaseTarget === nextPackage.identifier}
@@ -206,6 +196,20 @@ export default function SubscriptionScreen() {
       <AppButton title="戻る" variant="secondary" onPress={() => router.back()} />
     </ScrollView>
   );
+}
+
+function formatPackagePrice(nextPackage: PurchasesPackage | null | undefined, fallback: string): string {
+  if (!nextPackage) return fallback;
+
+  const { currencyCode, price, priceString } = nextPackage.product;
+  if (currencyCode === 'JPY' && Number.isFinite(price)) {
+    return new Intl.NumberFormat('ja-JP', {
+      currency: 'JPY',
+      style: 'currency',
+    }).format(price);
+  }
+
+  return priceString || fallback;
 }
 
 function PurchaseButton({
@@ -249,10 +253,6 @@ function PricePill({ label, value }: { label: string; value: string }) {
       <Text style={styles.priceValue}>{value.replace(`${label}`, '')}</Text>
     </View>
   );
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString('ja-JP');
 }
 
 const styles = StyleSheet.create({
@@ -323,19 +323,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
-  },
-  statusBox: {
-    backgroundColor: colors.muted,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 4,
-    padding: 12,
-  },
-  statusText: {
-    color: colors.subText,
-    fontSize: 13,
-    lineHeight: 18,
   },
   sectionTitle: {
     color: colors.text,

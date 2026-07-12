@@ -42,11 +42,10 @@ export function LegalPage({ title, lead, effectiveDate, sections }: LegalPagePro
                 </section>
               ))}
             </div>
-            {supportEmail ? (
-              <p className="mt-10 text-sm leading-7 text-muted">
-                お問い合わせ先: <a className="font-bold text-caramel hover:text-ink" href={`mailto:${supportEmail}`}>{supportEmail}</a>
-              </p>
-            ) : null}
+            <p className="mt-10 text-sm leading-7 text-muted">
+              お問い合わせは <Link className="font-bold text-caramel hover:text-ink" href="/support">お問い合わせページ</Link> からご連絡ください。
+              {supportEmail ? `（連絡先: ${supportEmail}）` : ''}
+            </p>
           </article>
         </div>
       </main>

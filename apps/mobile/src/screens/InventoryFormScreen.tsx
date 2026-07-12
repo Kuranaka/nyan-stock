@@ -117,7 +117,7 @@ export default function InventoryFormScreen() {
   const [purchaseDate, setPurchaseDate] = useState(todayIso());
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
-  const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('lasting_days');
+  const [estimationMode, setEstimationMode] = useState<InventoryEstimationMode>('purchase_frequency');
   const [notifyBeforeDays, setNotifyBeforeDays] = useState<number[]>(defaultNotifyBeforeDays);
   const [amazon, setAmazon] = useState('');
   const [rakuten, setRakuten] = useState('');
@@ -292,12 +292,33 @@ export default function InventoryFormScreen() {
           return validIds.length > 0 ? validIds : fallbackCatId ? [fallbackCatId] : [];
         });
         if (!id) {
-          const brands = await getProductMasterBrands();
-          setMasterBrandOptions(brands);
+          setCurrent(undefined);
+          setAddMethod('master');
+          setMasterSearchKeyword('');
+          setMasterCategoryFilter('all');
+          setMasterBrandFilter('all');
           setMasterSearchResults([]);
           setMasterResultPage(0);
           setMasterSearchMessage('');
+          setMasterSearchLoading(true);
           setFormInitialized(true);
+
+          void findProductsByKeywordAsync('', { limit: masterPageSize })
+            .then((results) => {
+              setMasterSearchResults(results);
+              setMasterResultPage(0);
+              setMasterSearchMessage(
+                results.length === 0
+                  ? '商品マスタに該当する商品が見つかりませんでした。'
+                  : `${results.length}件の候補が見つかりました。`,
+              );
+            })
+            .catch(() => {
+              setMasterSearchMessage('商品マスタを読み込めませんでした。検索し直してください。');
+            })
+            .finally(() => {
+              setMasterSearchLoading(false);
+            });
           return;
         }
         const item = await getInventoryItem(id);
@@ -342,10 +363,11 @@ export default function InventoryFormScreen() {
         const keyword = masterSearchKeyword.trim();
         setMasterSearchLoading(true);
         try {
+          const isInitialPage = !keyword && masterBrandFilter === 'all' && masterCategoryFilter === 'all';
           const results = await findProductsByKeywordAsync(keyword, {
             brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
             category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
-            limit: null,
+            limit: isInitialPage ? masterPageSize : null,
           });
           if (!isActive) return;
           pendingMasterSearchScrollYRef.current = scrollOffsetYRef.current;
@@ -418,6 +440,9 @@ export default function InventoryFormScreen() {
 
   const changeEstimationMode = (nextMode: InventoryEstimationMode) => {
     setEstimationMode(nextMode);
+    if (nextMode === 'no_estimate') {
+      setNotifyBeforeDays([]);
+    }
     setErrors((currentErrors) => ({
       ...currentErrors,
       amount: undefined,
@@ -433,7 +458,10 @@ export default function InventoryFormScreen() {
       const results = await findProductsByKeywordAsync('', {
         category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
         brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
-        limit: null,
+        limit:
+          masterCategoryFilter === 'all' && masterBrandFilter === 'all'
+            ? masterPageSize
+            : null,
       });
       setMasterSearchResults(results);
       setMasterResultPage(0);
@@ -527,7 +555,10 @@ export default function InventoryFormScreen() {
       const results = await findProductsByKeywordAsync(overrides.keyword ?? keyword, {
         brand: nextBrand === 'all' ? undefined : nextBrand,
         category: nextCategory === 'all' ? undefined : nextCategory,
-        limit: null,
+        limit:
+          !(overrides.keyword ?? keyword).trim() && nextBrand === 'all' && nextCategory === 'all'
+            ? masterPageSize
+            : null,
       });
       setMasterSearchKeyword(overrides.keyword ?? keyword);
       setMasterSearchResults(results);
@@ -551,7 +582,7 @@ export default function InventoryFormScreen() {
     setName(getProductNameWithBrand(product));
     setCategory(nextCategory);
     setAmount(shouldCopyAmount ? String(product.amount) : '');
-    setEstimationMode('lasting_days');
+    setEstimationMode('purchase_frequency');
     setUnit(shouldCopyAmount && product.unit ? productUnitToInventoryUnit(product.unit) : defaultUnitByCategory[nextCategory]);
     setAddMethod(undefined);
     setMasterSearchResults([]);
@@ -636,7 +667,7 @@ export default function InventoryFormScreen() {
         openedDate: current?.openedDate,
         estimatedEndDate,
         estimationMode,
-        notifyBeforeDays,
+        notifyBeforeDays: estimationMode === 'no_estimate' ? [] : notifyBeforeDays,
         purchaseLinks,
         memo: memo.trim() || undefined,
         createdAt: current?.createdAt ?? now,
@@ -951,6 +982,11 @@ export default function InventoryFormScreen() {
               variant={estimationMode === 'purchase_frequency' ? 'primary' : 'secondary'}
               onPress={() => changeEstimationMode('purchase_frequency')}
             />
+            <AppButton
+              title="計算しない（不定期購入）"
+              variant={estimationMode === 'no_estimate' ? 'primary' : 'secondary'}
+              onPress={() => changeEstimationMode('no_estimate')}
+            />
           </View>
 
           {estimationMode === 'usage' ? (
@@ -1003,23 +1039,30 @@ export default function InventoryFormScreen() {
           {estimationMode === 'purchase_frequency' ? (
             <Text style={styles.hint}>補充を記録すると、購入日どうしの間隔から次回購入日を自動推定します。</Text>
           ) : null}
+          {estimationMode === 'no_estimate' ? (
+            <Text style={styles.hint}>不定期に購入する用品向けです。残り日数の計算と在庫通知は行いません。</Text>
+          ) : null}
         </AppCard>
       </View>
 
-      <FieldLabel label="通知タイミング" requirement="optional" />
-      <View style={styles.wrapRow}>
-        {defaultNotifyBeforeDays.map((day) => {
-          const isSelected = notifyBeforeDays.includes(day);
-          return (
-            <AppButton
-              key={day}
-              title={`${isSelected ? '通知あり' : '通知なし'}・残り${day}日`}
-              variant={isSelected ? 'primary' : 'secondary'}
-              onPress={() => toggleNotify(day)}
-            />
-          );
-        })}
-      </View>
+      {estimationMode !== 'no_estimate' ? (
+        <>
+          <FieldLabel label="通知タイミング" requirement="optional" />
+          <View style={styles.wrapRow}>
+            {defaultNotifyBeforeDays.map((day) => {
+              const isSelected = notifyBeforeDays.includes(day);
+              return (
+                <AppButton
+                  key={day}
+                  title={`${isSelected ? '通知あり' : '通知なし'}・残り${day}日`}
+                  variant={isSelected ? 'primary' : 'secondary'}
+                  onPress={() => toggleNotify(day)}
+                />
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       <View onLayout={setFormFieldY('url')}>
         <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />

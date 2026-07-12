@@ -5,7 +5,7 @@ const links = [
   { href: '/privacy', label: 'プライバシーポリシー' },
   { href: '/terms', label: '利用規約' },
   { href: '/affiliate', label: 'アフィリエイトについて' },
-  ...(supportEmail ? [{ href: `mailto:${supportEmail}`, label: 'お問い合わせ' }] : [])
+  { href: '/support', label: 'お問い合わせ' }
 ];
 
 export function Footer() {

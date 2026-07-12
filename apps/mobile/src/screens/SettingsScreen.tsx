@@ -21,7 +21,7 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
-import { showAdMobPrivacyOptions } from '@/features/ads/adMob';
+import { areAdMobPrivacyOptionsRequired, showAdMobPrivacyOptions } from '@/features/ads/adMob';
 import { clearAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
 import { deleteSupabaseAccount, getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
@@ -76,6 +76,7 @@ export default function SettingsScreen() {
   const [supportSubmitting, setSupportSubmitting] = useState(false);
   const [accountDeleting, setAccountDeleting] = useState(false);
   const [adPrivacyOptionsBusy, setAdPrivacyOptionsBusy] = useState(false);
+  const [showAdPrivacyOptions, setShowAdPrivacyOptions] = useState(false);
 
   const load = useCallback(async () => {
     const [next, nextAuthSession, nextSyncState, items] = await Promise.all([
@@ -99,6 +100,7 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       void load();
+      void areAdMobPrivacyOptionsRequired().then(setShowAdPrivacyOptions);
     }, [load]),
   );
   useHouseholdSyncEvents(() => {
@@ -344,6 +346,15 @@ export default function SettingsScreen() {
   };
 
   const joinSharedSpace = () => {
+    if (!joinCode.trim()) {
+      Alert.alert('共有コードを入力してください');
+      return;
+    }
+    if (!joinName.trim()) {
+      Alert.alert('参加名を入力してください', '共有中に表示する名前を入力してください。');
+      return;
+    }
+
     Alert.alert(
       '共有スペースに参加しますか？',
       'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。',
@@ -374,8 +385,17 @@ export default function SettingsScreen() {
 
   const shareHouseholdCode = () => {
     if (!syncState) return;
+    const inviteCode = syncState.inviteCode ?? syncState.householdId;
     void Share.share({
-      message: `にゃんストックの共有コード: ${syncState.inviteCode ?? syncState.householdId}`,
+      message: [
+        'にゃんストックで猫用品を共有しよう🐱',
+        '',
+        '【共有コード】',
+        inviteCode,
+        '',
+        '上のコードだけをコピーして、',
+        'にゃんストックの「設定」→「共有スペースに参加」で、参加名と一緒に入力してください。',
+      ].join('\n'),
     });
   };
 
@@ -703,7 +723,7 @@ export default function SettingsScreen() {
                 placeholder="NYAN-XXXX-XXXX"
               />
               <AppTextInput
-                label="参加名"
+                label="参加名（必須）"
                 value={joinName}
                 onChangeText={setJoinName}
                 placeholder="例: ママのiPhone"
@@ -712,7 +732,7 @@ export default function SettingsScreen() {
               <AppButton
                 title="共有スペースに参加"
                 variant="secondary"
-                disabled={syncBusy || !joinCode.trim() || !isHouseholdSyncConfigured()}
+                disabled={syncBusy || !joinCode.trim() || !joinName.trim() || !isHouseholdSyncConfigured()}
                 onPress={joinSharedSpace}
               />
             </View>
@@ -736,11 +756,13 @@ export default function SettingsScreen() {
           description="データの扱いについて"
           onPress={() => router.push('/privacy')}
         />
-        <SettingRow
-          title="広告のプライバシー設定"
-          description={adPrivacyOptionsBusy ? '開いています…' : '広告に関する同意内容を変更'}
-          onPress={() => void openAdPrivacyOptions()}
-        />
+        {showAdPrivacyOptions ? (
+          <SettingRow
+            title="広告のプライバシー設定"
+            description={adPrivacyOptionsBusy ? '開いています…' : '広告に関する同意内容を変更'}
+            onPress={() => void openAdPrivacyOptions()}
+          />
+        ) : null}
         <SettingRow
           title="利用規約"
           description="利用条件を確認"

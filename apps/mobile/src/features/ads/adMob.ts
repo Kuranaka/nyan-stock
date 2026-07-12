@@ -35,6 +35,7 @@ type GoogleMobileAdsPackage = {
   };
   AdsConsent: {
     gatherConsent: () => Promise<AdsConsentInfo>;
+    getConsentInfo: () => Promise<AdsConsentInfo>;
     showPrivacyOptionsForm: () => Promise<unknown>;
   };
 };
@@ -97,4 +98,21 @@ export async function showAdMobPrivacyOptions(): Promise<void> {
   }
 
   await googleMobileAds.AdsConsent.showPrivacyOptionsForm();
+}
+
+/**
+ * The UMP privacy-options form is only available where Google requires it.
+ * Hide its entry point everywhere else instead of presenting an error to the user.
+ */
+export async function areAdMobPrivacyOptionsRequired(): Promise<boolean> {
+  const googleMobileAds = getGoogleMobileAdsPackage();
+  if (!googleMobileAds) return false;
+
+  try {
+    const consentInfo = await googleMobileAds.AdsConsent.getConsentInfo();
+    return consentInfo.privacyOptionsRequirementStatus === 'REQUIRED';
+  } catch (error) {
+    console.warn('[AdMob] could not read privacy options requirement', error);
+    return false;
+  }
 }

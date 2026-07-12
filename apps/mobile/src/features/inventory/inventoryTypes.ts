@@ -17,7 +17,7 @@ export type PurchaseLinks = {
   other?: string;
 };
 
-export type InventoryEstimationMode = 'usage' | 'lasting_days' | 'purchase_frequency';
+export type InventoryEstimationMode = 'usage' | 'lasting_days' | 'purchase_frequency' | 'no_estimate';
 export type LastingDaysReplenishMode = 'add_remaining' | 'reset_cycle';
 
 export type InventoryItem = {

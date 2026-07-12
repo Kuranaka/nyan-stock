@@ -71,6 +71,7 @@ const estimationModeOptions: { value: InventoryEstimationMode; label: string }[]
   { value: 'lasting_days', label: '使い切る日数' },
   { value: 'usage', label: '内容量と1日の使用量' },
   { value: 'purchase_frequency', label: '購入頻度から自動計算' },
+  { value: 'no_estimate', label: '計算しない（不定期購入）' },
 ];
 
 function areNumberArraysEqual(first: number[], second: number[]): boolean {
@@ -170,38 +171,38 @@ export default function InventoryDetailScreen() {
 
   const hasUnsavedChanges = item
     ? (showStockEdit &&
-        (editName !== item.name ||
-          editEstimationMode !== (item.estimationMode ?? 'usage') ||
-          editPurchaseDate !== item.purchaseDate ||
-          editPrice !== (item.price?.toString() ?? '') ||
-          editAmount !== String(item.amount) ||
-          editUnit !== item.unit ||
-          editDailyUsage !== (item.dailyUsage?.toString() ?? '') ||
-          editLastingDays !== (item.lastingDays?.toString() ?? '') ||
-          !areNumberArraysEqual(editNotifyBeforeDays, item.notifyBeforeDays) ||
-          editMemo !== (item.memo ?? ''))) ||
-      (showQuickAdjust &&
-        (quickAdjustMode !== 'days' ||
-          quickRemainingDays !==
-            String(Math.max(0, calculateRemainingDays(item) ?? Number.NaN)).replace('NaN', '') ||
-          quickRemainingAmount !==
-            (calculateRemainingAmount(item) === undefined
-              ? ''
-              : formatQuantity(calculateRemainingAmount(item) ?? 0)))) ||
-      (showPurchaseLinkEdit &&
-        (editAmazonUrl !== (item.purchaseLinks.amazon ?? '') ||
-          editRakutenUrl !== (item.purchaseLinks.rakuten ?? '') ||
-          editYahooUrl !== (item.purchaseLinks.yahoo ?? '') ||
-          editOtherUrl !== (item.purchaseLinks.other ?? ''))) ||
-      (showReplenish &&
-        (replenishDate !== todayIso() ||
-          price !== (item.price?.toString() ?? '') ||
-          memo.trim().length > 0)) ||
-      (showHistoryAdd &&
-        (historyDate !== todayIso() ||
-          historyPrice !== (item.price?.toString() ?? '') ||
-          historyMemo.trim().length > 0)) ||
-      (showProductLinkReport && productLinkIssueMessage.trim().length > 0)
+      (editName !== item.name ||
+        editEstimationMode !== (item.estimationMode ?? 'usage') ||
+        editPurchaseDate !== item.purchaseDate ||
+        editPrice !== (item.price?.toString() ?? '') ||
+        editAmount !== String(item.amount) ||
+        editUnit !== item.unit ||
+        editDailyUsage !== (item.dailyUsage?.toString() ?? '') ||
+        editLastingDays !== (item.lastingDays?.toString() ?? '') ||
+        !areNumberArraysEqual(editNotifyBeforeDays, item.notifyBeforeDays) ||
+        editMemo !== (item.memo ?? ''))) ||
+    (showQuickAdjust &&
+      (quickAdjustMode !== 'days' ||
+        quickRemainingDays !==
+        String(Math.max(0, calculateRemainingDays(item) ?? Number.NaN)).replace('NaN', '') ||
+        quickRemainingAmount !==
+        (calculateRemainingAmount(item) === undefined
+          ? ''
+          : formatQuantity(calculateRemainingAmount(item) ?? 0)))) ||
+    (showPurchaseLinkEdit &&
+      (editAmazonUrl !== (item.purchaseLinks.amazon ?? '') ||
+        editRakutenUrl !== (item.purchaseLinks.rakuten ?? '') ||
+        editYahooUrl !== (item.purchaseLinks.yahoo ?? '') ||
+        editOtherUrl !== (item.purchaseLinks.other ?? ''))) ||
+    (showReplenish &&
+      (replenishDate !== todayIso() ||
+        price !== (item.price?.toString() ?? '') ||
+        memo.trim().length > 0)) ||
+    (showHistoryAdd &&
+      (historyDate !== todayIso() ||
+        historyPrice !== (item.price?.toString() ?? '') ||
+        historyMemo.trim().length > 0)) ||
+    (showProductLinkReport && productLinkIssueMessage.trim().length > 0)
     : false;
 
   const confirmDiscardChanges = useCallback(
@@ -323,7 +324,9 @@ export default function InventoryDetailScreen() {
       ? '購入頻度から自動計算'
       : item.estimationMode === 'lasting_days'
         ? '使い切る日数'
-        : '内容量と1日の使用量';
+        : item.estimationMode === 'no_estimate'
+          ? '計算しない（不定期購入）'
+          : '内容量と1日の使用量';
   const shouldShowDailyUsage = !item.estimationMode || item.estimationMode === 'usage';
 
   const openStockEdit = () => {
@@ -411,16 +414,16 @@ export default function InventoryDetailScreen() {
       item.estimationMode === 'lasting_days' ? item.lastingDays : undefined;
     const amountBasedRemainingDays =
       quickAdjustMode === 'amount' &&
-      item.estimationMode === 'lasting_days' &&
-      remainingAmountNumber !== undefined &&
-      lastingDaysForAdjustment
+        item.estimationMode === 'lasting_days' &&
+        remainingAmountNumber !== undefined &&
+        lastingDaysForAdjustment
         ? Math.ceil((remainingAmountNumber / item.amount) * lastingDaysForAdjustment)
         : undefined;
     const usageAmountBasedRemainingDays =
       quickAdjustMode === 'amount' &&
-      (!item.estimationMode || item.estimationMode === 'usage') &&
-      remainingAmountNumber !== undefined &&
-      item.dailyUsage
+        (!item.estimationMode || item.estimationMode === 'usage') &&
+        remainingAmountNumber !== undefined &&
+        item.dailyUsage
         ? Math.ceil(remainingAmountNumber / item.dailyUsage)
         : undefined;
     const nextRemainingDays =
@@ -429,9 +432,9 @@ export default function InventoryDetailScreen() {
         : (amountBasedRemainingDays ?? usageAmountBasedRemainingDays);
     const daysBasedRemainingAmount =
       quickAdjustMode === 'days' &&
-      (!item.estimationMode || item.estimationMode === 'usage') &&
-      remainingDaysNumber !== undefined &&
-      item.dailyUsage
+        (!item.estimationMode || item.estimationMode === 'usage') &&
+        remainingDaysNumber !== undefined &&
+        item.dailyUsage
         ? remainingDaysNumber * item.dailyUsage
         : undefined;
     const adjustedRemainingAmount = daysBasedRemainingAmount ?? remainingAmountNumber;
@@ -443,12 +446,12 @@ export default function InventoryDetailScreen() {
     const adjustedOpenedDate =
       shouldAdjustUsageRemaining && item.dailyUsage && adjustedRemainingAmount !== undefined
         ? addDays(
-            today,
-            -Math.max(
-              0,
-              (item.amount - Math.min(adjustedRemainingAmount, item.amount)) / item.dailyUsage,
-            ),
-          )
+          today,
+          -Math.max(
+            0,
+            (item.amount - Math.min(adjustedRemainingAmount, item.amount)) / item.dailyUsage,
+          ),
+        )
         : item.openedDate;
     const formattedAdjustedOpenedDate =
       adjustedOpenedDate instanceof Date ? format(adjustedOpenedDate, 'yyyy-MM-dd') : adjustedOpenedDate;
@@ -676,9 +679,9 @@ export default function InventoryDetailScreen() {
       const settings = await getSettings();
       const itemForReplenish: InventoryItem = shouldUpdateItemPrice
         ? {
-            ...item,
-            price: priceNumber,
-          }
+          ...item,
+          price: priceNumber,
+        }
         : item;
       const nextItem = await replenishInventoryItem(
         itemForReplenish,
@@ -800,20 +803,28 @@ export default function InventoryDetailScreen() {
       name: editName.trim(),
       price: priceNumber,
       estimationMode: editEstimationMode,
-      amount: editEstimationMode === 'purchase_frequency' ? item.amount : (amountNumber ?? 0),
-      unit: editEstimationMode === 'purchase_frequency' ? item.unit : editUnit,
+      amount:
+        editEstimationMode === 'purchase_frequency' || editEstimationMode === 'no_estimate'
+          ? item.amount
+          : (amountNumber ?? 0),
+      unit:
+        editEstimationMode === 'purchase_frequency' || editEstimationMode === 'no_estimate'
+          ? item.unit
+          : editUnit,
       dailyUsage: editEstimationMode === 'usage' ? dailyUsageNumber : undefined,
       lastingDays: editEstimationMode === 'lasting_days' ? lastingDaysNumber : undefined,
       purchaseDate: editPurchaseDate,
       estimatedEndDate:
-        editEstimationMode === 'purchase_frequency'
-          ? item.estimationMode === 'purchase_frequency'
-            ? item.estimatedEndDate
-            : undefined
-          : shouldRecalculateEstimatedEndDate
-            ? undefined
-            : item.estimatedEndDate,
-      notifyBeforeDays: editNotifyBeforeDays,
+        editEstimationMode === 'no_estimate'
+          ? undefined
+          : editEstimationMode === 'purchase_frequency'
+            ? item.estimationMode === 'purchase_frequency'
+              ? item.estimatedEndDate
+              : undefined
+            : shouldRecalculateEstimatedEndDate
+              ? undefined
+              : item.estimatedEndDate,
+      notifyBeforeDays: editEstimationMode === 'no_estimate' ? [] : editNotifyBeforeDays,
       memo: editMemo.trim() || undefined,
       updatedAt: nowIso(),
     };
@@ -1017,16 +1028,24 @@ export default function InventoryDetailScreen() {
         <View style={styles.metrics}>
           <Metric
             label="残り日数"
-            value={remainingDays === undefined ? '未計算' : `${Math.max(0, remainingDays)}日`}
+            value={
+              item.estimationMode === 'no_estimate'
+                ? '計算しない'
+                : remainingDays === undefined
+                  ? '未計算'
+                  : `${Math.max(0, remainingDays)}日`
+            }
           />
           <Metric label="残量" value={remainingStockLabel} />
         </View>
-        <AppButton
-          title={showQuickAdjust ? '調整を閉じる' : '残り日数・残量を調整'}
-          variant="secondary"
-          disabled={savingQuickAdjust}
-          onPress={showQuickAdjust ? closeQuickAdjust : openQuickAdjust}
-        />
+        {item.estimationMode !== 'no_estimate' ? (
+          <AppButton
+            title={showQuickAdjust ? '調整を閉じる' : '残り日数・残量を調整'}
+            variant="secondary"
+            disabled={savingQuickAdjust}
+            onPress={showQuickAdjust ? closeQuickAdjust : openQuickAdjust}
+          />
+        ) : null}
         {showQuickAdjust ? (
           <View style={styles.quickAdjustPanel}>
             <View style={styles.inlineActions}>
@@ -1111,10 +1130,10 @@ export default function InventoryDetailScreen() {
             onPress={
               showStockEdit
                 ? () => {
-                    if (savingStockEdit) return;
-                    resetStockEditFields(item);
-                    setShowStockEdit(false);
-                  }
+                  if (savingStockEdit) return;
+                  resetStockEditFields(item);
+                  setShowStockEdit(false);
+                }
                 : openStockEdit
             }
             disabled={savingStockEdit}
@@ -1156,7 +1175,7 @@ export default function InventoryDetailScreen() {
                 ))}
               </View>
             </View>
-            {editEstimationMode !== 'purchase_frequency' ? (
+            {editEstimationMode !== 'purchase_frequency' && editEstimationMode !== 'no_estimate' ? (
               <>
                 <AppTextInput
                   label={`内容量（${unitLabels[editUnit]}）`}
@@ -1297,11 +1316,11 @@ export default function InventoryDetailScreen() {
               onPress={
                 showPurchaseLinkEdit
                   ? () => {
-                      if (savingPurchaseLinks) return;
-                      resetPurchaseLinkFields(item);
-                      setPurchaseLinkErrors({});
-                      setShowPurchaseLinkEdit(false);
-                    }
+                    if (savingPurchaseLinks) return;
+                    resetPurchaseLinkFields(item);
+                    setPurchaseLinkErrors({});
+                    setShowPurchaseLinkEdit(false);
+                  }
                   : openPurchaseLinkEdit
               }
               disabled={savingPurchaseLinks}
@@ -1434,7 +1453,7 @@ export default function InventoryDetailScreen() {
           bottomActionsYRef.current = event.nativeEvent.layout.y;
         }}
       >
-        <AppButton title="在庫を補充した" onPress={openReplenish} />
+        <AppButton title="在庫の補充を記録する" onPress={openReplenish} />
         {showReplenish ? (
           <View
             onLayout={(event) => {

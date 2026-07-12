@@ -12,7 +12,11 @@ import {
 } from '@/features/supabase/supabaseClient';
 import { nowIso } from '@/utils/date';
 
-import { getHouseholdSyncState, saveHouseholdSyncState } from './householdSyncStorage';
+import {
+  clearHouseholdSyncState,
+  getHouseholdSyncState,
+  saveHouseholdSyncState,
+} from './householdSyncStorage';
 import { HouseholdSnapshot, HouseholdSyncState, RemoteHouseholdSnapshot } from './householdSyncTypes';
 
 const householdSnapshotsTable = process.env.EXPO_PUBLIC_SUPABASE_HOUSEHOLD_SNAPSHOTS_TABLE ?? 'household_snapshots';
@@ -112,6 +116,9 @@ export async function joinHouseholdSyncSpace(
     throw new Error('共有コードを入力してください。');
   }
   const participantName = participantNameInput?.trim();
+  if (!participantName) {
+    throw new Error('参加名を入力してください。');
+  }
 
   await ensureSupabaseSessionForSharing();
   const { household_id: householdId, invite_code: joinedInviteCode } = await joinRemoteHouseholdByInviteCode(
@@ -126,7 +133,7 @@ export async function joinHouseholdSyncSpace(
     householdId,
     inviteCode: joinedInviteCode,
     joinedAt: nowIso(),
-    joinedBy: participantName || (await getCurrentUserLabel()),
+    joinedBy: participantName,
     lastPulledAt: nowIso(),
   };
   await applyRemoteSnapshot(remote.snapshot);
@@ -216,9 +223,10 @@ export async function getActiveHouseholdSnapshot(): Promise<HouseholdSnapshot | 
 
   const remote = await fetchRemoteHouseholdData(state.householdId);
   if (!remote) {
-    const snapshot = await createLocalSnapshot();
-    await upsertNormalizedSnapshot(state.householdId, snapshot, await getCurrentUserLabel());
-    return snapshot;
+    // This happens when a member has been removed or the shared space no longer
+    // exists. Do not recreate it from the removed member's local cache.
+    await clearHouseholdSyncState();
+    return undefined;
   }
 
   await applyRemoteSnapshot(remote.snapshot);

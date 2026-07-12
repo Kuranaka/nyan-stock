@@ -118,8 +118,13 @@ function applyDecision(product: ProductMaster, decision: ReviewDecision, now: st
   const hasImagePatch = Object.prototype.hasOwnProperty.call(decision, 'imageUrl');
   const imageUrl = hasImagePatch ? normalizeUrl(decision.imageUrl) : product.imageUrl;
   const purchaseLinks = mergePurchaseLinks(product.purchaseLinks, decision.purchaseLinks);
-  const packageImageUrls = imageUrl
-    ? Array.from(new Set([imageUrl, ...(product.packageImageUrls ?? [])]))
+  // An explicitly cleared representative image means the product should have no
+  // displayable package image. Keeping the old candidates makes the mobile app
+  // fall back to them and appear as though the review change was ignored.
+  const packageImageUrls = hasImagePatch
+    ? imageUrl
+      ? Array.from(new Set([imageUrl, ...(product.packageImageUrls ?? [])]))
+      : []
     : product.packageImageUrls;
 
   const next: ProductMaster = {

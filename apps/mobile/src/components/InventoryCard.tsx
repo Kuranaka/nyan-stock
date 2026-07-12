@@ -43,7 +43,11 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail }: Props
         <View>
           <Text style={styles.metricLabel}>残り日数</Text>
           <Text style={styles.metricValue}>
-            {remainingDays === undefined ? '未計算' : `${Math.max(0, remainingDays)}日`}
+            {item.estimationMode === 'no_estimate'
+              ? '計算しない'
+              : remainingDays === undefined
+                ? '未計算'
+                : `${Math.max(0, remainingDays)}日`}
           </Text>
         </View>
         <View>
@@ -52,9 +56,11 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail }: Props
         </View>
       </View>
 
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
-      </View>
+      {item.estimationMode !== 'no_estimate' ? (
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <AppButton title="購入する" onPress={onPurchase} style={styles.action} />

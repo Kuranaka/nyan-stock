@@ -15,6 +15,7 @@ function baseDateOf(item: InventoryItem) {
 }
 
 export function calculateEstimatedEndDate(item: InventoryItem): string | undefined {
+  if (item.estimationMode === 'no_estimate') return undefined;
   if (item.estimationMode === 'lasting_days' && item.lastingDays && item.lastingDays > 0) {
     return format(addDays(parseISO(item.purchaseDate), item.lastingDays), 'yyyy-MM-dd');
   }
@@ -27,6 +28,7 @@ export function calculateRemainingDays(
   item: InventoryItem,
   today: Date = new Date(),
 ): number | undefined {
+  if (item.estimationMode === 'no_estimate') return undefined;
   const estimatedEndDate = item.estimatedEndDate || calculateEstimatedEndDate(item);
   if (!estimatedEndDate) return undefined;
   return differenceInCalendarDays(parseISO(estimatedEndDate), today);
@@ -65,6 +67,7 @@ export function calculatePurchaseFrequencyDays(item: InventoryItem): number | un
 }
 
 export function calculateInventoryCycleDays(item: InventoryItem): number | undefined {
+  if (item.estimationMode === 'no_estimate') return undefined;
   if (item.estimationMode === 'lasting_days') {
     return item.lastingDays && item.lastingDays > 0 ? item.lastingDays : undefined;
   }
@@ -84,6 +87,7 @@ export function calculateMonthlyCost(item: InventoryItem): number | undefined {
 }
 
 export function getInventoryStatus(item: InventoryItem): InventoryStatus {
+  if (item.estimationMode === 'no_estimate') return 'unknown';
   if (!item.estimatedEndDate && (!item.dailyUsage || item.dailyUsage <= 0)) return 'unknown';
   const remainingDays = calculateRemainingDays(item);
   if (remainingDays === undefined) return 'unknown';

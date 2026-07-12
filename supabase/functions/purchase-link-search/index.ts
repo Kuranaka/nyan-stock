@@ -407,7 +407,7 @@ async function loadProductMasters(): Promise<ProductMaster[]> {
   try {
     const endpoint = `${supabaseUrl}/rest/v1/${encodeURIComponent(
       productMasterTableName,
-    )}?select=data&limit=1000&order=updated_at.desc`;
+    )}?select=data&limit=1000&order=id.asc`;
     const response = await fetch(endpoint, {
       headers: supabaseHeaders(serviceRoleKey),
     });
