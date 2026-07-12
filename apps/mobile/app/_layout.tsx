@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AdBanner } from '@/components/AdBanner';
+import { AdBanner, BottomShortcuts } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
 import {
   getGoogleMobileAdsPackage,
@@ -182,8 +182,8 @@ export default function RootLayout() {
       <AdBanner
         adRequestsReady={adRequestsReady}
         personalizedAdsAllowed={personalizedAdsAllowed}
-        showShortcuts={onboardingCompleted === true}
       />
+      <BottomShortcuts show={onboardingCompleted === true} />
     </View>
   );
 }

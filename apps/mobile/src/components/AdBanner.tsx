@@ -17,15 +17,10 @@ const shortcutHiddenPathnames = new Set(['/inventory-form', '/cat-profile']);
 export function AdBanner({
   adRequestsReady,
   personalizedAdsAllowed,
-  showShortcuts,
 }: {
   adRequestsReady: boolean;
   personalizedAdsAllowed: boolean;
-  showShortcuts: boolean;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const insets = useSafeAreaInsets();
   const [adFailed, setAdFailed] = useState(false);
   const [entitlement, setEntitlement] = useState<SubscriptionEntitlement | undefined>();
   const googleMobileAds = getGoogleMobileAdsPackage();
@@ -34,8 +29,6 @@ export function AdBanner({
       ? googleMobileAds.TestIds.ADAPTIVE_BANNER
       : productionBannerUnitId
     : undefined;
-  const shouldShowShortcuts = showShortcuts && !shortcutHiddenPathnames.has(pathname);
-
   useEffect(() => {
     void getSubscriptionEntitlement().then(setEntitlement);
     const listener = DeviceEventEmitter.addListener(
@@ -50,7 +43,7 @@ export function AdBanner({
   }
 
   return (
-    <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={styles.adContainer}>
       {bannerUnitId && googleMobileAds && !adFailed ? (
         <View style={styles.banner}>
           <googleMobileAds.BannerAd
@@ -66,34 +59,46 @@ export function AdBanner({
           />
         </View>
       ) : null}
-      {shouldShowShortcuts ? (
-        <View style={styles.shortcutRow}>
-          <ShortcutButton
-            icon="⌂"
-            label="在庫一覧"
-            selected={pathname === '/'}
-            onPress={() => {
-              if (pathname !== '/') router.dismissTo('/');
-            }}
-          />
-          <ShortcutButton
-            icon="¥"
-            label="費用確認"
-            selected={pathname === '/cost-dashboard'}
-            onPress={() => {
-              if (pathname !== '/cost-dashboard') router.dismissTo('/cost-dashboard');
-            }}
-          />
-          <ShortcutButton
-            icon="⚙"
-            label="設定"
-            selected={pathname === '/settings'}
-            onPress={() => {
-              if (pathname !== '/settings') router.dismissTo('/settings');
-            }}
-          />
-        </View>
-      ) : null}
+    </View>
+  );
+}
+
+export function BottomShortcuts({ show }: { show: boolean }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const shouldShowShortcuts = show && !shortcutHiddenPathnames.has(pathname);
+
+  if (!shouldShowShortcuts) return null;
+
+  return (
+    <View style={[styles.shortcutSafeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={styles.shortcutRow}>
+        <ShortcutButton
+          icon="⌂"
+          label="在庫一覧"
+          selected={pathname === '/'}
+          onPress={() => {
+            if (pathname !== '/') router.dismissTo('/');
+          }}
+        />
+        <ShortcutButton
+          icon="¥"
+          label="費用確認"
+          selected={pathname === '/cost-dashboard'}
+          onPress={() => {
+            if (pathname !== '/cost-dashboard') router.dismissTo('/cost-dashboard');
+          }}
+        />
+        <ShortcutButton
+          icon="⚙"
+          label="設定"
+          selected={pathname === '/settings'}
+          onPress={() => {
+            if (pathname !== '/settings') router.dismissTo('/settings');
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -129,7 +134,7 @@ function ShortcutButton({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  adContainer: {
     backgroundColor: colors.background,
     borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -140,6 +145,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50,
+  },
+  shortcutSafeArea: {
+    backgroundColor: colors.background,
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingTop: 8,
   },
   shortcutRow: {
     alignItems: 'center',
