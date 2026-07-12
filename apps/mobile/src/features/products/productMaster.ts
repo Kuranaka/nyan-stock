@@ -1,5 +1,6 @@
 import { productMasterSeed } from '@/data/productMaster.seed';
 import { generatedProductMasterSeed } from '@/data/productMaster.generated';
+import { getSupabaseSession } from '@/features/auth/supabaseAuth';
 import { InventoryCategory, InventoryUnit, PurchaseLinks } from '@/features/inventory/inventoryTypes';
 
 import { ProductCategory, ProductMaster, ProductUnit } from './productTypes';
@@ -150,10 +151,12 @@ async function loadProductMastersFromEdgeFunction(): Promise<ProductMaster[]> {
   if (!endpoint || !supabaseAnonKey) return [];
 
   try {
+    const session = await getSupabaseSession();
+    if (!session) return [];
     const response = await fetch(`${endpoint}?mode=product_master_search`, {
       headers: {
         apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
     });
     const body = (await response.json()) as ProductMasterSearchResponse;

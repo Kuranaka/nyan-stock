@@ -1,3 +1,5 @@
+import { getSupabaseSession } from '@/features/auth/supabaseAuth';
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const purchaseLinkSearchFunctionUrl = process.env.EXPO_PUBLIC_PURCHASE_LINK_SEARCH_FUNCTION_URL;
@@ -77,10 +79,14 @@ async function searchPurchaseLinksFromEdgeFunction(
     params.set('keyword', keyword);
   }
   const endpoint = `${baseUrl}?${params.toString()}`;
+  const session = await getSupabaseSession();
+  if (!session) {
+    throw new Error('商品検索にはアカウントへのログインが必要です。');
+  }
   const response = await fetch(endpoint, {
     headers: {
       apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      Authorization: `Bearer ${session.access_token}`,
     },
   });
   const body = (await response.json()) as PurchaseLinkSearchApiResponse;

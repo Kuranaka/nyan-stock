@@ -39,6 +39,16 @@ type CacheLookup<T> = {
   value?: T;
 };
 
+type AuthUser = {
+  id: string;
+};
+
+type RateLimitResult = {
+  allowed: boolean;
+  retry_after_seconds: number;
+  limit_kind: 'minute' | 'day' | null;
+};
+
 type RakutenItem = {
   itemCode?: string;
   itemName?: string;
@@ -103,12 +113,46 @@ Deno.serve(async (request) => {
     return json({ error: 'method_not_allowed' }, 405);
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const accessToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (!supabaseUrl || !anonKey || !serviceRoleKey || !accessToken) {
+    return json({ error: 'authentication_required', message: 'ログインが必要です。' }, 401);
+  }
+
+  let user: AuthUser;
+  try {
+    user = await getAuthenticatedUser(supabaseUrl, anonKey, accessToken);
+  } catch {
+    return json({ error: 'authentication_required', message: 'ログインを確認できませんでした。' }, 401);
+  }
   const url = new URL(request.url);
   const keyword = url.searchParams.get('keyword')?.trim() ?? '';
   const janCode = (url.searchParams.get('janCode') ?? url.searchParams.get('jan_code'))?.replace(/\D/g, '') ?? '';
   const purchaseUrl = url.searchParams.get('url')?.trim() ?? '';
   const provider = url.searchParams.get('provider') ?? 'all';
   const mode = url.searchParams.get('mode') ?? 'search';
+  const endpoint = purchaseUrl ? '/products/lookup' : '/affiliate/search';
+  const rateLimit = await consumeRateLimit(supabaseUrl, serviceRoleKey, user.id, endpoint);
+  if (!rateLimit.allowed) {
+    // Opening a saved purchase URL should continue to work even after the
+    // affiliate quota is exhausted. Do not call an upstream API or attach an
+    // affiliate identifier in this case.
+    if (mode === 'affiliate' && purchaseUrl) {
+      return json({ url: purchaseUrl, converted: false, provider });
+    }
+    return json(
+      {
+        error: 'rate_limit_exceeded',
+        message: '検索回数の上限に達しました。しばらく待ってからもう一度お試しください。',
+        retryAfterSeconds: rateLimit.retry_after_seconds,
+        limitKind: rateLimit.limit_kind,
+      },
+      429,
+      { 'Retry-After': String(rateLimit.retry_after_seconds) },
+    );
+  }
   if (mode === 'product_master_search') {
     const products = await withCache(
       cacheKey('product_master_search', productMasterTableName),
@@ -176,6 +220,43 @@ Deno.serve(async (request) => {
   );
   return json({ items });
 });
+
+async function getAuthenticatedUser(url: string, anonKey: string, accessToken: string): Promise<AuthUser> {
+  const response = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(`user lookup failed: ${response.status}`);
+  return (await response.json()) as AuthUser;
+}
+
+async function consumeRateLimit(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  userId: string,
+  endpoint: '/affiliate/search' | '/products/lookup',
+): Promise<RateLimitResult> {
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_api_rate_limit`, {
+      method: 'POST',
+      headers: supabaseHeaders(serviceRoleKey),
+      body: JSON.stringify({
+        target_user_id: userId,
+        target_endpoint: endpoint,
+        minute_limit: 20,
+        day_limit: 500,
+      }),
+    });
+    if (!response.ok) throw new Error(`rate limit lookup failed: ${response.status}`);
+    const rows = (await response.json()) as RateLimitResult[];
+    const result = rows[0];
+    if (!result) throw new Error('rate limit response was empty');
+    return result;
+  } catch (error) {
+    // Failing open would allow an outage to turn into unbounded upstream usage.
+    console.error('[purchase-link-search] rate limit check failed:', error);
+    return { allowed: false, retry_after_seconds: 60, limit_kind: 'minute' };
+  }
+}
 
 async function withCache<T>(
   key: string,
@@ -648,11 +729,12 @@ function normalizeRakutenItems(body: RakutenResponse): RakutenItem[] {
     .filter((item): item is RakutenItem => Boolean(item));
 }
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/json; charset=utf-8',
+      ...extraHeaders,
     },
     status,
   });

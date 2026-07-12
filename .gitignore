@@ -7,8 +7,10 @@ apps/web/out/
 dist/
 *.log
 *.tsbuildinfo
-.env
-services/*/.env
+# Environment files can contain Supabase URLs, service-role keys, and API keys.
+# Keep only the checked-in templates.
+**/.env*
+!**/.env*.example
 expo-env.d.ts
 apps/mobile/expo-env.d.ts
 apps/web/next-env.d.ts

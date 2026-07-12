@@ -4,12 +4,14 @@ import { fileURLToPath } from 'node:url';
 
 const serviceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = path.resolve(serviceDir, '..', '..');
-const envPath = path.join(serviceDir, '.env');
+const environment = process.env.PRODUCT_IMPORTER_ENV ?? 'development';
+const envPath = path.join(serviceDir, `.env.${environment}`);
 
 loadLocalEnv(envPath);
 
 export const config = {
   repositoryRoot,
+  environment,
   rakutenApplicationId: process.env.RAKUTEN_APPLICATION_ID,
   rakutenAccessKey: process.env.RAKUTEN_ACCESS_KEY,
   yahooClientId: process.env.YAHOO_CLIENT_ID,
@@ -38,9 +40,12 @@ export function warnMissingEnv(scope: string, names: string[]): void {
 }
 
 function loadLocalEnv(filePath: string): void {
-  if (!existsSync(filePath)) return;
+  // `.env` remains a backwards-compatible fallback while existing local
+  // setups are migrated. New setups must use an explicit environment file.
+  const resolvedPath = existsSync(filePath) ? filePath : path.join(serviceDir, '.env');
+  if (!existsSync(resolvedPath)) return;
 
-  const lines = readFileSync(filePath, 'utf8').split(/\r?\n/);
+  const lines = readFileSync(resolvedPath, 'utf8').split(/\r?\n/);
   lines.forEach((line) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) return;

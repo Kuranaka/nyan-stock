@@ -41,3 +41,9 @@ additional_redirect_urls = ["nyanstock://auth/callback"]
 jwt_expiry = 3600
 enable_signup = true
 enable_anonymous_sign_ins = false
+
+[functions.support-inquiry-notify]
+verify_jwt = false
+
+[functions.purchase-link-search]
+verify_jwt = true

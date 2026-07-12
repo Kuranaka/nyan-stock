@@ -1,5 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 
+import { getSupabaseSession } from '@/features/auth/supabaseAuth';
+
 import { InventoryItem } from './inventoryTypes';
 
 export type ShopType = 'amazon' | 'rakuten' | 'yahoo' | 'other';
@@ -68,12 +70,14 @@ export async function buildAffiliateUrl(originalUrl: string, shopType: ShopType)
   if (!endpoint || !supabaseAnonKey) return originalUrl;
 
   try {
+    const session = await getSupabaseSession();
+    if (!session) return originalUrl;
     const response = await fetch(
       `${endpoint}?mode=affiliate&url=${encodeURIComponent(originalUrl)}&provider=${shopType}`,
       {
         headers: {
           apikey: supabaseAnonKey,
-          Authorization: `Bearer ${supabaseAnonKey}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
       },
     );
@@ -108,10 +112,12 @@ export async function getCurrentPurchasePrice(
   }
 
   try {
+    const session = await getSupabaseSession();
+    if (!session) return undefined;
     const response = await fetch(`${endpoint}?url=${encodeURIComponent(url)}&provider=${shopType}`, {
       headers: {
         apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
     });
     const body = (await response.json()) as CurrentPurchasePriceResponse;

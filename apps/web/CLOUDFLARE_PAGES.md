@@ -18,18 +18,18 @@
 4. Pages の **Settings > Environment variables** に、Production と Preview の両方で次を設定します。
 
 ```text
-NEXT_PUBLIC_SITE_URL=https://<本番ドメイン>
-NEXT_PUBLIC_SUPPORT_EMAIL=support@<本番ドメイン>
+NEXT_PUBLIC_SITE_URL=https://nyanstock.com
+NEXT_PUBLIC_SUPPORT_EMAIL=support@nyanstock.com
 ```
 
 5. **Custom domains** で独自ドメインを追加します。DNS を Cloudflare で管理している場合は案内に従ってレコードを設定します。
 
 ## 公開後の確認
 
-- `https://<本番ドメイン>/`
-- `https://<本番ドメイン>/privacy`
-- `https://<本番ドメイン>/terms`
-- `https://<本番ドメイン>/affiliate`
+- `https://nyanstock.com/`
+- `https://nyanstock.com/privacy`
+- `https://nyanstock.com/terms`
+- `https://nyanstock.com/affiliate`
 
 Google OAuth の確認申請では、同じ独自ドメインを Google Search Console で確認し、ホームページとプライバシーポリシーのURLに上記の公開URLを指定してください。
 
