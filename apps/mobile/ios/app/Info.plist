@@ -53,6 +53,8 @@
     </dict>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>猫や商品のアイコン画像を選択するために写真ライブラリを使用します。</string>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>あなたに関連性の高い広告を表示し、広告の効果を測定するために、他社のアプリやWebサイトをまたいで端末識別子を使用することを許可しますか？</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

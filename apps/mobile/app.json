@@ -21,14 +21,16 @@
       "bundleIdentifier": "com.nyanstock.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。"
+        "NSPhotoLibraryUsageDescription": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。",
+        "NSUserTrackingUsageDescription": "あなたに関連性の高い広告を表示し、広告の効果を測定するために、他社のアプリやWebサイトをまたいで端末識別子を使用することを許可しますか？"
       }
     },
     "android": {
       "package": "com.nyanstock.app",
       "versionCode": 1,
       "permissions": [
-        "com.android.vending.BILLING"
+        "com.android.vending.BILLING",
+        "com.google.android.gms.permission.AD_ID"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -39,6 +41,12 @@
       "expo-router",
       "expo-notifications",
       "expo-apple-authentication",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "あなたに関連性の高い広告を表示し、広告の効果を測定するために、他社のアプリやWebサイトをまたいで端末識別子を使用することを許可しますか？"
+        }
+      ],
       [
         "expo-image-picker",
         {

@@ -21,6 +21,7 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { SignInButtons } from '@/components/SignInButtons';
 import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
+import { showAdMobPrivacyOptions } from '@/features/ads/adMob';
 import { clearAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
 import { deleteSupabaseAccount, getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
@@ -74,6 +75,7 @@ export default function SettingsScreen() {
   const [supportMessage, setSupportMessage] = useState('');
   const [supportSubmitting, setSupportSubmitting] = useState(false);
   const [accountDeleting, setAccountDeleting] = useState(false);
+  const [adPrivacyOptionsBusy, setAdPrivacyOptionsBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [next, nextAuthSession, nextSyncState, items] = await Promise.all([
@@ -260,6 +262,20 @@ export default function SettingsScreen() {
         },
       ],
     );
+  };
+
+  const openAdPrivacyOptions = async () => {
+    setAdPrivacyOptionsBusy(true);
+    try {
+      await showAdMobPrivacyOptions();
+    } catch (error) {
+      Alert.alert(
+        '広告のプライバシー設定を開けませんでした',
+        error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+      );
+    } finally {
+      setAdPrivacyOptionsBusy(false);
+    }
   };
 
   const runSyncAction = async (
@@ -718,6 +734,11 @@ export default function SettingsScreen() {
           title="プライバシーポリシー"
           description="データの扱いについて"
           onPress={() => router.push('/privacy')}
+        />
+        <SettingRow
+          title="広告のプライバシー設定"
+          description={adPrivacyOptionsBusy ? '開いています…' : '広告に関する同意内容を変更'}
+          onPress={() => void openAdPrivacyOptions()}
         />
         <SettingRow
           title="利用規約"

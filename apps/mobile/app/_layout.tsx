@@ -2,12 +2,16 @@ import { Stack } from 'expo-router';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DeviceEventEmitter, StyleSheet, View } from 'react-native';
 
 import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
-import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
+import {
+  getGoogleMobileAdsPackage,
+  prepareAdMobForAdRequests,
+  requestAdPersonalizationPermission,
+} from '@/features/ads/adMob';
 import { getInventoryItemIdFromNotificationResponse } from '@/features/notifications/notificationService';
 import { configureRevenueCat } from '@/features/subscription/subscriptionService';
 import {
@@ -20,6 +24,8 @@ const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID?.tri
 
 export default function RootLayout() {
   const router = useRouter();
+  const [adRequestsReady, setAdRequestsReady] = useState(false);
+  const [personalizedAdsAllowed, setPersonalizedAdsAllowed] = useState(false);
 
   useEffect(() => {
     const openInventoryItem = (response: Notifications.NotificationResponse | null) => {
@@ -69,19 +75,45 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!__DEV__ && !productionBannerUnitId) return;
-    const googleMobileAds = getGoogleMobileAdsPackage();
-    if (!googleMobileAds) return;
+    let active = true;
 
-    void googleMobileAds
-      .default()
-      .setRequestConfiguration({
-        maxAdContentRating: googleMobileAds.MaxAdContentRating.G,
-      })
-      .then(() => googleMobileAds.default().initialize())
-      .catch((error: unknown) => {
+    const prepareAds = async () => {
+      if (!__DEV__ && !productionBannerUnitId) {
+        if (active) setAdRequestsReady(true);
+        return;
+      }
+
+      const googleMobileAds = getGoogleMobileAdsPackage();
+      if (!googleMobileAds) {
+        if (active) setAdRequestsReady(true);
+        return;
+      }
+
+      try {
+        const canRequestAds = await prepareAdMobForAdRequests();
+        if (!canRequestAds) return;
+
+        // UMP is shown first. ATT follows only after consent gathering, then
+        // determines whether iOS requests may use the IDFA.
+        const trackingAllowed = await requestAdPersonalizationPermission();
+
+        await googleMobileAds.default().setRequestConfiguration({
+          maxAdContentRating: googleMobileAds.MaxAdContentRating.G,
+        });
+        await googleMobileAds.default().initialize();
+        if (active) {
+          setPersonalizedAdsAllowed(trackingAllowed);
+          setAdRequestsReady(true);
+        }
+      } catch (error) {
         console.warn('[AdMob] initialization failed', error);
-      });
+      }
+    };
+
+    void prepareAds();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -116,7 +148,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         </Stack>
       </View>
-      <AdBanner />
+      <AdBanner adRequestsReady={adRequestsReady} personalizedAdsAllowed={personalizedAdsAllowed} />
     </View>
   );
 }

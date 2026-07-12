@@ -14,14 +14,20 @@ import {
 const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID;
 const shortcutHiddenPathnames = new Set(['/inventory-form', '/cat-profile']);
 
-export function AdBanner() {
+export function AdBanner({
+  adRequestsReady,
+  personalizedAdsAllowed,
+}: {
+  adRequestsReady: boolean;
+  personalizedAdsAllowed: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const [adFailed, setAdFailed] = useState(false);
   const [entitlement, setEntitlement] = useState<SubscriptionEntitlement | undefined>();
   const googleMobileAds = getGoogleMobileAdsPackage();
-  const bannerUnitId = googleMobileAds
+  const bannerUnitId = adRequestsReady && googleMobileAds
     ? __DEV__
       ? googleMobileAds.TestIds.ADAPTIVE_BANNER
       : productionBannerUnitId
@@ -48,6 +54,9 @@ export function AdBanner() {
           <googleMobileAds.BannerAd
             unitId={bannerUnitId}
             size={googleMobileAds.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            // UMP still limits the request in regions where the user has not
+            // consented. On iOS, ATT denial additionally forces a non-personalized request.
+            requestOptions={{ requestNonPersonalizedAdsOnly: !personalizedAdsAllowed }}
             onAdFailedToLoad={() => setAdFailed(true)}
           />
         ) : (
