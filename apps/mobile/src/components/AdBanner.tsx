@@ -17,9 +17,11 @@ const shortcutHiddenPathnames = new Set(['/inventory-form', '/cat-profile']);
 export function AdBanner({
   adRequestsReady,
   personalizedAdsAllowed,
+  showShortcuts,
 }: {
   adRequestsReady: boolean;
   personalizedAdsAllowed: boolean;
+  showShortcuts: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,7 +34,7 @@ export function AdBanner({
       ? googleMobileAds.TestIds.ADAPTIVE_BANNER
       : productionBannerUnitId
     : undefined;
-  const shouldShowShortcuts = !shortcutHiddenPathnames.has(pathname);
+  const shouldShowShortcuts = showShortcuts && !shortcutHiddenPathnames.has(pathname);
 
   useEffect(() => {
     void getSubscriptionEntitlement().then(setEntitlement);

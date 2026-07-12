@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Image,
   Pressable,
   RefreshControl,
@@ -33,7 +34,12 @@ import {
   requestNotificationPermission,
   scheduleInventoryNotifications,
 } from '@/features/notifications/notificationService';
-import { getSettings, hasSavedSettings, updateSettings } from '@/features/settings/settingsStorage';
+import {
+  getSettings,
+  hasSavedSettings,
+  onboardingVisibilityEventName,
+  updateSettings,
+} from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import {
   canCreateInventoryItem,
@@ -105,8 +111,15 @@ export default function HomeScreen() {
     void load();
   });
 
+  useEffect(() => {
+    if (settings) {
+      DeviceEventEmitter.emit(onboardingVisibilityEventName, settings.onboardingCompleted);
+    }
+  }, [settings]);
+
   const completeOnboarding = async (toProfile: boolean) => {
     await updateSettings({ onboardingCompleted: true });
+    DeviceEventEmitter.emit(onboardingVisibilityEventName, true);
     await load();
     if (toProfile) router.push('/cat-profile');
   };

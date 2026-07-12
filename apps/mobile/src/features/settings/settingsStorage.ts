@@ -4,6 +4,8 @@ import { storageKeys } from '@/features/storageKeys';
 
 import { AppSettings, defaultSettings } from './settingsTypes';
 
+export const onboardingVisibilityEventName = 'nyan-stock:onboarding-visibility-changed';
+
 export async function getSettings(): Promise<AppSettings> {
   const raw = await AsyncStorage.getItem(storageKeys.settings);
   return raw ? { ...defaultSettings, ...(JSON.parse(raw) as Partial<AppSettings>) } : defaultSettings;

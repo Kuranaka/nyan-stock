@@ -19,7 +19,6 @@ import {
   plusMonthlyPriceLabel,
   purchasePlusPackage,
   restorePlusPurchase,
-  revenueCatPlusEntitlementId,
   SubscriptionEntitlement,
 } from '@/features/subscription/subscriptionService';
 
@@ -61,7 +60,7 @@ export default function SubscriptionScreen() {
         nextEntitlement.isPlus ? 'Plusが有効になりました' : '購入を確認しました',
         nextEntitlement.isPlus
           ? '在庫と猫プロフィールの登録数上限を解除し、広告を非表示にしました。'
-          : `購入は完了しましたが、RevenueCatの entitlement「${revenueCatPlusEntitlementId}」が有効ではありません。設定を確認してください。`,
+          : '購入状況を確認しています。反映されない場合は、しばらくしてからもう一度アプリを開いてください。',
       );
     } catch (error) {
       if (!isPurchaseCancelled(error)) {
@@ -118,12 +117,6 @@ export default function SubscriptionScreen() {
           <PricePill label="月額" value={monthlyPrice} />
           <PricePill label="年額" value={annualPrice} />
         </View>
-        {entitlement?.source === 'unconfigured' ? (
-          <Text style={styles.warningText}>
-            RevenueCat
-            APIキーが未設定です。iOS/Androidそれぞれの公開APIキーを.envに設定してください。
-          </Text>
-        ) : null}
         {loadError ? <Text style={styles.warningText}>{loadError}</Text> : null}
         {entitlement?.source === 'error' && entitlement.errorMessage ? (
           <Text style={styles.warningText}>{entitlement.errorMessage}</Text>
@@ -158,11 +151,9 @@ export default function SubscriptionScreen() {
 
       <AppCard style={styles.card}>
         <Text style={styles.sectionTitle}>購入</Text>
-        {loading ? <Text style={styles.note}>RevenueCatからプランを読み込んでいます。</Text> : null}
+        {loading ? <Text style={styles.note}>プランを読み込んでいます。</Text> : null}
         {!loading && hasRevenueCatApiKey() && !offering ? (
-          <Text style={styles.warningText}>
-            RevenueCatのCurrent Offeringが見つかりません。DashboardでOfferingを設定してください。
-          </Text>
+          <Text style={styles.warningText}>現在、プランを読み込めません。時間をおいてもう一度お試しください。</Text>
         ) : null}
         {monthlyPackage ? (
           <PurchaseButton

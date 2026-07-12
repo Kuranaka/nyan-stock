@@ -33,7 +33,7 @@ import {
 } from '@/features/notifications/notificationService';
 import { submitSupportInquiry } from '@/features/reports/supportInquiryService';
 import { resetReviewPromptState, showReviewPromptForDebug } from '@/features/review/reviewPrompt';
-import { getSettings, saveSettings } from '@/features/settings/settingsStorage';
+import { getSettings, onboardingVisibilityEventName, saveSettings } from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
 import {
@@ -163,6 +163,7 @@ export default function SettingsScreen() {
         onPress: async () => {
           await cancelAllInventoryNotifications();
           await Promise.all(Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)));
+          DeviceEventEmitter.emit(onboardingVisibilityEventName, false);
           await load();
           router.replace('/');
         },

@@ -56,7 +56,7 @@ export async function getSubscriptionEntitlement(): Promise<SubscriptionEntitlem
   }
   return createSubscriptionEntitlement(settings.subscriptionPlan, {
     source: 'error',
-    errorMessage: 'RevenueCatの購読状態を取得できませんでした。',
+    errorMessage: 'プラン情報を取得できませんでした。時間をおいてもう一度お試しください。',
   });
 }
 
@@ -152,10 +152,9 @@ export function isPurchaseCancelled(error: unknown): boolean {
 }
 
 export function getSubscriptionErrorMessage(error: unknown): string {
-  if (isPurchasesError(error)) {
-    return error.message || error.underlyingErrorMessage || 'RevenueCatでエラーが発生しました。';
-  }
-  return error instanceof Error ? error.message : 'しばらくしてからもう一度お試しください。';
+  // Store and subscription SDK errors can contain internal configuration details.
+  // Do not expose them in the app; logs retain the original error for diagnosis.
+  return '処理を完了できませんでした。通信状況を確認して、時間をおいてもう一度お試しください。';
 }
 
 function getRevenueCatApiKey(): string | undefined {

@@ -7,7 +7,6 @@ import { AppButton } from '@/components/AppButton';
 import { colors } from '@/constants/colors';
 import { AuthSession } from '@/features/auth/authTypes';
 import { signInWithSupabaseAppleNative, signInWithSupabaseOAuth } from '@/features/auth/supabaseAuth';
-import googleLogo from '@/assets/google-g-logo.png';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -62,7 +61,12 @@ export function SignInButtons({ onSignedIn }: Props) {
         onPress={() => void signInWithGoogle()}
       >
         <View style={styles.googleIcon}>
-          <Image accessibilityIgnoresInvertColors source={googleLogo} style={styles.googleLogo} />
+          <Image
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            source={require('../assets/google-g-logo.png')}
+            style={styles.googleLogo}
+          />
         </View>
         <Text style={styles.googleButtonText}>
           {busyProvider === 'google' ? 'Googleでログイン中...' : 'Googleでログイン'}
@@ -113,8 +117,8 @@ const styles = StyleSheet.create({
     width: 24,
   },
   googleLogo: {
-    height: 18,
-    width: 18,
+    height: 22,
+    width: 22,
   },
   googleButtonText: {
     color: colors.text,

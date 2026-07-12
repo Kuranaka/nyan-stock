@@ -32,6 +32,26 @@ npm install
 npx expo start
 ```
 
+### TestFlight配布
+
+初回のみ、Apple DeveloperのApp IDとApp Store ConnectのアプリをBundle ID
+`com.nyanstock.app` で作成し、Expo/EASにログインします。EASの`testflight`プロファイルは
+ストア配布・本番環境・ビルド番号の自動採番を使用します。
+
+```bash
+cd apps/mobile
+npx eas-cli login
+npm run build:ios:testflight
+npm run submit:ios:testflight
+```
+
+送信完了後、App Store ConnectのTestFlightでビルド処理が完了したら、内部テスターを追加して配布します。
+初回の外部テストでは、TestFlightのベータ審査とテスト情報の入力が必要です。
+
+TestFlight用のEAS環境変数には、本番用のSupabase・RevenueCat・広告設定を登録してください。
+`EXPO_PUBLIC_REVENUECAT_DEBUG_LOGS` は `false` にします。暗号化に関する輸出コンプライアンスの質問は、
+アプリ設定の `ITSAppUsesNonExemptEncryption: false` により自動申告されます。
+
 ## LP
 
 ```bash

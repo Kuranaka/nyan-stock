@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { DeviceEventEmitter, StyleSheet, View } from 'react-native';
+import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AdBanner } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
@@ -14,6 +14,7 @@ import {
 } from '@/features/ads/adMob';
 import { getInventoryItemIdFromNotificationResponse } from '@/features/notifications/notificationService';
 import { configureRevenueCat } from '@/features/subscription/subscriptionService';
+import { getSettings, onboardingVisibilityEventName } from '@/features/settings/settingsStorage';
 import {
   householdRealtimeEventName,
   householdRealtimeResubscribeEventName,
@@ -26,6 +27,19 @@ export default function RootLayout() {
   const router = useRouter();
   const [adRequestsReady, setAdRequestsReady] = useState(false);
   const [personalizedAdsAllowed, setPersonalizedAdsAllowed] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | undefined>();
+
+  useEffect(() => {
+    let active = true;
+    void getSettings().then((settings) => {
+      if (active) setOnboardingCompleted(settings.onboardingCompleted);
+    });
+    const listener = DeviceEventEmitter.addListener(onboardingVisibilityEventName, setOnboardingCompleted);
+    return () => {
+      active = false;
+      listener.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const openInventoryItem = (response: Notifications.NotificationResponse | null) => {
@@ -130,6 +144,23 @@ export default function RootLayout() {
             fullScreenGestureEnabled: true,
             headerBackTitle: '戻る',
             headerBackButtonMenuEnabled: false,
+            headerLeft: ({ tintColor }) => (
+              <Pressable
+                accessibilityLabel="戻る"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => {
+                  if (router.canGoBack()) {
+                    router.back();
+                    return;
+                  }
+                  router.replace('/');
+                }}
+                style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+              >
+                <Text style={[styles.headerBackText, { color: tintColor }]}>‹ 戻る</Text>
+              </Pressable>
+            ),
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false, gestureEnabled: false }} />
@@ -148,7 +179,11 @@ export default function RootLayout() {
           <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         </Stack>
       </View>
-      <AdBanner adRequestsReady={adRequestsReady} personalizedAdsAllowed={personalizedAdsAllowed} />
+      <AdBanner
+        adRequestsReady={adRequestsReady}
+        personalizedAdsAllowed={personalizedAdsAllowed}
+        showShortcuts={onboardingCompleted === true}
+      />
     </View>
   );
 }
@@ -160,5 +195,16 @@ const styles = StyleSheet.create({
   },
   stack: {
     flex: 1,
+  },
+  headerBackButton: {
+    minWidth: 64,
+    paddingVertical: 6,
+  },
+  headerBackButtonPressed: {
+    opacity: 0.6,
+  },
+  headerBackText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

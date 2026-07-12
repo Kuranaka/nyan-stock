@@ -1,4 +1,3 @@
-import { productMasterSeed } from '@/data/productMaster.seed';
 import { generatedProductMasterSeed } from '@/data/productMaster.generated';
 import { getSupabaseSession } from '@/features/auth/supabaseAuth';
 import { InventoryCategory, InventoryUnit, PurchaseLinks } from '@/features/inventory/inventoryTypes';
@@ -197,7 +196,7 @@ function searchProductMasters(
 }
 
 function getProductMasters(): ProductMaster[] {
-  return [...generatedProductMasterSeed, ...productMasterSeed];
+  return generatedProductMasterSeed;
 }
 
 export function productCategoryToInventoryCategory(category: ProductCategory): InventoryCategory {

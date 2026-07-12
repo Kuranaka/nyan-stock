@@ -21,6 +21,8 @@
       "bundleIdentifier": "com.nyanstock.app",
       "buildNumber": "1",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "猫や商品のアイコンに使う写真を撮影して追加するためにカメラを使用します。",
         "NSPhotoLibraryUsageDescription": "猫や商品のアイコン画像を選択するために写真ライブラリを使用します。",
         "NSUserTrackingUsageDescription": "あなたに関連性の高い広告を表示し、広告の効果を測定するために、他社のアプリやWebサイトをまたいで端末識別子を使用することを許可しますか？"
       }

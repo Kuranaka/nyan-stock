@@ -47,7 +47,7 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
       <View style={styles.guestBox}>
         <Text style={styles.guestTitle}>ゲストアカウントの注意点</Text>
         <Text style={styles.guestText}>
-          入力したデータはこの端末に保存されます。アプリ削除や機種変更では引き継げない場合があります。
+          入力したデータはこの端末に保存されます。アプリ削除や機種変更ではデータを引き継げません。
         </Text>
         <Text style={styles.guestText}>共有同期を使う場合は、あとからGoogleまたはAppleでログインしてください。</Text>
       </View>

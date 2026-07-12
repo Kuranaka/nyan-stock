@@ -13,12 +13,18 @@
       "distribution": "internal",
       "environment": "development"
     },
+    "testflight": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "environment": "production"
+    },
     "production": {
       "autoIncrement": true,
       "environment": "production"
     }
   },
   "submit": {
+    "testflight": {},
     "production": {}
   }
 }
