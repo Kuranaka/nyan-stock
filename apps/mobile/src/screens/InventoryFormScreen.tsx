@@ -722,6 +722,9 @@ export default function InventoryFormScreen() {
     <ScrollView
       ref={scrollViewRef}
       contentContainerStyle={styles.container}
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
       onScroll={(event) => {
         scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
       }}
@@ -1064,13 +1067,6 @@ export default function InventoryFormScreen() {
         </>
       ) : null}
 
-      <View onLayout={setFormFieldY('url')}>
-        <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />
-      </View>
-      <AppTextInput label="楽天 URL" value={rakuten} onChangeText={setRakuten} requirement="optional" />
-      <AppTextInput label="Yahoo URL" value={yahoo} onChangeText={setYahoo} requirement="optional" />
-      <AppTextInput label="その他URL" value={other} onChangeText={setOther} requirement="optional" />
-
       <View onLayout={setFormFieldY('price')}>
         <AppTextInput
           label="価格"
@@ -1081,6 +1077,13 @@ export default function InventoryFormScreen() {
           requirement="optional"
         />
       </View>
+
+      <View onLayout={setFormFieldY('url')}>
+        <AppTextInput label="Amazon URL" value={amazon} onChangeText={setAmazon} error={errors.url} requirement="optional" />
+      </View>
+      <AppTextInput label="楽天 URL" value={rakuten} onChangeText={setRakuten} requirement="optional" />
+      <AppTextInput label="Yahoo URL" value={yahoo} onChangeText={setYahoo} requirement="optional" />
+      <AppTextInput label="その他URL" value={other} onChangeText={setOther} requirement="optional" />
 
       <AppTextInput label="メモ" value={memo} onChangeText={setMemo} multiline style={styles.memo} requirement="optional" />
 

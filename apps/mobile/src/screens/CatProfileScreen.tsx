@@ -359,7 +359,13 @@ export default function CatProfileScreen() {
   };
 
   return (
-    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+    <ScrollView
+      ref={scrollViewRef}
+      contentContainerStyle={styles.container}
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.lead}>猫ごとにプロフィールと在庫を分けて記録できます。</Text>
 
       {cats.length > 0 ? (

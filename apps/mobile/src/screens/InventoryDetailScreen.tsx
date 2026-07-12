@@ -990,7 +990,13 @@ export default function InventoryDetailScreen() {
   };
 
   return (
-    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+    <ScrollView
+      ref={scrollViewRef}
+      contentContainerStyle={styles.container}
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
+    >
       <AppCard style={styles.card}>
         <View style={styles.header}>
           <Pressable

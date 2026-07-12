@@ -48,7 +48,7 @@ export async function saveCat(cat: Cat): Promise<void> {
   const cats = await getCats();
   const next = cats.some((item) => item.id === cat.id)
     ? cats.map((item) => (item.id === cat.id ? cat : item))
-    : [cat, ...cats];
+    : [...cats, cat];
   cachedCats = next;
   await AsyncStorage.setItem(storageKeys.cats, JSON.stringify(next));
 }
@@ -76,5 +76,5 @@ function upsertCachedCat(cats: Cat[] | undefined, cat: Cat): Cat[] {
   if (!cats) return [cat];
   return cats.some((item) => item.id === cat.id)
     ? cats.map((item) => (item.id === cat.id ? cat : item))
-    : [cat, ...cats];
+    : [...cats, cat];
 }

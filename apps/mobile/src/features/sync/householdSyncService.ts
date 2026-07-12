@@ -245,7 +245,7 @@ export async function upsertActiveHouseholdCat(cat: Cat): Promise<boolean> {
   await patchLocalCache(storageKeys.cats, (cats: Cat[]) =>
     cats.some((item) => item.id === cat.id)
       ? cats.map((item) => (item.id === cat.id ? cat : item))
-      : [cat, ...cats],
+      : [...cats, cat],
   );
   await saveHouseholdSyncState({ ...state, lastPushedAt: cat.updatedAt });
   return true;
@@ -555,7 +555,9 @@ async function fetchNormalizedSnapshot(householdId: string): Promise<RemoteHouse
   return {
     householdId,
     snapshot: {
-      cats,
+      // Keep the profile selector stable across synced devices: oldest profiles
+      // stay on the left and a newly added cat appears at the right end.
+      cats: [...cats].sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
       inventoryItems,
       purchaseHistory,
       updatedAt,
