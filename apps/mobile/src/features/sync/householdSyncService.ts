@@ -208,8 +208,11 @@ export async function getCurrentRemoteSnapshot(): Promise<RemoteHouseholdSnapsho
 }
 
 export async function getActiveHouseholdSnapshot(): Promise<HouseholdSnapshot | undefined> {
+  // A household ID can remain in local storage after an account has been signed out
+  // or its guest session has expired. Reading local inventory must still work in
+  // that state; only perform remote work when an authenticated sync session exists.
   const state = await getHouseholdSyncState();
-  if (!state || !isHouseholdSyncConfigured()) return undefined;
+  if (!state || !isHouseholdSyncConfigured() || !(await getSupabaseSession())) return undefined;
 
   const remote = await fetchRemoteHouseholdData(state.householdId);
   if (!remote) {

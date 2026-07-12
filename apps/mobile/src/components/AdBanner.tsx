@@ -51,22 +51,21 @@ export function AdBanner({
 
   return (
     <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      {bannerUnitId ? <View style={styles.banner}>
-        {googleMobileAds && !adFailed ? (
+      {bannerUnitId && googleMobileAds && !adFailed ? (
+        <View style={styles.banner}>
           <googleMobileAds.BannerAd
             unitId={bannerUnitId}
             size={googleMobileAds.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
             // UMP still limits the request in regions where the user has not
             // consented. On iOS, ATT denial additionally forces a non-personalized request.
             requestOptions={{ requestNonPersonalizedAdsOnly: !personalizedAdsAllowed }}
-            onAdFailedToLoad={() => setAdFailed(true)}
+            onAdFailedToLoad={(error) => {
+              console.warn('[AdMob] banner failed to load', error);
+              setAdFailed(true);
+            }}
           />
-        ) : (
-          <Text style={styles.placeholderText}>
-            {adFailed ? '広告を読み込めませんでした' : '広告を読み込んでいます'}
-          </Text>
-        )}
-      </View> : null}
+        </View>
+      ) : null}
       {shouldShowShortcuts ? (
         <View style={styles.shortcutRow}>
           <ShortcutButton
@@ -141,10 +140,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50,
-  },
-  placeholderText: {
-    color: colors.subText,
-    fontSize: 12,
   },
   shortcutRow: {
     alignItems: 'center',

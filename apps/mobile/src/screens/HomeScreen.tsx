@@ -19,7 +19,7 @@ import { AppCard } from '@/components/AppCard';
 import { EmptyState } from '@/components/EmptyState';
 import { InventoryCard } from '@/components/InventoryCard';
 import { colors } from '@/constants/colors';
-import { signInAsGuest } from '@/features/auth/supabaseAuth';
+import { getCurrentAuthSession, signInAsGuest } from '@/features/auth/supabaseAuth';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat } from '@/features/cats/catTypes';
 import {
@@ -61,6 +61,7 @@ export default function HomeScreen() {
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [settings, setSettings] = useState<AppSettings | undefined>();
+  const [hasAuthSession, setHasAuthSession] = useState<boolean | undefined>();
   const [loading, setLoading] = useState(true);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter | undefined>();
   const [openingInventoryForm, setOpeningInventoryForm] = useState(false);
@@ -81,10 +82,24 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextCat, nextItems, storedSettings, settingsAlreadySaved] = await Promise.all([
+      const [storedSettings, authSession] = await Promise.all([
+        getSettings(),
+        getCurrentAuthSession(),
+      ]);
+      const isSignedIn = Boolean(authSession);
+      setHasAuthSession(isSignedIn);
+      setSettings(storedSettings);
+
+      if (!isSignedIn) {
+        setCats([]);
+        setItems([]);
+        setSelectedCatId(undefined);
+        return;
+      }
+
+      const [nextCat, nextItems, settingsAlreadySaved] = await Promise.all([
         getCats(),
         getInventoryItems(),
-        getSettings(),
         hasSavedSettings(),
       ]);
       const nextSettings = await confirmInitialNotificationSetting(storedSettings, settingsAlreadySaved);
@@ -124,12 +139,16 @@ export default function HomeScreen() {
     if (toProfile) router.push('/cat-profile');
   };
 
+  if (loading || hasAuthSession === undefined) {
+    return <HomeLoading />;
+  }
+
   const startAsGuest = async () => {
     await signInAsGuest();
     await completeOnboarding(true);
   };
 
-  if (settings && !settings.onboardingCompleted) {
+  if (!hasAuthSession || (settings && !settings.onboardingCompleted)) {
     return (
       <OnboardingScreen onStart={startAsGuest} onSignedIn={() => void completeOnboarding(true)} />
     );
