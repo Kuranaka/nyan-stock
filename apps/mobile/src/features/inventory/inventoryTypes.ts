@@ -47,6 +47,8 @@ export type InventoryItem = {
 export type PurchaseHistory = {
   id: string;
   inventoryItemId: string;
+  /** Product name at the time of purchase, retained after the inventory item is deleted. */
+  itemName?: string;
   purchasedAt: string;
   amount: number;
   unit: InventoryUnit;

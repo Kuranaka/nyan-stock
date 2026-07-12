@@ -215,7 +215,7 @@ export default function PurchaseHistoryScreen() {
                   </View>
                 )}
               </View>
-              <Text style={styles.name}>{itemNames.get(entry.inventoryItemId) ?? '削除済みの商品'}</Text>
+              <Text style={styles.name}>{entry.itemName ?? itemNames.get(entry.inventoryItemId) ?? '削除済みの商品'}</Text>
               <Text style={styles.catName}>
                 {itemCatNames.get(entry.inventoryItemId) || '猫プロフィール未設定'}
               </Text>

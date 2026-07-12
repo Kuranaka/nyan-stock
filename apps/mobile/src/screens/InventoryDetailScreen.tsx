@@ -669,6 +669,7 @@ export default function InventoryDetailScreen() {
       const history: PurchaseHistory = {
         id: createId('history'),
         inventoryItemId: item.id,
+        itemName: item.name,
         purchasedAt: replenishDate,
         amount: amountNumber,
         unit: item.unit,
@@ -727,6 +728,7 @@ export default function InventoryDetailScreen() {
     const history: PurchaseHistory = {
       id: createId('history'),
       inventoryItemId: item.id,
+      itemName: item.name,
       purchasedAt: historyDate,
       amount: item.amount,
       unit: item.unit,

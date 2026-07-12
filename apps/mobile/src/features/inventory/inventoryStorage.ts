@@ -4,7 +4,6 @@ import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'da
 import { storageKeys } from '@/features/storageKeys';
 import {
   clearActiveHouseholdInventoryData,
-  deleteActiveHouseholdInventoryItem,
   deleteActiveHouseholdPurchaseHistory,
   getActiveHouseholdSnapshot,
   syncActiveHouseholdInventoryAndHistory,
@@ -63,15 +62,25 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
-  if (await deleteActiveHouseholdInventoryItem(id)) {
-    cachedInventoryItems = cachedInventoryItems?.filter((item) => item.id !== id);
-    return;
-  }
-
-  const items = await getInventoryItems();
+  const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
+  const deletedItem = items.find((item) => item.id === id);
   const nextItems = items.filter((item) => item.id !== id);
+  const nextHistory = deletedItem
+    ? history.map((entry) =>
+        entry.inventoryItemId === id && !entry.itemName
+          ? { ...entry, itemName: deletedItem.name }
+          : entry,
+      )
+    : history;
   cachedInventoryItems = nextItems;
-  await AsyncStorage.setItem(storageKeys.inventoryItems, JSON.stringify(nextItems));
+  cachedPurchaseHistory = nextHistory;
+
+  if (await syncActiveHouseholdInventoryAndHistory(nextItems, nextHistory)) return;
+
+  await AsyncStorage.multiSet([
+    [storageKeys.inventoryItems, JSON.stringify(nextItems)],
+    [storageKeys.purchaseHistory, JSON.stringify(nextHistory)],
+  ]);
 }
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
