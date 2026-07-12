@@ -61,7 +61,7 @@ supabase functions deploy purchase-link-search --project-ref <prod-ref>
 
 ### 初回設定
 
-1. Resend で `nyanstock.com` をドメイン認証し、`support@nyanstock.com` から送信できる状態にします。
+1. Resend で `nyanstock.com` をドメイン認証し、`notifications@nyanstock.com` から送信できる状態にします。
 2. Resend の API キーと、十分に長いランダム値の Webhook シークレットを Supabase に設定します。値はリポジトリやモバイルアプリの環境変数には入れません。
 
    ```bash
@@ -74,19 +74,24 @@ supabase functions deploy purchase-link-search --project-ref <prod-ref>
    supabase functions deploy support-inquiry-notify --no-verify-jwt
    ```
 
-4. Supabase Dashboard の **Database > Webhooks** で次の2件を作成します。どちらも `INSERT`、`POST` を選びます。
+4. **Supabase Dashboard の SQL Editor を開き、次のSQLを実行して** `support_inquiry_notify_url` と `support_inquiry_webhook_secret` を Supabase Vault に保存します。URLの `<project-ref>` は Dashboard の **Settings > General** に表示されます。Webhook シークレットには手順2で設定した `SUPPORT_INQUIRY_WEBHOOK_SECRET` と同じ値を使用します。
 
-   | テーブル | Webhook URL |
-   | --- | --- |
-   | `support_inquiries` | `https://<project-ref>.supabase.co/functions/v1/support-inquiry-notify` |
-   | `product_link_reports` | `https://<project-ref>.supabase.co/functions/v1/support-inquiry-notify` |
+   ```sql
+   select vault.create_secret(
+     'https://<project-ref>.supabase.co/functions/v1/support-inquiry-notify',
+     'support_inquiry_notify_url'
+   );
 
-   両方の Webhook に、次のカスタムヘッダーを設定します。
-
-   ```text
-   x-support-inquiry-webhook-secret: <SUPPORT_INQUIRY_WEBHOOK_SECRET の値>
+   select vault.create_secret(
+     '<SUPPORT_INQUIRY_WEBHOOK_SECRET と同じ値>',
+     'support_inquiry_webhook_secret'
+   );
    ```
 
-5. アプリからテスト送信し、`support@nyanstock.com` への通知と Table Editor の登録を確認します。
+5. `supabase/migrations/20260712000002_support_inquiry_notifications.sql` を適用します。通常はリンク済み環境から `supabase db push` を実行します。CLIを使わない場合は、**Supabase Dashboard の SQL Editor に同ファイルの内容を貼り付けて実行します**。このSQLは `support_inquiries` と `product_link_reports` の `INSERT` トリガーを作成します。
 
-Webhook はデータ登録後に非同期で実行されるため、メール送信の一時的な失敗が利用者の問い合わせ登録を失敗させることはありません。失敗時は Database Webhook の履歴と Edge Function Logs を確認してください。
+6. アプリからテスト送信し、`support@nyanstock.com` への通知と Table Editor の登録を確認します。
+
+問い合わせと商品情報の報告は、合わせて1アカウントあたり **10分に1件・1日10件** までです。`20260712000003_support_inquiry_rate_limit.sql` から `20260712000006_product_link_report_rate_limit.sql` を適用すると、回数制限の確認と登録が同じトランザクションで行われ、クライアントからの直接登録はできなくなります。上限時には、アプリに「お問い合わせ・商品情報の報告は10分に1回まで送信できます」または「本日のお問い合わせ・商品情報の報告の送信上限（10件）に達しました」と表示します。
+
+トリガーはデータ登録後に非同期で実行されるため、メール送信の一時的な失敗が利用者の問い合わせ登録を失敗させることはありません。失敗時は Edge Function Logs と `net._http_response` を確認してください。

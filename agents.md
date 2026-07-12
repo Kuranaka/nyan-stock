@@ -130,6 +130,12 @@ The default Next.js preset is usually sufficient.
 - Mobile app changes belong in `apps/mobile/`.
 - Do not mix mobile and web dependencies.
 
+### Supabase Migrations
+
+- Never edit, rename, delete, or reuse the version number of an existing file in `supabase/migrations/`, especially after it may have been applied to any remote database.
+- Every schema change must be a new migration file with a unique, chronologically later version number than all existing local migration files.
+- If a migration needs correction, add a follow-up migration that makes the required change; do not modify migration history.
+
 ### Mobile App
 
 - Keep screens out of direct storage details. Use the storage modules in `apps/mobile/src/features/**`.

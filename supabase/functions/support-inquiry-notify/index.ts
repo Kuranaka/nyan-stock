@@ -17,7 +17,7 @@ type DatabaseWebhookPayload = {
 };
 
 const recipient = 'support@nyanstock.com';
-const sender = 'にゃんストック <support@nyanstock.com>';
+const sender = 'にゃんストック <notifications@nyanstock.com>';
 const allowedTables = new Set(['support_inquiries', 'product_link_reports']);
 
 Deno.serve(async (request) => {
