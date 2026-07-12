@@ -35,4 +35,4 @@ Google OAuth の確認申請では、同じ独自ドメインを Google Search C
 
 ## 制約
 
-現行LPは静的サイトです。`signup.ts` はまだ外部へデータ送信しないため、事前登録フォームはブラウザ内で完結します。将来、Next.js Route Handler、サーバーサイド認証、フォーム送信APIなどを追加する場合は、Cloudflare Workers + OpenNext へ移行するか、外部APIを利用してください。
+現行LPは静的サイトです。将来、Next.js Route Handler、サーバーサイド認証、フォーム送信APIなどを追加する場合は、Cloudflare Workers + OpenNext へ移行するか、外部APIを利用してください。

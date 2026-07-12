@@ -7,7 +7,6 @@ import { Hero } from '@/components/Hero';
 import { HowItWorksSection } from '@/components/HowItWorksSection';
 import { PrivacySection } from '@/components/PrivacySection';
 import { ProblemSection } from '@/components/ProblemSection';
-import { SignupSection } from '@/components/SignupSection';
 import { SolutionSection } from '@/components/SolutionSection';
 
 export default function Home() {
@@ -22,7 +21,6 @@ export default function Home() {
         <AppScreensSection />
         <AffiliateSection />
         <PrivacySection />
-        <SignupSection />
         <FaqSection />
       </main>
       <Footer />

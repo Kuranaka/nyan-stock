@@ -1,12 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { trackEvent } from '@/lib/analytics';
-
 const navItems = [
   { href: '#features', label: '特徴' },
   { href: '#how-to-use', label: '使い方' },
-  { href: '#signup', label: '事前登録' },
   { href: '#faq', label: 'FAQ' }
 ];
 
@@ -25,13 +22,6 @@ export function Header() {
             </a>
           ))}
         </nav>
-        <a
-          href="#signup"
-          onClick={() => trackEvent('cta_click', { source: 'header' })}
-          className="rounded-full bg-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-caramel"
-        >
-          通知を受け取る
-        </a>
       </div>
     </header>
   );

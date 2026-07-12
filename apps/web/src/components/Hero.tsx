@@ -19,11 +19,11 @@ export function Hero() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
-              href="#signup"
+              href="#how-to-use"
               onClick={() => trackEvent('cta_click', { source: 'hero_primary' })}
               className="rounded-full bg-ink px-7 py-4 text-center font-bold text-white shadow-soft transition hover:bg-caramel"
             >
-              リリース通知を受け取る
+              使い方を見る
             </a>
             <a
               href="#features"
