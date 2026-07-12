@@ -91,6 +91,15 @@ export async function getProductMasterBrands(options: Pick<ProductSearchOptions,
   ).sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
+/** Starts a full remote fetch without blocking the product registration screen. */
+export async function warmProductMasterCache(): Promise<void> {
+  try {
+    await getProductMastersAsync();
+  } catch (error) {
+    console.warn('[productMaster] Background cache warmup failed.', error);
+  }
+}
+
 async function getProductMastersAsync(options: { remoteLimit?: number | null } = {}): Promise<ProductMaster[]> {
   const remoteProducts = await loadSupabaseProductMasters(options);
   if (remoteProducts.length > 0) {

@@ -34,6 +34,7 @@ import {
   productCategoryLabels,
   productCategoryToInventoryCategory,
   productUnitToInventoryUnit,
+  warmProductMasterCache,
 } from '@/features/products/productMaster';
 import { ProductCategory, ProductMaster } from '@/features/products/productTypes';
 import { collectUserProductSuggestion } from '@/features/products/userProductSuggestionService';
@@ -302,6 +303,10 @@ export default function InventoryFormScreen() {
           setMasterSearchMessage('');
           setMasterSearchLoading(true);
           setFormInitialized(true);
+
+          // Keep the first render small, then prepare the full master for
+          // subsequent keyword, category, and brand searches.
+          void warmProductMasterCache();
 
           void findProductsByKeywordAsync('', { limit: masterPageSize })
             .then((results) => {
