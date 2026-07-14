@@ -11,10 +11,11 @@ type LegalPageProps = {
   title: string;
   lead: string;
   effectiveDate: string;
+  lastUpdatedDate?: string;
   sections: LegalSection[];
 };
 
-export function LegalPage({ title, lead, effectiveDate, sections }: LegalPageProps) {
+export function LegalPage({ title, lead, effectiveDate, lastUpdatedDate, sections }: LegalPageProps) {
   return (
     <>
       <main className="min-h-screen px-4 py-10 sm:px-6">
@@ -46,6 +47,9 @@ export function LegalPage({ title, lead, effectiveDate, sections }: LegalPagePro
               お問い合わせは <Link className="font-bold text-caramel hover:text-ink" href="/support">お問い合わせページ</Link> からご連絡ください。
               {supportEmail ? `（連絡先: ${supportEmail}）` : ''}
             </p>
+            {lastUpdatedDate ? (
+              <p className="mt-6 text-sm leading-7 text-muted">最終更新日：{lastUpdatedDate}</p>
+            ) : null}
           </article>
         </div>
       </main>
