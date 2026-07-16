@@ -56,7 +56,10 @@ Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/
   - 猫プロフィール: 無制限
   - 在庫登録: 無制限
   - 広告: 非表示
-- 課金画面に価格、購入、復元、サブスクリプション管理導線が表示されること。
+- 課金画面にサブスクリプション名、期間、価格、購入、復元、サブスクリプション管理導線が表示されること。
+- 課金画面のプライバシーポリシーと利用規約のリンクが、実際の公開ページをアプリ内ブラウザで開くこと。
+- App Store ConnectのプライバシーポリシーURL欄に `https://nyanstock.com/privacy` を設定すること。
+- App Store Connectのアプリ説明またはEULA欄に、利用規約 `https://nyanstock.com/terms` への機能するリンクを記載すること。
 
 ## Privacy Nutrition Labels
 

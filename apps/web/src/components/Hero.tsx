@@ -2,6 +2,7 @@
 
 import { MockPhone } from '@/components/MockPhone';
 import { trackEvent } from '@/lib/analytics';
+import { appStoreUrl } from '@/lib/site';
 
 export function Hero() {
   return (
@@ -19,18 +20,20 @@ export function Hero() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
-              href="#how-to-use"
-              onClick={() => trackEvent('cta_click', { source: 'hero_primary' })}
+              href={appStoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackEvent('external_link_click', { source: 'hero_app_store' })}
               className="rounded-full bg-ink px-7 py-4 text-center font-bold text-white shadow-soft transition hover:bg-caramel"
             >
-              使い方を見る
+              App Storeでダウンロード
             </a>
             <a
-              href="#features"
+              href="#how-to-use"
               onClick={() => trackEvent('cta_click', { source: 'hero_secondary' })}
               className="rounded-full border border-line bg-white px-7 py-4 text-center font-bold text-ink transition hover:border-caramel"
             >
-              アプリの特徴を見る
+              使い方を見る
             </a>
           </div>
         </div>

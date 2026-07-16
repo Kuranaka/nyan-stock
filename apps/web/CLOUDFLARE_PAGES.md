@@ -30,6 +30,11 @@ NEXT_PUBLIC_SUPPORT_EMAIL=support@nyanstock.com
 - `https://nyanstock.com/privacy`
 - `https://nyanstock.com/terms`
 - `https://nyanstock.com/affiliate`
+- `https://nyanstock.com/app-ads.txt`（HTTP 200、`Content-Type: text/plain`）
+
+`www.nyanstock.com` も独自ドメインとして追加し、`nyanstock.com` へのリダイレクトを
+設定するか、同じ Pages プロジェクトに紐付けてください。これにより
+`/app-ads.txt` も両方のホスト名で取得できます。
 
 Google OAuth の確認申請では、同じ独自ドメインを Google Search Console で確認し、ホームページとプライバシーポリシーのURLに上記の公開URLを指定してください。
 

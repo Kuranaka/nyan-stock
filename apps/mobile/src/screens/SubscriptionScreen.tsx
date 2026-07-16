@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
@@ -15,12 +15,13 @@ import {
   getSubscriptionErrorMessage,
   hasRevenueCatApiKey,
   isPurchaseCancelled,
-  plusAnnualPriceLabel,
-  plusMonthlyPriceLabel,
   purchasePlusPackage,
   restorePlusPurchase,
   SubscriptionEntitlement,
 } from '@/features/subscription/subscriptionService';
+
+const privacyPolicyUrl = 'https://nyanstock.com/privacy';
+const termsOfUseUrl = 'https://nyanstock.com/terms';
 
 export default function SubscriptionScreen() {
   const router = useRouter();
@@ -94,11 +95,19 @@ export default function SubscriptionScreen() {
     await WebBrowser.openBrowserAsync(entitlement.managementUrl);
   };
 
+  const openLegalUrl = async (url: string, pageName: string) => {
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch {
+      Alert.alert(`${pageName}を開けませんでした`, '通信状況を確認して、もう一度お試しください。');
+    }
+  };
+
   const isPlus = entitlement?.isPlus;
   const monthlyPackage = offering?.monthly;
   const annualPackage = offering?.annual;
-  const monthlyPrice = formatPackagePrice(monthlyPackage, plusMonthlyPriceLabel);
-  const annualPrice = formatPackagePrice(annualPackage, plusAnnualPriceLabel);
+  const monthlyPrice = monthlyPackage ? formatPackagePrice(monthlyPackage) : undefined;
+  const annualPrice = annualPackage ? formatPackagePrice(annualPackage) : undefined;
   const otherPackages = offering?.availablePackages.filter(
     (nextPackage) =>
       nextPackage.identifier !== monthlyPackage?.identifier &&
@@ -113,10 +122,12 @@ export default function SubscriptionScreen() {
         <Text style={styles.lead}>
           よく使う家庭向けに、登録数の上限を解除して広告を非表示にします。
         </Text>
-        <View style={styles.priceStrip}>
-          <PricePill label="月額" value={monthlyPrice} />
-          <PricePill label="年額" value={annualPrice} />
-        </View>
+        {monthlyPrice || annualPrice ? (
+          <View style={styles.priceStrip}>
+            {monthlyPrice ? <PricePill label="月額" value={monthlyPrice} /> : null}
+            {annualPrice ? <PricePill label="年額" value={annualPrice} /> : null}
+          </View>
+        ) : null}
         {loadError ? <Text style={styles.warningText}>{loadError}</Text> : null}
         {entitlement?.source === 'error' && entitlement.errorMessage ? (
           <Text style={styles.warningText}>{entitlement.errorMessage}</Text>
@@ -147,7 +158,7 @@ export default function SubscriptionScreen() {
         ) : null}
         {monthlyPackage ? (
           <PurchaseButton
-            title={`月額プラン ${monthlyPrice}`}
+            title={`にゃんストック Plus（月額） ${monthlyPrice}`}
             nextPackage={monthlyPackage}
             disabled={Boolean(isPlus) || Boolean(purchaseTarget)}
             loading={purchaseTarget === monthlyPackage.identifier}
@@ -156,22 +167,17 @@ export default function SubscriptionScreen() {
         ) : null}
         {annualPackage ? (
           <PurchaseButton
-            title={`年額プラン ${annualPrice}`}
+            title={`にゃんストック Plus（年額） ${annualPrice}`}
             nextPackage={annualPackage}
             disabled={Boolean(isPlus) || Boolean(purchaseTarget)}
             loading={purchaseTarget === annualPackage.identifier}
             onPurchase={purchase}
           />
         ) : null}
-        {!loading && !monthlyPackage && !annualPackage ? (
-          <Text style={styles.note}>
-            予定価格は{plusMonthlyPriceLabel}、{plusAnnualPriceLabel}です。
-          </Text>
-        ) : null}
         {otherPackages?.map((nextPackage) => (
           <PurchaseButton
             key={nextPackage.identifier}
-            title={`${nextPackage.product.title} ${formatPackagePrice(nextPackage, nextPackage.product.priceString)}`}
+            title={`${nextPackage.product.title} ${formatPackagePrice(nextPackage)}`}
             nextPackage={nextPackage}
             disabled={Boolean(isPlus) || Boolean(purchaseTarget)}
             loading={purchaseTarget === nextPackage.identifier}
@@ -192,15 +198,30 @@ export default function SubscriptionScreen() {
             onPress={() => void openManagementUrl()}
           />
         ) : null}
+        <View style={styles.legalLinks}>
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            onPress={() => void openLegalUrl(privacyPolicyUrl, 'プライバシーポリシー')}
+          >
+            <Text style={styles.legalLink}>プライバシーポリシー</Text>
+          </Pressable>
+          <Text style={styles.legalSeparator}>・</Text>
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            onPress={() => void openLegalUrl(termsOfUseUrl, '利用規約')}
+          >
+            <Text style={styles.legalLink}>利用規約</Text>
+          </Pressable>
+        </View>
       </AppCard>
       <AppButton title="戻る" variant="secondary" onPress={() => router.back()} />
     </ScrollView>
   );
 }
 
-function formatPackagePrice(nextPackage: PurchasesPackage | null | undefined, fallback: string): string {
-  if (!nextPackage) return fallback;
-
+function formatPackagePrice(nextPackage: PurchasesPackage): string {
   const { currencyCode, price, priceString } = nextPackage.product;
   if (currencyCode === 'JPY' && Number.isFinite(price)) {
     return new Intl.NumberFormat('ja-JP', {
@@ -209,7 +230,7 @@ function formatPackagePrice(nextPackage: PurchasesPackage | null | undefined, fa
     }).format(price);
   }
 
-  return priceString || fallback;
+  return priceString;
 }
 
 function PurchaseButton({
@@ -346,9 +367,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-  footnote: {
+  legalLinks: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  legalLink: {
     color: colors.subText,
     fontSize: 12,
-    lineHeight: 18,
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    color: colors.subText,
+    fontSize: 12,
+    marginHorizontal: 4,
   },
 });

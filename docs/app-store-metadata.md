@@ -39,7 +39,18 @@ App Store Connectに入力するための草案です。公開URL、価格、連
 
 家族共有、購入履歴、月別費用レポート、複数端末同期は無料プランでも利用できます。Plusは、よく使う家庭向けに登録数の上限解除と広告非表示を提供します。
 
+にゃんストック Plusは自動更新型サブスクリプションです。
+
+- 月額プラン: 300円／1か月
+- 年額プラン: 3,000円／1年
+
+実際の価格は購入時にApp Storeへ表示される内容をご確認ください。
+
 商品リンクにはアフィリエイトリンクが含まれる場合があります。外部サイトでの価格、在庫、配送、返品、決済、個人情報の取扱いは各外部サイトの表示と規約をご確認ください。
+
+プライバシーポリシー: https://nyanstock.com/privacy
+
+利用規約: https://nyanstock.com/terms
 
 ## Keywords
 
@@ -47,11 +58,11 @@ App Store Connectに入力するための草案です。公開URL、価格、連
 
 ## Support / Legal URLs
 
-- Support URL: `https://nyan-stock.example.com/#signup`
-- Marketing URL: `https://nyan-stock.example.com/`
-- Privacy Policy URL: `https://nyan-stock.example.com/privacy`
-- Terms URL: `https://nyan-stock.example.com/terms`
-- Affiliate Disclosure URL: `https://nyan-stock.example.com/affiliate`
+- Support URL: `https://nyanstock.com/support`
+- Marketing URL: `https://nyanstock.com/`
+- Privacy Policy URL: `https://nyanstock.com/privacy`
+- Terms URL: `https://nyanstock.com/terms`
+- Affiliate Disclosure URL: `https://nyanstock.com/affiliate`
 
 ## Review Notes
 

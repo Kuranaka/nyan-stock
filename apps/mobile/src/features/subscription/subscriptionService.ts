@@ -12,8 +12,6 @@ import { SubscriptionPlan } from '@/features/settings/settingsTypes';
 
 export const freePlanCatLimit = 2;
 export const freePlanInventoryLimit = 10;
-export const plusMonthlyPriceLabel = '月額300円';
-export const plusAnnualPriceLabel = '年額3,000円';
 export const subscriptionChangedEventName = 'nyan-stock:subscription-changed';
 export const revenueCatPlusEntitlementId =
   process.env.EXPO_PUBLIC_REVENUECAT_PLUS_ENTITLEMENT_ID ?? 'nyanstock_plus';
