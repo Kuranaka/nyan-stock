@@ -1,9 +1,12 @@
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DeviceEventEmitter, Image, ImageSourcePropType, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/colors';
+import homeShortcutIcon from '@/assets/shortcut-icons/home.png';
+import costShortcutIcon from '@/assets/shortcut-icons/cost.png';
+import settingsShortcutIcon from '@/assets/shortcut-icons/settings.png';
 import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
 import {
   getSubscriptionEntitlement,
@@ -75,7 +78,7 @@ export function BottomShortcuts({ show }: { show: boolean }) {
     <View style={[styles.shortcutSafeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={styles.shortcutRow}>
         <ShortcutButton
-          icon="⌂"
+          icon={homeShortcutIcon}
           label="在庫一覧"
           selected={pathname === '/'}
           onPress={() => {
@@ -83,7 +86,7 @@ export function BottomShortcuts({ show }: { show: boolean }) {
           }}
         />
         <ShortcutButton
-          icon="¥"
+          icon={costShortcutIcon}
           label="費用確認"
           selected={pathname === '/cost-dashboard'}
           onPress={() => {
@@ -91,7 +94,7 @@ export function BottomShortcuts({ show }: { show: boolean }) {
           }}
         />
         <ShortcutButton
-          icon="⚙"
+          icon={settingsShortcutIcon}
           label="設定"
           selected={pathname === '/settings'}
           onPress={() => {
@@ -109,7 +112,7 @@ function ShortcutButton({
   selected,
   onPress,
 }: {
-  icon: string;
+  icon: ImageSourcePropType;
   label: string;
   selected: boolean;
   onPress: () => void;
@@ -126,9 +129,11 @@ function ShortcutButton({
         pressed && !selected && styles.shortcutButtonPressed,
       ]}
     >
-      <Text style={[styles.shortcutIcon, selected && styles.shortcutIconSelected]} numberOfLines={1}>
-        {icon}
-      </Text>
+      <Image
+        source={icon}
+        style={[styles.shortcutIcon, selected && styles.shortcutIconSelected]}
+        resizeMode="contain"
+      />
     </Pressable>
   );
 }
@@ -180,12 +185,11 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   shortcutIcon: {
-    color: colors.primaryDark,
-    fontSize: 22,
-    fontWeight: '900',
-    lineHeight: 24,
+    height: 27,
+    tintColor: colors.primaryDark,
+    width: 27,
   },
   shortcutIconSelected: {
-    color: colors.card,
+    tintColor: colors.card,
   },
 });

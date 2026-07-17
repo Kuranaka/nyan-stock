@@ -10,6 +10,7 @@ import {
   isSameDay,
   isSameMonth,
   parseISO,
+  setYear,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
@@ -37,7 +38,13 @@ export function DatePickerField({
 }: Props) {
   const [shownMonth, setShownMonth] = useState(() => parseDateOrToday(value));
   const [open, setOpen] = useState(false);
+  const [yearPickerOpen, setYearPickerOpen] = useState(false);
+  const [yearRangeStart, setYearRangeStart] = useState(() => getYearRangeStart(shownMonth));
   const selectedDate = value ? parseDateOrToday(value) : undefined;
+  const visibleYears = useMemo(
+    () => Array.from({ length: 12 }, (_, index) => yearRangeStart + index),
+    [yearRangeStart],
+  );
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(shownMonth);
     return eachDayOfInterval({
@@ -49,6 +56,7 @@ export function DatePickerField({
   useEffect(() => {
     if (!openSignal) return;
     setShownMonth(parseDateOrToday(value));
+    setYearPickerOpen(false);
     setOpen(true);
   }, [openSignal, value]);
 
@@ -71,7 +79,10 @@ export function DatePickerField({
         title={value ? formatDisplayDate(value) : placeholder}
         variant="secondary"
         onPress={() => {
-          setShownMonth(parseDateOrToday(value));
+          const nextMonth = parseDateOrToday(value);
+          setShownMonth(nextMonth);
+          setYearRangeStart(getYearRangeStart(nextMonth));
+          setYearPickerOpen(false);
           setOpen((current) => !current);
         }}
       />
@@ -82,17 +93,67 @@ export function DatePickerField({
         <View style={styles.calendarBox}>
           <View style={styles.calendarHeader}>
             <AppButton
-              title="前月"
+              title={yearPickerOpen ? '前の12年' : '前月'}
               variant="secondary"
-              onPress={() => setShownMonth((current) => addMonths(current, -1))}
+              onPress={() => {
+                if (yearPickerOpen) {
+                  setYearRangeStart((current) => current - 12);
+                  return;
+                }
+                setShownMonth((current) => addMonths(current, -1));
+              }}
             />
-            <Text style={styles.calendarTitle}>{format(shownMonth, 'yyyy年M月')}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="年を選ぶ"
+              onPress={() => {
+                setYearRangeStart(getYearRangeStart(shownMonth));
+                setYearPickerOpen((current) => !current);
+              }}
+              style={({ pressed }) => [styles.calendarTitleButton, pressed && styles.calendarTitlePressed]}
+            >
+              <Text style={styles.calendarTitle}>
+                {yearPickerOpen ? `${yearRangeStart}年〜${yearRangeStart + 11}年` : format(shownMonth, 'yyyy年M月')}
+              </Text>
+              <Text style={styles.yearPickerHint}>{yearPickerOpen ? '月を選ぶ' : '年を選ぶ'}</Text>
+            </Pressable>
             <AppButton
-              title="翌月"
+              title={yearPickerOpen ? '次の12年' : '翌月'}
               variant="secondary"
-              onPress={() => setShownMonth((current) => addMonths(current, 1))}
+              onPress={() => {
+                if (yearPickerOpen) {
+                  setYearRangeStart((current) => current + 12);
+                  return;
+                }
+                setShownMonth((current) => addMonths(current, 1));
+              }}
             />
           </View>
+          {yearPickerOpen ? (
+            <View style={styles.yearGrid}>
+              {visibleYears.map((year) => {
+                const selected = year === shownMonth.getFullYear();
+                return (
+                  <Pressable
+                    key={year}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      setShownMonth((current) => setYear(current, year));
+                      setYearPickerOpen(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.yearButton,
+                      selected && styles.yearButtonSelected,
+                      pressed && styles.calendarDayPressed,
+                    ]}
+                  >
+                    <Text style={[styles.yearButtonText, selected && styles.yearButtonTextSelected]}>{year}年</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
           <View style={styles.calendarGrid}>
             {['日', '月', '火', '水', '木', '金', '土'].map((dayLabel) => (
               <Text key={dayLabel} style={styles.calendarWeekday}>
@@ -132,6 +193,7 @@ export function DatePickerField({
               );
             })}
           </View>
+          )}
         </View>
       ) : null}
     </View>
@@ -142,6 +204,10 @@ function parseDateOrToday(value?: string) {
   if (!value) return parseISO(todayIso());
   const date = parseISO(value);
   return isValid(date) ? date : parseISO(todayIso());
+}
+
+function getYearRangeStart(date: Date) {
+  return Math.floor(date.getFullYear() / 12) * 12;
 }
 
 const styles = StyleSheet.create({
@@ -191,14 +257,51 @@ const styles = StyleSheet.create({
   },
   calendarTitle: {
     color: colors.text,
-    flex: 1,
     fontSize: 15,
     fontWeight: '800',
     textAlign: 'center',
   },
+  calendarTitleButton: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 2,
+    paddingVertical: 4,
+  },
+  calendarTitlePressed: {
+    opacity: 0.7,
+  },
+  yearPickerHint: {
+    color: colors.subText,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+  yearGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  yearButton: {
+    alignItems: 'center',
+    backgroundColor: colors.muted,
+    borderRadius: 10,
+    justifyContent: 'center',
+    minHeight: 42,
+    width: '31.5%',
+  },
+  yearButtonSelected: {
+    backgroundColor: colors.primary,
+  },
+  yearButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  yearButtonTextSelected: {
+    color: colors.card,
   },
   calendarWeekday: {
     color: colors.subText,

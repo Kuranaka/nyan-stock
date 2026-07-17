@@ -996,8 +996,8 @@ export default function InventoryDetailScreen() {
       ref={scrollViewRef}
       contentContainerStyle={styles.container}
       automaticallyAdjustKeyboardInsets
-      keyboardDismissMode="interactive"
-      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="never"
     >
       <AppCard style={styles.card}>
         <View style={styles.header}>

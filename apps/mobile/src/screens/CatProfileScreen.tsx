@@ -363,8 +363,8 @@ export default function CatProfileScreen() {
       ref={scrollViewRef}
       contentContainerStyle={styles.container}
       automaticallyAdjustKeyboardInsets
-      keyboardDismissMode="interactive"
-      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="never"
     >
       <Text style={styles.lead}>猫ごとにプロフィールと在庫を分けて記録できます。</Text>
 

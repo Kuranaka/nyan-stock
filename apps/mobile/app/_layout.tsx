@@ -141,7 +141,9 @@ export default function RootLayout() {
             headerTitleStyle: { fontWeight: '700' },
             contentStyle: { backgroundColor: colors.background },
             gestureEnabled: true,
-            fullScreenGestureEnabled: true,
+            // Keep the native iOS back swipe, but only start it from the screen edge.
+            // A full-screen swipe conflicts too easily with normal horizontal touches.
+            fullScreenGestureEnabled: false,
             headerBackTitle: '戻る',
             headerBackButtonMenuEnabled: false,
             headerLeft: ({ tintColor }) => (

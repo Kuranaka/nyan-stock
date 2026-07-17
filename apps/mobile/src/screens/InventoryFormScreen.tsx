@@ -728,8 +728,8 @@ export default function InventoryFormScreen() {
       ref={scrollViewRef}
       contentContainerStyle={styles.container}
       automaticallyAdjustKeyboardInsets
-      keyboardDismissMode="interactive"
-      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="never"
       onScroll={(event) => {
         scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
       }}

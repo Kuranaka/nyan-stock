@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AppCard } from '@/components/AppCard';
 import { colors } from '@/constants/colors';
@@ -77,7 +77,8 @@ const sections = [
     body: [
       '端末内に保存されたデータのバックアップ、端末の紛失・故障・機種変更への備えは、利用者自身の責任で管理してください。',
       'アプリ内のデータ初期化機能または端末のアプリ削除により、端末内に保存されたデータを削除できます。',
-      '設定画面の「アカウントを削除」から、ログイン情報、個人用のクラウドデータおよびアップロードしたアイコンの削除を開始できます。共有スペースに他の参加者がいる場合、その共有データは他の参加者のために残ります。',
+      '設定画面の「アカウントを削除」から、ログイン情報、個人用のクラウドデータおよびアップロードしたアイコンの削除を開始できます。',
+      '共有スペースに他の参加者がいる場合、その共有データは他の参加者のために残ります。',
     ],
   },
   {
@@ -95,25 +96,31 @@ const sections = [
 ];
 
 export default function PrivacyPolicyScreen() {
+  const { width } = useWindowDimensions();
+  // ScrollView (18px), card border (2px), and card padding (32px).
+  // Supplying the measured width avoids an iOS text-layout edge case where a
+  // long final line can be drawn beyond the card without contributing height.
+  const textWidth = Math.max(width - 70, 0);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <AppCard>
         <Text style={styles.meta}>施行日: 2026年7月12日</Text>
         <Text style={styles.title}>プライバシーポリシー</Text>
-        <Text style={styles.text}>
+        <Text style={[styles.text, { width: textWidth }]}>
           にゃんストック運営（以下「運営者」といいます。）は、猫用品の在庫管理・買い忘れ防止アプリ「にゃんストック」（以下「本アプリ」といいます。）における利用者情報の取扱いについて、以下のとおり定めます。
         </Text>
         {sections.map((section) => (
           <View key={section.title} style={styles.section}>
             <Text style={styles.heading}>{section.title}</Text>
             {section.body.map((paragraph) => (
-              <Text key={paragraph} style={styles.text}>
-                {paragraph}
-              </Text>
+              <View key={paragraph} style={styles.paragraph}>
+                <Text style={[styles.text, { width: textWidth }]}>{paragraph}</Text>
+              </View>
             ))}
           </View>
         ))}
-        <Text style={styles.text}>運営者: にゃんストック運営</Text>
+        <Text style={[styles.text, { width: textWidth }]}>運営者: にゃんストック運営</Text>
       </AppCard>
     </ScrollView>
   );
@@ -138,6 +145,10 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 14,
   },
+  paragraph: {
+    alignSelf: 'stretch',
+    minWidth: 0,
+  },
   heading: {
     color: colors.text,
     fontSize: 17,
@@ -146,6 +157,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.text,
+    flexShrink: 1,
     fontSize: 15,
     lineHeight: 24,
     marginBottom: 10,
