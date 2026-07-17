@@ -16,6 +16,7 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "credentialsSource": "local",
       "environment": "production"
     },
     "production": {
