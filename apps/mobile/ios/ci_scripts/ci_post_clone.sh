@@ -15,10 +15,8 @@ fi
 
 npm ci
 
-cd ios
-
 if ! command -v pod >/dev/null 2>&1; then
   gem install cocoapods --no-document
 fi
 
-pod install
+/usr/bin/arch -arm64 /bin/bash --login -c "cd '$mobile_root/ios' && pod install"
