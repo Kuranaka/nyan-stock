@@ -960,7 +960,6 @@ export default function InventoryDetailScreen() {
     const opened = await openPurchaseUrl(item, shop);
     if (!opened) Alert.alert('URLが未登録です', '編集画面から購入URLを登録できます。');
     if (opened) {
-      await recordReviewEligibleAction('purchase_open');
       openReplenish();
     }
   };
