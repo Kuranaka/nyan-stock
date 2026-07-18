@@ -2,11 +2,23 @@
 
 set -euo pipefail
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 mobile_root="$(cd "$script_dir/../.." && pwd)"
 
 cd "$mobile_root"
+
+if ! command -v npm >/dev/null 2>&1; then
+  brew install node
+fi
+
 npm ci
 
 cd ios
+
+if ! command -v pod >/dev/null 2>&1; then
+  gem install cocoapods --no-document
+fi
+
 pod install
