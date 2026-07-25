@@ -1,4 +1,13 @@
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
+} from 'react-native';
 
 import { colors } from '@/constants/colors';
 
@@ -10,22 +19,40 @@ type Props = {
   variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
+  selected?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function AppButton({ title, onPress, variant = 'primary', disabled, loading, style }: Props) {
+const textStyles: Record<Variant, TextStyle> = {
+  primary: { color: colors.card },
+  secondary: { color: colors.primaryDark },
+  danger: { color: colors.danger },
+  ghost: { color: colors.primaryDark },
+};
+
+export function AppButton({
+  title,
+  onPress,
+  variant = 'primary',
+  disabled,
+  loading,
+  selected,
+  style,
+}: Props) {
   const isDisabled = disabled || loading;
-  const indicatorColor = variant === 'primary' ? colors.card : colors.text;
+  const indicatorColor =
+    variant === 'primary' ? colors.card : variant === 'danger' ? colors.danger : colors.primaryDark;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
       disabled={isDisabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
         styles[variant],
+        selected && styles.selected,
         isDisabled && styles.disabled,
         pressed && !isDisabled && styles.pressed,
         style,
@@ -33,7 +60,7 @@ export function AppButton({ title, onPress, variant = 'primary', disabled, loadi
     >
       <View style={styles.content}>
         {loading ? <ActivityIndicator color={indicatorColor} size="small" /> : null}
-        <Text style={[styles.text, variant !== 'primary' && styles.secondaryText]}>{title}</Text>
+        <Text style={[styles.text, textStyles[variant]]}>{title}</Text>
       </View>
     </Pressable>
   );
@@ -50,11 +77,13 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    borderWidth: 1,
   },
   secondary: {
     backgroundColor: colors.primaryLight,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.interactiveBorder,
   },
   danger: {
     backgroundColor: colors.dangerLight,
@@ -63,6 +92,10 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
+  },
+  selected: {
+    borderColor: colors.primaryDark,
+    borderWidth: 2,
   },
   disabled: {
     opacity: 0.45,
@@ -78,11 +111,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: {
-    color: colors.card,
     fontSize: 16,
     fontWeight: '700',
-  },
-  secondaryText: {
-    color: colors.text,
   },
 });

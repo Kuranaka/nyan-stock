@@ -1,0 +1,115 @@
+pet_type,product_name,manufacturer,category_id,subcategory_id,subcategory_name,source_url,verification_status,verified_source_url,verified_note,verified_at
+dog,デオシート,ユニ・チャーム,pet_sheets,pet_sheets,ペットシーツ,https://jp.unicharmpet.com/ja/dog/toilet-sheets.html,verified_active,https://jp.unicharmpet.com/ja/dog/toilet-sheets.html,ユニ・チャーム公式犬用トイレシーツ一覧で確認。,2026-07-19
+dog,マナーウェア,ユニ・チャーム,diapers,diapers,マナーウェア・おむつ,https://jp.unicharmpet.com/ja/dog/diaper.html,verified_active,https://jp.unicharmpet.com/ja/dog/diaper.html,ユニ・チャーム公式犬用マナーウェア一覧で確認。,2026-07-19
+dog,デオクリーン,ユニ・チャーム,deodorizer,deodorizer,消臭用品,https://jp.unicharmpet.com/ja/dog/toilet.html,verified_active,https://jp.unicharmpet.com/ja/dog/toilet.html,ユニ・チャーム公式犬用トイレ・消臭用品一覧で確認。,2026-07-19
+dog,ジョイペット 薬用スキンケアシャンプー,ジョンソントレーディング,shampoo,shampoo,シャンプー,https://www.joypet.jp/dog/,verified_active,https://www.joypet.jp/dog/,公式犬用ケア用品カタログで確認。,2026-07-19
+dog,ジョイペット 涙やけクリーナー,ジョンソントレーディング,eye_care,eye_care,目元ケア,https://www.joypet.jp/dog/,verified_active,https://www.joypet.jp/dog/,公式犬用ケア用品カタログで確認。,2026-07-19
+dog,ジョイペット 耳そうじシート,ジョンソントレーディング,ear_care,ear_care,耳ケア,https://www.joypet.jp/dog/,verified_active,https://www.joypet.jp/dog/,公式犬用ケア用品カタログで確認。,2026-07-19
+dog,ジョイペット 肉球ケアジェル,ジョンソントレーディング,paw_care,paw_care,肉球ケア,https://www.joypet.jp/dog/,verified_active,https://www.joypet.jp/dog/,公式犬用ケア用品カタログで確認。,2026-07-19
+dog,デントレーナー,ペティオ,dental_care,dental_care,デンタルケア用品,https://www.petio.com/products/dog/,verified_active,https://www.petio.com/products/dog/,ペティオ公式犬用用品カタログで確認。,2026-07-19
+dog,犬用ミルク,森乳サンワールド,milk,milk,ミルク,https://www.morinyu.co.jp/pet/,verified_active,https://www.morinyu.co.jp/pet/,森乳サンワールド公式ペット用品カタログで確認。,2026-07-19
+dog,ペットキレイ ウェットティッシュ,ライオンペット,wet_tissues,wet_tissues,ウェットティッシュ,https://www.lion-pet.co.jp/products/dog/,verified_active,https://www.lion-pet.co.jp/products/dog/,ライオンペット公式犬用用品カタログで確認。,2026-07-19
+dog,シュシュット お散歩用うんち袋,ライオンペット,waste_bags,waste_bags,うんち袋,https://www.lion-pet.co.jp/products/dog/,verified_active,https://www.lion-pet.co.jp/products/dog/,ライオンペット公式犬用用品カタログで確認。,2026-07-19
+dog,ペットキレイ ノミ・ダニクリーナー,ライオンペット,flea_tick_care,flea_tick_care,ノミ・ダニ対策用品,https://www.lion-pet.co.jp/products/dog/,verified_active,https://www.lion-pet.co.jp/products/dog/,ライオンペット公式犬用用品カタログで確認。,2026-07-19
+rabbit,ラビットプレミアムフード,ジェックス,main_pellet,main_pellet,主食用ペレット,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,ラビットプレミアムチモシー,ジェックス,timothy,timothy,チモシー,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,ラビットプレミアムアルファルファ,ジェックス,alfalfa,alfalfa,アルファルファ,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,ラビットプレミアムサプリ,ジェックス,supplement,supplement,サプリメント,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,ラビットプレミアムかじり木,ジェックス,chew_toy,chew_toy,かじり木,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,ラビットトイレ砂,ジェックス,toilet_litter,toilet_litter,トイレ砂,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,ラビットトイレシーツ,ジェックス,toilet_sheets,toilet_sheets,トイレシーツ,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,うさピカ消臭剤,ジェックス,deodorizer,deodorizer,消臭用品,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+small_mammal,ハムスター用ペレット,マルカン,pellet,pellet,ペレット,https://page.mkgr.jp/product/small_animals/category-1342/,verified_active,https://page.mkgr.jp/product/small_animals/category-1342/,マルカン公式小動物フード一覧で確認。,2026-07-19
+small_mammal,ハムスター用ミルク,マルカン,milk,milk,ミルク,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,ハムスター用かじり木,マルカン,chew_toy,chew_toy,かじり木,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,ハムスター用巣材,マルカン,nesting_material,nesting_material,巣材,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,ハムスター用浴び砂,マルカン,bathing_sand,bathing_sand,浴び砂,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,ハムスター用床材,マルカン,bedding,bedding,床材,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,小動物用消臭剤,マルカン,deodorizer,deodorizer,消臭用品,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,小動物用毛球ケア,マルカン,hairball_care,hairball_care,毛球ケア用品,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,小動物用デンタルケア,マルカン,dental_care,dental_care,デンタルケア用品,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+bird,セキセイインコ用シード,マルカン,seed,seed,シード,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,オカメインコ用ペレット,マルカン,pellet,pellet,ペレット,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用フォーミュラ,マルカン,formula,formula,フォーミュラ,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,ひな鳥用さし餌,マルカン,chick_food,chick_food,手乗り・雛用フード,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用カルシウム,マルカン,calcium,calcium,カルシウム,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用ボレー粉,マルカン,grit,grit,ボレー粉,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用カトルボーン,マルカン,cuttlebone,cuttlebone,カトルボーン,https://page.mkgr.jp/product/bird/,verified_active,https://page.mkgr.jp/product/bird/,マルカン公式小鳥用品カタログで確認。,2026-07-19
+bird,小鳥用塩土,マルカン,mineral,mineral,塩土・ミネラル用品,https://page.mkgr.jp/product/bird/,verified_active,https://page.mkgr.jp/product/bird/,マルカン公式小鳥用品カタログで確認。,2026-07-19
+bird,小鳥用敷紙,マルカン,bedding,bedding,床材・敷紙,https://page.mkgr.jp/product/bird/,verified_active,https://page.mkgr.jp/product/bird/,マルカン公式小鳥用品カタログで確認。,2026-07-19
+bird,小鳥用水浴び用品,マルカン,bath,bath,水浴び用品,https://page.mkgr.jp/product/bird/,verified_active,https://page.mkgr.jp/product/bird/,マルカン公式小鳥用品カタログで確認。,2026-07-19
+aquarium_fish,テトラミン フレーク,スペクトラム ブランズ ジャパン,flake_food,flake_food,フレークフード,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラミン グラニュール,スペクトラム ブランズ ジャパン,granule_food,granule_food,顆粒フード,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラタブレット,スペクトラム ブランズ ジャパン,tablet_food,tablet_food,タブレットフード,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラキリミン ベビー,スペクトラム ブランズ ジャパン,fry_food,fry_food,稚魚用フード,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラベタ,スペクトラム ブランズ ジャパン,betta_food,betta_food,ベタ用フード,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラマリン,スペクトラム ブランズ ジャパン,marine_food,marine_food,海水魚用フード,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラコントラコロライン,スペクトラム ブランズ ジャパン,water_conditioner,water_conditioner,水質調整剤,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラアクアセイフ,スペクトラム ブランズ ジャパン,dechlorinator,dechlorinator,カルキ抜き,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラセイフスタート,スペクトラム ブランズ ジャパン,bacteria,bacteria,バクテリア剤,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラアルゴストップ,スペクトラム ブランズ ジャパン,algae_control,algae_control,コケ抑制剤,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラ活性炭,スペクトラム ブランズ ジャパン,activated_carbon,activated_carbon,活性炭,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラバイオバッグ,スペクトラム ブランズ ジャパン,filter_media,filter_media,フィルター交換材,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラテスト 水質検査,スペクトラム ブランズ ジャパン,water_test,water_test,水質検査用品,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラコンプリートサブストレート,スペクトラム ブランズ ジャパン,substrate,substrate,底床材,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラ水草肥料,スペクトラム ブランズ ジャパン,plant_fertilizer,plant_fertilizer,水草用肥料,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,テトラCO2プラス,スペクトラム ブランズ ジャパン,co2_consumable,co2_consumable,CO2関連消耗品,https://spectrumbrands.jp/product-category/aquarium/,verified_active,https://spectrumbrands.jp/product-category/aquarium/,テトラ公式観賞魚用品カタログで確認。,2026-07-19
+reptile_amphibian,RepDeli コオロギブースター,ジェックス,insect_food,insect_food,昆虫フード,https://product.gex-fp.co.jp/exoterra/?cid=409&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=409&m=ProductList,GEX公式フード一覧で確認。,2026-07-19
+reptile_amphibian,レプタイルカルシウム,ジェックス,calcium,calcium,カルシウム剤,https://product.gex-fp.co.jp/exoterra/?cid=410&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=410&m=ProductList,GEX公式栄養補助食品一覧で確認。,2026-07-19
+reptile_amphibian,マルチビタミン,ジェックス,vitamin,vitamin,ビタミン剤,https://product.gex-fp.co.jp/exoterra/?cid=410&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=410&m=ProductList,GEX公式栄養補助食品一覧で確認。,2026-07-19
+reptile_amphibian,ヤシガラ床材,ジェックス,coconut_substrate,coconut_substrate,ヤシガラ,https://product.gex-fp.co.jp/exoterra/?cid=417&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=417&m=ProductList,GEX公式床材一覧で確認。,2026-07-19
+reptile_amphibian,爬虫類用消臭剤,ジェックス,deodorizer,deodorizer,消臭用品,https://product.gex-fp.co.jp/exoterra/?cid=418&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=418&m=ProductList,GEX公式メンテナンス用品一覧で確認。,2026-07-19
+reptile_amphibian,爬虫類用脱皮ケア,ジェックス,shedding_care,shedding_care,脱皮ケア用品,https://product.gex-fp.co.jp/exoterra/,verified_active,https://product.gex-fp.co.jp/exoterra/,GEX公式爬虫類用品カタログで確認。,2026-07-19
+reptile_amphibian,カメ用冷凍餌,キョーリン,frozen_food,frozen_food,冷凍餌,https://www.kyorin-net.co.jp/turtle/index.html,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,キョーリン公式爬虫類・両生類用品カタログで確認。,2026-07-19
+reptile_amphibian,カエル用乾燥餌,キョーリン,dried_food,dried_food,乾燥餌,https://www.kyorin-net.co.jp/turtle/index.html,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,キョーリン公式爬虫類・両生類用品カタログで確認。,2026-07-19
+reptile_amphibian,爬虫類用フィルター交換材,ジェックス,filter_media,filter_media,フィルター交換材,https://product.gex-fp.co.jp/exoterra/,verified_active,https://product.gex-fp.co.jp/exoterra/,GEX公式爬虫類用品カタログで確認。,2026-07-19
+insect,プロゼリー,KBファーム,insect_jelly,insect_jelly,昆虫ゼリー,https://wraios.co.jp/kbfarm.htm,verified_active,https://wraios.co.jp/kbfarm.htm,KBファーム公式商品一覧で確認。,2026-07-19
+insect,デブロPro発酵マット,フジコン,fermented_mat,fermented_mat,発酵マット,https://www.fujikon.net/04mat.htm,verified_active,https://www.fujikon.net/04mat.htm,フジコン公式昆虫マット一覧で確認。,2026-07-19
+insect,クワガタ用菌糸ビン,フジコン,kinshi_bottle,kinshi_bottle,菌糸ビン,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+insect,昆虫用埋め込みマット,フジコン,burial_mat,burial_mat,埋め込みマット,https://www.fujikon.net/04mat.htm,verified_active,https://www.fujikon.net/04mat.htm,フジコン公式昆虫マット一覧で確認。,2026-07-19
+insect,昆虫用腐葉土,フジコン,leaf_mold,leaf_mold,腐葉土,https://www.fujikon.net/04mat.htm,verified_active,https://www.fujikon.net/04mat.htm,フジコン公式昆虫マット一覧で確認。,2026-07-19
+insect,コオロギフード,フジコン,cricket_food,cricket_food,コオロギフード,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+insect,鈴虫フード,フジコン,bell_cricket_food,bell_cricket_food,鈴虫フード,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+insect,昆虫用給水ゼリー,フジコン,hydration,hydration,給水用品,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+insect,昆虫用保湿用品,フジコン,humidity,humidity,保湿用品,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+insect,昆虫用消臭剤,フジコン,deodorizer,deodorizer,消臭用品,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+dog,デビフ 犬用ウェットフード,デビフペット,wet_food,wet_food,ウェットフード,https://www.dbfpet.co.jp/product-info/,verified_active,https://www.dbfpet.co.jp/product-info/,デビフ公式犬用商品一覧で確認。,2026-07-19
+dog,半生タイプ犬用フード,日本ペットフード,semi_moist_food,semi_moist_food,セミモイストフード,https://www.npf.co.jp/dog-products,verified_active,https://www.npf.co.jp/dog-products,日本ペットフード公式犬用フード一覧で確認。,2026-07-19
+dog,犬用療法食,ロイヤルカナン ジャポン,therapeutic_food,therapeutic_food,療法食,https://www.royalcanin.com/jp/dogs/products/vet-products,verified_active,https://www.royalcanin.com/jp/dogs/products/vet-products,ロイヤルカナン公式犬用療法食一覧で確認。,2026-07-19
+dog,犬用おやつ,ペティオ,treat,treat,おやつ,https://www.petio.com/products/dog/,verified_active,https://www.petio.com/products/dog/,ペティオ公式犬用用品カタログで確認。,2026-07-19
+dog,ペットキレイ トリートメント,ライオンペット,conditioner,conditioner,トリートメント,https://www.lion-pet.co.jp/products/dog/,verified_active,https://www.lion-pet.co.jp/products/dog/,ライオンペット公式犬用用品カタログで確認。,2026-07-19
+dog,犬用トイレトレー,リッチェル,toilet,toilet,トイレ用品,https://www.richell.co.jp/shop/pet/dog/,verified_active,https://www.richell.co.jp/shop/pet/dog/,リッチェル公式犬用用品カタログで確認。,2026-07-19
+rabbit,うさぎ用補助食,ハイペット,supplementary_food,supplementary_food,補助食,https://www.hipet.co.jp/product/,verified_active,https://www.hipet.co.jp/product/,ハイペット公式小動物商品一覧で確認。,2026-07-19
+rabbit,うさぎ用おやつ,ハイペット,treat,treat,おやつ,https://www.hipet.co.jp/product/,verified_active,https://www.hipet.co.jp/product/,ハイペット公式小動物商品一覧で確認。,2026-07-19
+rabbit,うさぎ用毛球ケア,ハイペット,hairball_care,hairball_care,毛球ケア用品,https://www.hipet.co.jp/product/,verified_active,https://www.hipet.co.jp/product/,ハイペット公式小動物商品一覧で確認。,2026-07-19
+rabbit,うさぎ用床材,ジェックス,bedding,bedding,床材,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,うさぎ用グルーミング用品,ジェックス,grooming,grooming,グルーミング用品,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,うさぎ用シャンプータオル,ジェックス,shampoo_towel,shampoo_towel,シャンプータオル,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+rabbit,うさぎ用給水ボトル交換品,ジェックス,water_replacement,water_replacement,給水関連の交換品,https://www.gex-fp.co.jp/animal/,verified_active,https://www.gex-fp.co.jp/animal/,ジェックス公式小動物用品カタログで確認。,2026-07-19
+small_mammal,小動物用おやつ,マルカン,treat,treat,おやつ,https://page.mkgr.jp/product/small_animals/category-1342/,verified_active,https://page.mkgr.jp/product/small_animals/category-1342/,マルカン公式小動物フード一覧で確認。,2026-07-19
+small_mammal,小動物用サプリメント,マルカン,supplement,supplement,サプリメント,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,小動物用トイレ砂,マルカン,toilet_litter,toilet_litter,トイレ砂,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+small_mammal,小動物用グルーミング用品,マルカン,grooming,grooming,グルーミング用品,https://page.mkgr.jp/product/small_animals/,verified_active,https://page.mkgr.jp/product/small_animals/,マルカン公式小動物用品カタログで確認。,2026-07-19
+bird,小鳥用混合フード,マルカン,mixed_food,mixed_food,混合フード,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用おやつ,マルカン,treat,treat,おやつ,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用サプリメント,マルカン,supplement,supplement,サプリメント,https://page.mkgr.jp/product/bird/category-1341/,verified_active,https://page.mkgr.jp/product/bird/category-1341/,マルカン公式小鳥フード一覧で確認。,2026-07-19
+bird,小鳥用砂,マルカン,sand,sand,砂,https://page.mkgr.jp/product/bird/,verified_active,https://page.mkgr.jp/product/bird/,マルカン公式小鳥用品カタログで確認。,2026-07-19
+bird,小鳥用消臭用品,マルカン,deodorizer,deodorizer,消臭用品,https://page.mkgr.jp/product/bird/,verified_active,https://page.mkgr.jp/product/bird/,マルカン公式小鳥用品カタログで確認。,2026-07-19
+aquarium_fish,冷凍赤虫,キョーリン,frozen_food,frozen_food,冷凍餌,https://www.kyorin-net.co.jp/product/index.html,verified_active,https://www.kyorin-net.co.jp/product/index.html,キョーリン公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,乾燥イトミミズ,キョーリン,dried_food,dried_food,乾燥餌,https://www.kyorin-net.co.jp/product/index.html,verified_active,https://www.kyorin-net.co.jp/product/index.html,キョーリン公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,生体餌ブラインシュリンプ,キョーリン,live_food,live_food,生体餌,https://www.kyorin-net.co.jp/product/index.html,verified_active,https://www.kyorin-net.co.jp/product/index.html,キョーリン公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,エビ用フード,キョーリン,shrimp_food,shrimp_food,エビ用フード,https://www.kyorin-net.co.jp/product/index.html,verified_active,https://www.kyorin-net.co.jp/product/index.html,キョーリン公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,観賞魚用塩,ジェックス,aquarium_salt,aquarium_salt,塩,https://www.gex-fp.co.jp/fish/,verified_active,https://www.gex-fp.co.jp/fish/,ジェックス公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,観賞魚用ウールマット,ジェックス,wool_mat,wool_mat,ウールマット,https://www.gex-fp.co.jp/fish/,verified_active,https://www.gex-fp.co.jp/fish/,ジェックス公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,観賞魚用砂利,ジェックス,gravel,gravel,砂利,https://www.gex-fp.co.jp/fish/,verified_active,https://www.gex-fp.co.jp/fish/,ジェックス公式観賞魚用品カタログで確認。,2026-07-19
+aquarium_fish,観賞魚用ソイル,ジェックス,soil,soil,ソイル,https://www.gex-fp.co.jp/fish/,verified_active,https://www.gex-fp.co.jp/fish/,ジェックス公式観賞魚用品カタログで確認。,2026-07-19
+reptile_amphibian,爬虫類用ペレット,ジェックス,pellet,pellet,ペレット,https://product.gex-fp.co.jp/exoterra/?cid=409&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=409&m=ProductList,GEX公式フード一覧で確認。,2026-07-19
+reptile_amphibian,爬虫類用活餌,ジェックス,live_food,live_food,活餌,https://product.gex-fp.co.jp/exoterra/,verified_active,https://product.gex-fp.co.jp/exoterra/,GEX公式爬虫類用品カタログで確認。,2026-07-19
+reptile_amphibian,爬虫類用ゼリー,ジェックス,reptile_jelly,reptile_jelly,爬虫類用ゼリー,https://product.gex-fp.co.jp/exoterra/?cid=409&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=409&m=ProductList,GEX公式フード一覧で確認。,2026-07-19
+reptile_amphibian,カメ用フィルター交換材,ジェックス,filter_media,filter_media,フィルター交換材,https://www.gex-fp.co.jp/,verified_active,https://www.gex-fp.co.jp/,ジェックス公式用品カタログで確認。,2026-07-19
+reptile_amphibian,爬虫類用紫外線ライト,ジェックス,uv_lighting,uv_lighting,紫外線ライトの交換用品,https://product.gex-fp.co.jp/exoterra/?cid=402&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=402&m=ProductList,GEX公式UV球一覧で確認。,2026-07-19
+reptile_amphibian,爬虫類用保温球,ジェックス,heat_lamp,heat_lamp,保温球,https://product.gex-fp.co.jp/exoterra/?cid=404&m=ProductList,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=404&m=ProductList,GEX公式ライティング一覧で確認。,2026-07-19
+insect,カブトムシ用成虫マット,フジコン,adult_mat,adult_mat,成虫用マット,https://www.fujikon.net/04mat.htm,verified_active,https://www.fujikon.net/04mat.htm,フジコン公式昆虫マット一覧で確認。,2026-07-19
+insect,カブトムシ用蜜,マルカン,insect_honey,insect_honey,昆虫用蜜,https://page.mkgr.jp/product/insect/category-1359/,verified_active,https://page.mkgr.jp/product/insect/category-1359/,マルカン公式昆虫フード一覧で確認。,2026-07-19
+insect,昆虫用カルシウム,フジコン,calcium,calcium,カルシウム剤,https://fujikon.net/,verified_active,https://fujikon.net/,フジコン公式商品一覧で確認。,2026-07-19
+insect,昆虫ケース用床材,フジコン,case_bedding,case_bedding,飼育ケース用床材,https://www.fujikon.net/04mat.htm,verified_active,https://www.fujikon.net/04mat.htm,フジコン公式昆虫マット一覧で確認。,2026-07-19

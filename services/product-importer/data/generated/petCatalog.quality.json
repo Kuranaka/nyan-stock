@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-07-20T12:04:58.768Z",
+  "totals": {
+    "rawListings": 45363,
+    "candidates": 45363,
+    "products": 0,
+    "productRetailerListings": 0,
+    "reviewQueue": 84732,
+    "searchQueries": 269
+  },
+  "errorCount": 0,
+  "warningCount": 0,
+  "findings": []
+}

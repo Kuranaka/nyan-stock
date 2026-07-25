@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,15 +15,16 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
-import { AppCard } from '@/components/AppCard';
 import { EmptyState } from '@/components/EmptyState';
 import { InventoryCard } from '@/components/InventoryCard';
 import { colors } from '@/constants/colors';
 import { getCurrentAuthSession, signInAsGuest } from '@/features/auth/supabaseAuth';
 import { getCats } from '@/features/cats/catStorage';
+import { getDefaultPetTypeIcon } from '@/features/cats/petTypeIcons';
 import { Cat } from '@/features/cats/catTypes';
 import {
   calculateRemainingDays,
+  getInventoryCatIds,
   getInventoryStatus,
   isInventoryItemForCat,
   sortInventoryItems,
@@ -47,12 +48,30 @@ import {
   getSubscriptionEntitlement,
 } from '@/features/subscription/subscriptionService';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
-import { formatTodayJapanese } from '@/utils/date';
 import appIcon from '../../assets/icon.png';
 
 import OnboardingScreen from './OnboardingScreen';
 
-type InventoryFilter = 'out' | 'warning' | 'watch';
+type InventoryFilter = 'all' | 'attention' | 'watch' | 'unknown';
+type BriefAction = Exclude<InventoryFilter, 'all'> | 'profile' | 'add';
+
+const allPetsSelectionKey = '__all_pets__';
+const defaultVisibleInStockItemCount = 3;
+
+async function confirmInitialNotificationSetting(
+  currentSettings: AppSettings,
+  settingsAlreadySaved: boolean,
+): Promise<AppSettings> {
+  if (currentSettings.notificationPermissionPrompted || settingsAlreadySaved) {
+    return currentSettings;
+  }
+
+  const notificationsEnabled = await requestNotificationPermission();
+  return updateSettings({
+    notificationPermissionPrompted: true,
+    notificationsEnabled,
+  });
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -63,25 +82,15 @@ export default function HomeScreen() {
   const [settings, setSettings] = useState<AppSettings | undefined>();
   const [hasAuthSession, setHasAuthSession] = useState<boolean | undefined>();
   const [loading, setLoading] = useState(true);
-  const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter | undefined>();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | undefined>();
+  const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>('all');
+  const [showAllInStockItems, setShowAllInStockItems] = useState(false);
   const [openingInventoryForm, setOpeningInventoryForm] = useState(false);
 
-  const confirmInitialNotificationSetting = async (
-    currentSettings: AppSettings,
-    settingsAlreadySaved: boolean,
-  ): Promise<AppSettings> => {
-    if (currentSettings.notificationPermissionPrompted || settingsAlreadySaved) return currentSettings;
-
-    const notificationsEnabled = await requestNotificationPermission();
-    return updateSettings({
-      notificationPermissionPrompted: true,
-      notificationsEnabled,
-    });
-  };
-
   const load = useCallback(async () => {
-    setLoading(true);
     try {
+      setLoadError(undefined);
       const [storedSettings, authSession] = await Promise.all([
         getSettings(),
         getCurrentAuthSession(),
@@ -97,22 +106,38 @@ export default function HomeScreen() {
         return;
       }
 
-      const [nextCat, nextItems, settingsAlreadySaved] = await Promise.all([
+      const [nextCats, nextItems, settingsAlreadySaved] = await Promise.all([
         getCats(),
         getInventoryItems(),
         hasSavedSettings(),
       ]);
-      const nextSettings = await confirmInitialNotificationSetting(storedSettings, settingsAlreadySaved);
-      const selectedId = nextCat.some((cat) => cat.id === nextSettings.selectedCatId)
-        ? nextSettings.selectedCatId
-        : nextCat[0]?.id;
-      setCats(nextCat);
+      const nextSettings = await confirmInitialNotificationSetting(
+        storedSettings,
+        settingsAlreadySaved,
+      );
+      const selectedId =
+        nextSettings.selectedCatId === allPetsSelectionKey
+          ? undefined
+          : nextCats.some((cat) => cat.id === nextSettings.selectedCatId)
+            ? nextSettings.selectedCatId
+            : nextCats.length === 1
+              ? nextCats[0]?.id
+              : undefined;
+
+      setCats(nextCats);
       setSelectedCatId(selectedId);
       setItems(sortInventoryItems(nextItems));
       setSettings(nextSettings);
       await scheduleInventoryNotifications(nextItems, nextSettings);
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : '最新の在庫を読み込めませんでした。通信状況を確認してください。',
+      );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -127,17 +152,31 @@ export default function HomeScreen() {
   });
 
   useEffect(() => {
-    if (settings) {
-      DeviceEventEmitter.emit(onboardingVisibilityEventName, settings.onboardingCompleted);
-    }
-  }, [settings]);
+    DeviceEventEmitter.emit(
+      onboardingVisibilityEventName,
+      Boolean(hasAuthSession && settings?.onboardingCompleted),
+    );
+  }, [hasAuthSession, settings]);
 
   const completeOnboarding = async (toProfile: boolean) => {
     await updateSettings({ onboardingCompleted: true });
     DeviceEventEmitter.emit(onboardingVisibilityEventName, true);
+    setLoading(true);
     await load();
     if (toProfile) router.push('/cat-profile');
   };
+
+  if (loadError && hasAuthSession === undefined) {
+    return (
+      <HomeLoadFailure
+        message={loadError}
+        onRetry={() => {
+          setLoading(true);
+          void load();
+        }}
+      />
+    );
+  }
 
   if (loading || hasAuthSession === undefined) {
     return <HomeLoading />;
@@ -158,36 +197,36 @@ export default function HomeScreen() {
     return <HomeLoading />;
   }
 
-  const selectedCat = cats.find((nextCat) => nextCat.id === selectedCatId);
+  const selectedCat = cats.find((cat) => cat.id === selectedCatId);
   const catItems = selectedCatId
     ? items.filter((item) => isInventoryItemForCat(item, selectedCatId))
     : items;
-  const outItems = catItems.filter((item) => getInventoryStatus(item) === 'out');
-  const warningItems = catItems.filter((item) => {
-    const days = calculateRemainingDays(item);
-    return days !== undefined && days > 0 && days <= 3;
+  const attentionItems = catItems.filter((item) => {
+    const status = getInventoryStatus(item);
+    return status === 'out' || status === 'warning';
   });
-  const watchItems = catItems.filter((item) => {
-    const days = calculateRemainingDays(item);
-    return days !== undefined && days > 3 && days <= 7;
-  });
+  const watchItems = catItems.filter((item) => getInventoryStatus(item) === 'watch');
+  const unknownItems = catItems.filter((item) => getInventoryStatus(item) === 'unknown');
+  const inStockItems = catItems.filter((item) => getInventoryStatus(item) === 'in_stock');
+  const visibleInStockItems = showAllInStockItems
+    ? inStockItems
+    : inStockItems.slice(0, defaultVisibleInStockItemCount);
+  const hiddenInStockItemCount = Math.max(0, inStockItems.length - defaultVisibleInStockItemCount);
   const visibleItems =
-    inventoryFilter === 'out'
-      ? outItems
-      : inventoryFilter === 'warning'
-        ? warningItems
-        : inventoryFilter === 'watch'
-          ? watchItems
+    inventoryFilter === 'attention'
+      ? attentionItems
+      : inventoryFilter === 'watch'
+        ? watchItems
+        : inventoryFilter === 'unknown'
+          ? unknownItems
           : catItems;
+  const catNameById = new Map(cats.map((cat) => [cat.id, cat.name]));
 
-  const selectCat = async (catId: string) => {
+  const selectCat = async (catId: string | undefined) => {
     setSelectedCatId(catId);
-    setInventoryFilter(undefined);
-    await updateSettings({ selectedCatId: catId });
-  };
-
-  const toggleInventoryFilter = (nextFilter: InventoryFilter) => {
-    setInventoryFilter((currentFilter) => (currentFilter === nextFilter ? undefined : nextFilter));
+    setInventoryFilter('all');
+    setShowAllInStockItems(false);
+    await updateSettings({ selectedCatId: catId ?? allPetsSelectionKey });
   };
 
   const openInventoryForm = async () => {
@@ -213,8 +252,8 @@ export default function HomeScreen() {
         return;
       }
       Alert.alert(
-        '先に猫プロフィールを登録してください',
-        '商品は猫ごとに在庫を記録します。猫プロフィールを登録してから商品を追加できます。',
+        '先にペットプロフィールを登録してください',
+        '商品はペットごとに在庫を記録します。ペットプロフィールを登録してから商品を追加できます。',
         [
           { text: 'キャンセル', style: 'cancel' },
           { text: '登録する', onPress: () => router.push('/cat-profile') },
@@ -230,129 +269,240 @@ export default function HomeScreen() {
     }
   };
 
+  const refresh = () => {
+    setRefreshing(true);
+    void load();
+  };
+
+  const petNamesForItem = (item: InventoryItem) =>
+    getInventoryCatIds(item)
+      .map((catId) => catNameById.get(catId))
+      .filter((name): name is string => Boolean(name));
+
+  const inventoryCardFor = (item: InventoryItem) => (
+    <InventoryCard
+      key={item.id}
+      item={item}
+      petNames={petNamesForItem(item)}
+      onPurchase={() =>
+        router.push({
+          pathname: '/inventory-detail',
+          params: { id: item.id, action: 'purchase' },
+        })
+      }
+      onReplenish={() =>
+        router.push({
+          pathname: '/inventory-detail',
+          params: { id: item.id, action: 'replenish' },
+        })
+      }
+      onDetail={() => router.push({ pathname: '/inventory-detail', params: { id: item.id } })}
+    />
+  );
+
   return (
     <ScrollView
       contentContainerStyle={[styles.container, { paddingTop: Math.max(18, insets.top + 12) }]}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+      refreshControl={
+        <RefreshControl
+          colors={[colors.primary]}
+          refreshing={refreshing}
+          tintColor={colors.primary}
+          onRefresh={refresh}
+        />
+      }
     >
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>
-            {selectedCat ? `${selectedCat.name}の在庫` : '猫用品の在庫'}
-          </Text>
-          <Text style={styles.date}>{formatTodayJapanese()}</Text>
-        </View>
-        <AppButton title="設定" variant="secondary" onPress={() => router.push('/settings')} />
+        <Text accessibilityRole="header" style={styles.greeting}>
+          在庫
+        </Text>
+        <Pressable
+          accessibilityLabel="ペットプロフィールを管理"
+          accessibilityRole="button"
+          onPress={() => router.push('/cat-profile')}
+          style={({ pressed }) => [styles.petManageButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.petManageButtonLabel}>ペット</Text>
+          <Text style={styles.petManageButtonArrow}>›</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.catSection}>
-        <View style={styles.catSectionHeader}>
-          <Text style={styles.catSectionTitle}>猫を選択</Text>
-          <Pressable
-            accessibilityLabel="猫を追加・編集する"
-            accessibilityRole="button"
-            onPress={() => router.push('/cat-profile')}
-            style={({ pressed }) => [styles.catManageLink, pressed && styles.catManageLinkPressed]}
+      {cats.length > 0 ? (
+        <View style={styles.petScope}>
+          <Text style={styles.overline}>表示するペット</Text>
+          <ScrollView
+            horizontal
+            contentContainerStyle={styles.catTabs}
+            showsHorizontalScrollIndicator={false}
           >
-            <Text style={styles.catManageLinkText}>猫を管理</Text>
-            <Text style={styles.catManageLinkArrow}>›</Text>
+            {cats.length > 1 ? (
+              <ScopeChip
+                label="みんな"
+                selected={selectedCatId === undefined}
+                onPress={() => void selectCat(undefined)}
+              />
+            ) : null}
+            {cats.map((cat) => (
+              <ScopeChip
+                key={cat.id}
+                cat={cat}
+                label={cat.name}
+                selected={cats.length === 1 || cat.id === selectedCatId}
+                onPress={() => void selectCat(cat.id)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      <DailyBrief
+        attentionCount={attentionItems.length}
+        hasPets={cats.length > 0}
+        itemCount={catItems.length}
+        nextItem={catItems[0]}
+        unknownCount={unknownItems.length}
+        watchCount={watchItems.length}
+        onAction={(action) => {
+          if (action === 'profile') {
+            router.push('/cat-profile');
+            return;
+          }
+          if (action === 'add') {
+            void openInventoryForm();
+            return;
+          }
+          setInventoryFilter(action);
+        }}
+      />
+
+      {loadError ? (
+        <View accessibilityRole="alert" style={styles.syncNotice}>
+          <Text style={styles.syncNoticeTitle}>最新情報を確認できませんでした</Text>
+          <Text style={styles.syncNoticeText}>{loadError}</Text>
+          <Pressable accessibilityRole="button" onPress={refresh} style={styles.retryLink}>
+            <Text style={styles.retryLinkText}>もう一度読み込む</Text>
           </Pressable>
         </View>
-        <View style={styles.catTabs}>
-          {cats.map((nextCat) => (
-            <CatTab
-              key={nextCat.id}
-              cat={nextCat}
-              selected={nextCat.id === selectedCatId}
-              onPress={() => void selectCat(nextCat.id)}
+      ) : null}
+
+      <View style={styles.inventorySection}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderCopy}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              用品
+            </Text>
+            <Text style={styles.sectionMeta}>
+              {selectedCat ? `${selectedCat.name}の登録用品` : '家庭の登録用品'} {catItems.length}件
+            </Text>
+          </View>
+          {catItems.length > 0 ? (
+            <Pressable
+              accessibilityLabel="用品を追加"
+              accessibilityRole="button"
+              disabled={openingInventoryForm}
+              onPress={() => void openInventoryForm()}
+              style={({ pressed }) => [
+                styles.addButton,
+                pressed && styles.pressed,
+                openingInventoryForm && styles.disabled,
+              ]}
+            >
+              {openingInventoryForm ? (
+                <ActivityIndicator color={colors.card} size="small" />
+              ) : (
+                <>
+                  <Text style={styles.addButtonPlus}>＋</Text>
+                  <Text style={styles.addButtonText}>追加</Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
+
+        {catItems.length > 0 ? (
+          <ScrollView
+            horizontal
+            contentContainerStyle={styles.filterRow}
+            showsHorizontalScrollIndicator={false}
+          >
+            <FilterChip
+              count={catItems.length}
+              label="すべて"
+              selected={inventoryFilter === 'all'}
+              onPress={() => setInventoryFilter('all')}
             />
-          ))}
-        </View>
-      </View>
-
-      <AppCard>
-        <Text style={styles.sectionTitle}>在庫状況</Text>
-        <View style={styles.summaryRow}>
-          <Summary
-            value={outItems.length}
-            label="在庫切れ"
-            tone="danger"
-            selected={inventoryFilter === 'out'}
-            onPress={() => toggleInventoryFilter('out')}
-          />
-          <Summary
-            value={warningItems.length}
-            label="残り3日以内"
-            tone="warning"
-            selected={inventoryFilter === 'warning'}
-            onPress={() => toggleInventoryFilter('warning')}
-          />
-          <Summary
-            value={watchItems.length}
-            label="残り7日以内"
-            tone="normal"
-            selected={inventoryFilter === 'watch'}
-            onPress={() => toggleInventoryFilter('watch')}
-          />
-        </View>
-      </AppCard>
-
-      <View style={styles.actions}>
-        <AppButton
-          title="商品を追加する"
-          onPress={() => void openInventoryForm()}
-          disabled={openingInventoryForm}
-          loading={openingInventoryForm}
-        />
-        <AppButton
-          title="費用を見る"
-          variant="secondary"
-          onPress={() => router.push('/cost-dashboard')}
-        />
+            <FilterChip
+              count={attentionItems.length}
+              label="要対応"
+              selected={inventoryFilter === 'attention'}
+              tone="danger"
+              onPress={() => setInventoryFilter('attention')}
+            />
+            <FilterChip
+              count={watchItems.length}
+              label="そろそろ"
+              selected={inventoryFilter === 'watch'}
+              tone="warning"
+              onPress={() => setInventoryFilter('watch')}
+            />
+            <FilterChip
+              count={unknownItems.length}
+              label="日数未設定"
+              selected={inventoryFilter === 'unknown'}
+              onPress={() => setInventoryFilter('unknown')}
+            />
+          </ScrollView>
+        ) : null}
       </View>
 
       {visibleItems.length === 0 ? (
         <EmptyState
           title={
-            inventoryFilter
+            inventoryFilter !== 'all'
               ? '条件に合う在庫はありません'
               : selectedCat
                 ? `${selectedCat.name}の用品を登録しましょう`
-                : 'まずは、いつものフードや猫砂を登録しましょう'
+                : 'まずは、いつものフードやトイレ用品を登録しましょう'
           }
           message={
-            inventoryFilter
-              ? '在庫状況の項目をもう一度押すと絞り込みを解除できます。'
-              : '登録すると、残り何日でなくなるか自動で分かります'
+            inventoryFilter !== 'all'
+              ? '「すべて」に戻すと、登録中の用品を確認できます。'
+              : '最初は「だいたい何日もつか」だけでも大丈夫です。あとから調整できます。'
           }
-          actionTitle={inventoryFilter ? undefined : '商品を追加する'}
-          onAction={inventoryFilter ? undefined : () => void openInventoryForm()}
-          actionDisabled={openingInventoryForm}
-          actionLoading={openingInventoryForm}
+          actionTitle={inventoryFilter !== 'all' ? 'すべて表示' : undefined}
+          onAction={inventoryFilter !== 'all' ? () => setInventoryFilter('all') : undefined}
         />
+      ) : inventoryFilter !== 'all' ? (
+        <View style={styles.list}>{visibleItems.map(inventoryCardFor)}</View>
       ) : (
-        <View style={styles.list}>
-          {visibleItems.map((item) => (
-            <InventoryCard
-              key={item.id}
-              item={item}
-              onPurchase={() =>
-                router.push({
-                  pathname: '/inventory-detail',
-                  params: { id: item.id, action: 'purchase' },
-                })
-              }
-              onReplenish={() =>
-                router.push({
-                  pathname: '/inventory-detail',
-                  params: { id: item.id, action: 'replenish' },
-                })
-              }
-              onDetail={() =>
-                router.push({ pathname: '/inventory-detail', params: { id: item.id } })
-              }
-            />
-          ))}
+        <View style={styles.inventoryGroups}>
+          <InventoryGroup title="いま確認" items={attentionItems} renderItem={inventoryCardFor} />
+          <InventoryGroup title="そろそろ" items={watchItems} renderItem={inventoryCardFor} />
+          <InventoryGroup title="日数を設定" items={unknownItems} renderItem={inventoryCardFor} />
+          {inStockItems.length > 0 ? (
+            <View style={styles.group}>
+              <View style={styles.groupHeader}>
+                <Text accessibilityRole="header" style={styles.groupTitle}>
+                  余裕あり
+                </Text>
+                <Text style={styles.groupCount}>{inStockItems.length}件</Text>
+              </View>
+              <View style={styles.list}>{visibleInStockItems.map(inventoryCardFor)}</View>
+              {hiddenInStockItemCount > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showAllInStockItems }}
+                  onPress={() => setShowAllInStockItems((current) => !current)}
+                  style={({ pressed }) => [styles.expandButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.expandButtonText}>
+                    {showAllInStockItems ? '3件だけ表示' : `残り${hiddenInStockItemCount}件を見る`}
+                  </Text>
+                  <Text style={styles.expandButtonArrow}>{showAllInStockItems ? '⌃' : '⌄'}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       )}
     </ScrollView>
@@ -372,39 +522,70 @@ function HomeLoading() {
   );
 }
 
-function CatTab({ cat, selected, onPress }: { cat: Cat; selected: boolean; onPress: () => void }) {
+function HomeLoadFailure({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <View style={styles.loadingScreen}>
+      <View style={styles.loadErrorMark}>
+        <Text style={styles.loadErrorMarkText}>!</Text>
+      </View>
+      <Text accessibilityRole="header" style={styles.loadingTitle}>
+        在庫を読み込めませんでした
+      </Text>
+      <Text style={styles.loadErrorText}>{message}</Text>
+      <AppButton title="もう一度試す" onPress={onRetry} style={styles.retryButton} />
+    </View>
+  );
+}
+
+function ScopeChip({
+  cat,
+  label,
+  selected,
+  onPress,
+}: {
+  cat?: Cat;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
+      accessibilityLabel={`${label}の用品を表示`}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.catTab,
-        selected ? styles.catTabSelected : styles.catTabSecondary,
+        selected && styles.catTabSelected,
         pressed && styles.catTabPressed,
       ]}
     >
-      {cat.iconUrl ? (
-        <Image source={{ uri: cat.iconUrl }} style={styles.catTabIcon} resizeMode="cover" />
+      {cat ? (
+        <Image
+          accessibilityIgnoresInvertColors
+          resizeMode="cover"
+          source={cat.iconUrl ? { uri: cat.iconUrl } : getDefaultPetTypeIcon(cat.petType)}
+          style={styles.catTabIcon}
+        />
       ) : null}
       <Text style={[styles.catTabText, selected && styles.catTabTextSelected]} numberOfLines={1}>
-        {cat.name}
+        {selected ? `✓ ${label}` : label}
       </Text>
     </Pressable>
   );
 }
 
-function Summary({
-  value,
+function FilterChip({
   label,
-  tone,
+  count,
   selected,
+  tone = 'normal',
   onPress,
 }: {
-  value: number;
   label: string;
-  tone: string;
+  count: number;
   selected: boolean;
+  tone?: 'normal' | 'danger' | 'warning';
   onPress: () => void;
 }) {
   return (
@@ -413,178 +594,515 @@ function Summary({
       accessibilityState={{ selected }}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.summaryItem,
-        selected && styles.summaryItemSelected,
-        pressed && styles.summaryItemPressed,
+        styles.filterChip,
+        selected && styles.filterChipSelected,
+        pressed && styles.pressed,
       ]}
     >
-      <Text
+      <Text style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>
+        {selected ? '✓ ' : ''}
+        {label}
+      </Text>
+      <View
         style={[
-          styles.summaryValue,
-          tone === 'danger' && styles.danger,
-          tone === 'warning' && styles.warning,
+          styles.filterCount,
+          tone === 'danger' && styles.filterCountDanger,
+          tone === 'warning' && styles.filterCountWarning,
+          selected && styles.filterCountSelected,
         ]}
       >
-        {value}
-      </Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
+        <Text
+          style={[
+            styles.filterCountText,
+            tone === 'danger' && styles.filterCountDangerText,
+            tone === 'warning' && styles.filterCountWarningText,
+            selected && styles.filterCountTextSelected,
+          ]}
+        >
+          {count}
+        </Text>
+      </View>
     </Pressable>
+  );
+}
+
+function DailyBrief({
+  hasPets,
+  itemCount,
+  attentionCount,
+  watchCount,
+  unknownCount,
+  nextItem,
+  onAction,
+}: {
+  hasPets: boolean;
+  itemCount: number;
+  attentionCount: number;
+  watchCount: number;
+  unknownCount: number;
+  nextItem?: InventoryItem;
+  onAction: (action: BriefAction) => void;
+}) {
+  let eyebrow = '今日の確認';
+  let title = '今日は対応なし';
+  let message = '急いで買い足す用品はありません。';
+  let mark = '✓';
+  let tone: 'good' | 'warning' | 'danger' | 'neutral' = 'good';
+  let action: BriefAction | undefined;
+  let actionTitle: string | undefined;
+
+  if (!hasPets) {
+    eyebrow = '最初のステップ';
+    title = 'まず、ペットを登録しましょう';
+    message = '名前だけで始められます。誕生日や体重はあとから追加できます。';
+    mark = '1';
+    tone = 'neutral';
+    action = 'profile';
+    actionTitle = 'ペットを登録する';
+  } else if (itemCount === 0) {
+    eyebrow = 'あと1ステップ';
+    title = 'いつもの用品を1つ登録';
+    message = 'フードやトイレ用品の残り日数が分かるようになります。';
+    mark = '＋';
+    tone = 'neutral';
+    action = 'add';
+    actionTitle = '最初の用品を追加';
+  } else if (attentionCount > 0) {
+    eyebrow = 'いま確認';
+    title = `買い足しを確認したい用品が${attentionCount}件`;
+    message = '在庫切れと残り3日以内の用品を、期限が近い順にまとめました。';
+    mark = '!';
+    tone = 'danger';
+    action = 'attention';
+    actionTitle = '要対応の用品を見る';
+  } else if (watchCount > 0) {
+    eyebrow = '今週の準備';
+    title = `そろそろ確認したい用品が${watchCount}件`;
+    message = '残り4〜7日の用品です。次の買い物に入れておくと安心です。';
+    mark = '7';
+    tone = 'warning';
+    action = 'watch';
+    actionTitle = 'そろそろの用品を見る';
+  } else if (unknownCount > 0) {
+    eyebrow = '予測を整える';
+    title = `残り日数が未設定の用品が${unknownCount}件`;
+    message = '使い切る目安を入れると、買い時をホームと通知で確認できます。';
+    mark = '−';
+    tone = 'neutral';
+    action = 'unknown';
+    actionTitle = '日数未設定を見る';
+  } else if (nextItem) {
+    const nextDays = calculateRemainingDays(nextItem);
+    message =
+      nextDays === undefined
+        ? '急いで買い足す用品はありません。'
+        : `次は「${nextItem.name}」が約${Math.max(0, nextDays)}日後の予定です。`;
+  }
+
+  return (
+    <View
+      accessibilityLabel={`${eyebrow}。${title}。${message}`}
+      style={[
+        styles.brief,
+        tone === 'danger' && styles.briefDanger,
+        tone === 'warning' && styles.briefWarning,
+        tone === 'neutral' && styles.briefNeutral,
+      ]}
+    >
+      <View style={styles.briefTop}>
+        <View
+          style={[
+            styles.briefMark,
+            tone === 'danger' && styles.briefMarkDanger,
+            tone === 'warning' && styles.briefMarkWarning,
+            tone === 'neutral' && styles.briefMarkNeutral,
+          ]}
+        >
+          <Text style={styles.briefMarkText}>{mark}</Text>
+        </View>
+        <Text style={styles.briefEyebrow}>{eyebrow}</Text>
+      </View>
+      <Text accessibilityRole="header" style={styles.briefTitle}>
+        {title}
+      </Text>
+      <Text style={styles.briefMessage}>{message}</Text>
+      {action && actionTitle ? (
+        <AppButton
+          title={actionTitle}
+          onPress={() => onAction(action)}
+          style={styles.briefAction}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function InventoryGroup({
+  title,
+  items,
+  renderItem,
+}: {
+  title: string;
+  items: InventoryItem[];
+  renderItem: (item: InventoryItem) => ReactNode;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <View style={styles.group}>
+      <View style={styles.groupHeader}>
+        <Text accessibilityRole="header" style={styles.groupTitle}>
+          {title}
+        </Text>
+        <Text style={styles.groupCount}>{items.length}件</Text>
+      </View>
+      <View style={styles.list}>{items.map(renderItem)}</View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: 18,
-    padding: 18,
-    paddingBottom: 40,
+    alignSelf: 'center',
+    gap: 24,
+    maxWidth: 720,
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+    width: '100%',
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 12,
+    justifyContent: 'space-between',
   },
   greeting: {
     color: colors.text,
-    fontSize: 26,
-    fontWeight: '900',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    lineHeight: 36,
   },
-  date: {
+  petManageButton: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  petManageButtonLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  petManageButtonArrow: {
+    color: colors.primary,
+    fontSize: 22,
+    lineHeight: 24,
+    marginLeft: 4,
+  },
+  petScope: {
+    gap: 8,
+  },
+  overline: {
     color: colors.subText,
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   catTabs: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-  },
-  catSection: {
-    gap: 8,
-  },
-  catSectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  catSectionTitle: {
-    color: colors.subText,
-    fontSize: 13,
-    fontWeight: '800',
+    paddingRight: 20,
   },
   catTab: {
     alignItems: 'center',
-    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 9,
-    minHeight: 56,
-    minWidth: 92,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  catTabSecondary: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.border,
+    gap: 8,
+    minHeight: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   catTabSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   catTabPressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.78,
   },
   catTabIcon: {
     backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    height: 36,
-    width: 36,
+    borderRadius: 16,
+    height: 32,
+    width: 32,
   },
   catTabText: {
     color: colors.text,
     flexShrink: 1,
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
   },
   catTabTextSelected: {
     color: colors.card,
   },
-  catManageLink: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+  brief: {
+    backgroundColor: colors.successLight,
     borderColor: colors.border,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1,
+    gap: 9,
+    overflow: 'hidden',
+    padding: 20,
+  },
+  briefDanger: {
+    backgroundColor: colors.dangerLight,
+  },
+  briefWarning: {
+    backgroundColor: colors.warningLight,
+  },
+  briefNeutral: {
+    backgroundColor: colors.primaryLight,
+  },
+  briefTop: {
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: 3,
-    minHeight: 44,
-    paddingHorizontal: 12,
+    gap: 8,
   },
-  catManageLinkPressed: {
-    opacity: 0.65,
+  briefMark: {
+    alignItems: 'center',
+    backgroundColor: colors.success,
+    borderRadius: 999,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
   },
-  catManageLinkText: {
-    color: colors.primaryDark,
+  briefMarkDanger: {
+    backgroundColor: colors.danger,
+  },
+  briefMarkWarning: {
+    backgroundColor: colors.warning,
+  },
+  briefMarkNeutral: {
+    backgroundColor: colors.primary,
+  },
+  briefMarkText: {
+    color: colors.card,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
-  catManageLinkArrow: {
-    color: colors.primaryDark,
+  briefEyebrow: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  briefTitle: {
+    color: colors.text,
     fontSize: 23,
-    fontWeight: '400',
-    lineHeight: 24,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    lineHeight: 31,
+  },
+  briefMessage: {
+    color: colors.subText,
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  briefAction: {
+    marginTop: 7,
+  },
+  syncNotice: {
+    backgroundColor: colors.muted,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 4,
+    padding: 14,
+  },
+  syncNoticeTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  syncNoticeText: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  retryLink: {
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  retryLinkText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
+  inventorySection: {
+    gap: 12,
+  },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  sectionHeaderCopy: {
+    flex: 1,
+    gap: 2,
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: 12,
+    lineHeight: 28,
   },
-  summaryRow: {
+  sectionMeta: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  addButton: {
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 999,
     flexDirection: 'row',
-    gap: 10,
+    gap: 3,
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 86,
+    paddingHorizontal: 14,
   },
-  summaryItem: {
-    flex: 1,
-    backgroundColor: colors.muted,
-    borderColor: 'transparent',
-    borderWidth: 2,
-    borderRadius: 14,
-    padding: 12,
+  addButtonPlus: {
+    color: colors.card,
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 22,
   },
-  summaryItemPressed: {
-    opacity: 0.82,
+  addButtonText: {
+    color: colors.card,
+    fontSize: 14,
+    fontWeight: '800',
   },
-  summaryItemSelected: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 20,
   },
-  summaryValue: {
+  filterChip: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 44,
+    paddingHorizontal: 13,
+  },
+  filterChipSelected: {
+    backgroundColor: colors.text,
+    borderColor: colors.text,
+  },
+  filterChipText: {
     color: colors.text,
-    fontSize: 26,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  summaryLabel: {
+  filterChipTextSelected: {
+    color: colors.card,
+  },
+  filterCount: {
+    alignItems: 'center',
+    backgroundColor: colors.muted,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 24,
+    minWidth: 24,
+    paddingHorizontal: 7,
+  },
+  filterCountDanger: {
+    backgroundColor: colors.dangerLight,
+  },
+  filterCountWarning: {
+    backgroundColor: colors.warningLight,
+  },
+  filterCountSelected: {
+    backgroundColor: colors.card,
+  },
+  filterCountText: {
     color: colors.subText,
     fontSize: 12,
-    marginTop: 4,
+    fontWeight: '800',
   },
-  danger: {
+  filterCountDangerText: {
     color: colors.danger,
   },
-  warning: {
+  filterCountWarningText: {
     color: colors.warning,
   },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  filterCountTextSelected: {
+    color: colors.text,
+  },
+  inventoryGroups: {
+    gap: 24,
+  },
+  group: {
     gap: 10,
   },
+  groupHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  groupTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  groupCount: {
+    color: colors.subText,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   list: {
-    gap: 14,
+    gap: 12,
+  },
+  expandButton: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+  },
+  expandButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  expandButtonArrow: {
+    color: colors.primary,
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   loadingScreen: {
     alignItems: 'center',
@@ -602,10 +1120,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 64,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
     width: 64,
   },
   loadingIcon: {
@@ -616,12 +1130,36 @@ const styles = StyleSheet.create({
   loadingTitle: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '800',
     marginTop: 4,
   },
   loadingText: {
     color: colors.subText,
     fontSize: 13,
     marginBottom: 4,
+  },
+  loadErrorMark: {
+    alignItems: 'center',
+    backgroundColor: colors.dangerLight,
+    borderRadius: 999,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  loadErrorMarkText: {
+    color: colors.danger,
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  loadErrorText: {
+    color: colors.subText,
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 420,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 8,
+    minWidth: 180,
   },
 });

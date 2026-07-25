@@ -1,0 +1,67 @@
+id,alias_type,locale,alias,canonical_value,context_value,display_value,priority,enabled
+alias-species-cat-ja,species,ja-JP,ネコ,cat,cat,猫,100,true
+alias-species-cat-en,species,en,cat,cat,cat,猫,90,true
+alias-species-dog-ja,species,ja-JP,イヌ,dog,dog,犬,100,true
+alias-species-dog-en,species,en,dog,dog,dog,犬,90,true
+alias-species-rabbit-kanji,species,ja-JP,兎,rabbit,rabbit,うさぎ,110,true
+alias-species-rabbit-en,species,en,rabbit,rabbit,rabbit,うさぎ,90,true
+alias-species-bunny-en,species,en,bunny,rabbit,rabbit,うさぎ,90,true
+alias-species-syrian-ja,species,ja-JP,シリアンハムスター,syrian_hamster,small_animal,ゴールデンハムスター,120,true
+alias-species-syrian-en,species,en,Syrian hamster,syrian_hamster,small_animal,ゴールデンハムスター,100,true
+alias-species-golden-en,species,en,golden hamster,syrian_hamster,small_animal,ゴールデンハムスター,100,true
+alias-species-djungarian-ja,species,ja-JP,ジャンガリアン,dwarf_hamster,small_animal,ドワーフハムスター,120,true
+alias-species-dwarf-en,species,en,dwarf hamster,dwarf_hamster,small_animal,ドワーフハムスター,100,true
+alias-species-roborovski-short,species,ja-JP,ロボロフスキー,roborovski_hamster,small_animal,ロボロフスキーハムスター,120,true
+alias-species-gerbil-en,species,en,gerbil,gerbil,small_animal,スナネズミ,100,true
+alias-species-guinea-pig-en,species,en,guinea pig,guinea_pig,small_animal,モルモット,100,true
+alias-species-chinchilla-en,species,en,chinchilla,chinchilla,small_animal,チンチラ,100,true
+alias-species-degu-en,species,en,degu,degu,small_animal,デグー,100,true
+alias-species-ferret-en,species,en,ferret,ferret,small_animal,フェレット,100,true
+alias-species-hedgehog-en,species,en,hedgehog,hedgehog,small_animal,ハリネズミ,100,true
+alias-species-sugar-glider-en,species,en,sugar glider,sugar_glider,small_animal,フクロモモンガ,100,true
+alias-species-budgie-en,species,en,budgie,budgerigar,bird,セキセイインコ,120,true
+alias-species-budgerigar-en,species,en,budgerigar,budgerigar,bird,セキセイインコ,110,true
+alias-species-cockatiel-en,species,en,cockatiel,cockatiel,bird,オカメインコ,110,true
+alias-species-lovebird-en,species,en,lovebird,lovebird,bird,ラブバード,110,true
+alias-species-java-sparrow-en,species,en,java sparrow,java_sparrow,bird,文鳥,110,true
+alias-species-goldfish-en,species,en,goldfish,goldfish,aquarium,金魚,110,true
+alias-species-medaka-en,species,en,medaka,medaka,aquarium,メダカ,110,true
+alias-species-betta-en,species,en,betta,betta,aquarium,ベタ,110,true
+alias-species-shrimp-en,species,en,aquarium shrimp,shrimp,aquarium,観賞エビ,110,true
+alias-species-tortoise-en,species,en,tortoise,tortoise,reptile_amphibian,リクガメ,110,true
+alias-species-gecko-en,species,en,gecko,gecko,reptile_amphibian,ヤモリ,110,true
+alias-species-leopard-gecko,species,en,leopard gecko,gecko,reptile_amphibian,ヤモリ,120,true
+alias-species-axolotl-en,species,en,axolotl,axolotl,reptile_amphibian,ウーパールーパー,120,true
+alias-species-rhino-beetle-en,species,en,rhinoceros beetle,rhinoceros_beetle,insect,カブトムシ,110,true
+alias-species-stag-beetle-en,species,en,stag beetle,stag_beetle,insect,クワガタ,110,true
+alias-brand-royal-canin-ja,brand,ja-JP,ロイヤルカナン,brand-ロイヤルカナン-ジャポン,,ロイヤルカナン ジャポン,130,true
+alias-brand-royal-canin-en,brand,en,ROYAL CANIN,brand-ロイヤルカナン-ジャポン,,ロイヤルカナン ジャポン,120,true
+alias-brand-royal-canin-short,brand,ja-JP,ロイカナ,brand-ロイヤルカナン-ジャポン,,ロイヤルカナン ジャポン,100,true
+alias-brand-unicharm-ja,brand,ja-JP,ユニチャーム,brand-ユニ-チャーム,,ユニ・チャーム,120,true
+alias-brand-unicharm-dot,brand,ja-JP,ユニ・チャーム,brand-ユニ-チャーム,,ユニ・チャーム,130,true
+alias-brand-gex-en,brand,en,GEX,brand-gex,,GEX,130,true
+alias-brand-gex-ja,brand,ja-JP,ジェックス,brand-gex,,GEX,120,true
+alias-brand-exoterra-en,brand,en,EXO TERRA,brand-exo-terra,,Exo Terra,130,true
+alias-brand-exoterra-ja,brand,ja-JP,エキゾテラ,brand-exo-terra,,Exo Terra,120,true
+alias-brand-tetra-en,brand,en,TETRA,brand-テトラ,,テトラ,130,true
+alias-brand-tetra-ja,brand,ja-JP,テトラ,brand-テトラ,,テトラ,120,true
+alias-brand-marukan-en,brand,en,MARUKAN,brand-マルカン,,マルカン,120,true
+alias-brand-marukan-ja,brand,ja-JP,マルカン,brand-マルカン,,マルカン,130,true
+alias-brand-hipet-en,brand,en,HI-PET,brand-ハイペット,,ハイペット,120,true
+alias-brand-hipet-ja,brand,ja-JP,ハイペット,brand-ハイペット,,ハイペット,130,true
+alias-brand-kyorin-en,brand,en,HIKARI,brand-キョーリン,,キョーリン,110,true
+alias-brand-kyorin-ja,brand,ja-JP,キョーリン,brand-キョーリン,,キョーリン,130,true
+alias-brand-inaba-en,brand,en,INABA,brand-いなば,,いなば,120,true
+alias-brand-inaba-ja,brand,ja-JP,いなば,brand-いなば,,いなば,130,true
+alias-brand-petio-en,brand,en,Petio,brand-ペティオ,,ペティオ,120,true
+alias-brand-petio-ja,brand,ja-JP,ペティオ,brand-ペティオ,,ペティオ,130,true
+alias-series-manner-wear-ja,series,ja-JP,マナーウェア,manner_wear,brand-ユニ-チャーム,マナーウェア,130,true
+alias-series-manner-wear-en,series,en,Manner Wear,manner_wear,brand-ユニ-チャーム,マナーウェア,110,true
+alias-series-deotoilet-ja,series,ja-JP,デオトイレ,deo_toilet,brand-ユニ-チャーム,デオトイレ,130,true
+alias-series-bunny-selection-ja,series,ja-JP,バニーセレクション,bunny_selection,brand-バニーセレクション,バニーセレクション,130,true
+alias-series-tetramin-ja,series,ja-JP,テトラミン,tetramin,brand-テトラ,テトラミン,130,true
+alias-series-tetramin-en,series,en,TetraMin,tetramin,brand-テトラ,テトラミン,120,true
+alias-series-reptomin-ja,series,ja-JP,レプトミン,reptomin,brand-テトラ,レプトミン,130,true
+alias-series-reptomin-en,series,en,ReptoMin,reptomin,brand-テトラ,レプトミン,120,true
+alias-series-kirapipi-ja,series,ja-JP,キラピピ,kirapipi,brand-キラピピ,キラピピ,130,true
+alias-series-excel-ja,series,ja-JP,エクセル,excel,brand-エクセル,エクセル,120,true

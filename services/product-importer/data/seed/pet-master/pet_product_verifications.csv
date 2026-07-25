@@ -1,0 +1,215 @@
+product_id,verification_status,official_url,source_type,checked_at,verification_note
+pet-dog-001,verified_active,https://www.npf.co.jp/dog-products/dog-detail/bdg,official_product_page,2026-07-18,公式商品ページで子犬用12ヵ月頃まで・犬用・成長期犬用総合栄養食を確認。
+pet-dog-002,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで成犬用1歳からを確認。
+pet-dog-003,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで10歳以上を確認。
+pet-dog-004,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで低脂肪1歳からを確認。
+pet-dog-005,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップでダイエット1歳からを確認。
+pet-dog-006,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで歯の健康1歳からを確認。
+pet-dog-007,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップでおなかの健康1歳からを確認。
+pet-dog-008,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで食物アレルゲンに配慮1歳からを確認。
+pet-dog-009,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで食物アレルゲンに配慮10歳以上を確認。
+pet-dog-010,verified_active,https://www.npf.co.jp/beautypro/dog/lineup/index.html,official_product_lineup,2026-07-18,公式ラインアップで大粒タイプ1歳からを確認。
+pet-dog-021,verified_active,https://www.npf.co.jp/dog-products/dog-detail/vkc,official_product_page,2026-07-18,公式商品ページで国産チキンのレシピ成犬用・犬用・成犬用総合栄養食を確認。
+pet-dog-024,verified_active,https://www.dbfpet.co.jp/food-series/canning-150/,official_product_lineup,2026-07-18,公式150g缶シリーズの製品一覧でささみ＆レバーミンチ野菜入りを確認。
+pet-rabbit-001,verified_active,https://www.yeaster.co.jp/products/rabbitfood/brand/14,official_product_lineup,2026-07-18,公式ラインアップでバニーセレクション シニア・うさぎ用・5歳以上を確認。
+pet-rabbit-002,verified_active,https://www.yeaster.co.jp/products/rabbitfood/brand/14,official_product_lineup,2026-07-18,公式ラインアップでバニーセレクション スーパーシニア・うさぎ用・7歳からを確認。
+pet-rabbit-003,verified_active,https://www.yeaster.co.jp/products/rabbitfood/brand/14,official_product_lineup,2026-07-18,公式ラインアップでネザーランドドワーフ専用を確認。
+pet-rabbit-004,verified_active,https://www.yeaster.co.jp/products/rabbitfood/category/77,official_product_lineup,2026-07-18,公式一覧でロップイヤー専用を確認。
+pet-rabbit-006,verified_active,https://www.yeaster.co.jp/products/rabbitfood/brand/20,official_product_lineup,2026-07-18,公式ラインアップでバニーセレクションプロ グロース・生後7ヵ月までを確認。
+pet-rabbit-007,verified_active,https://www.yeaster.co.jp/products/rabbitfood/brand/20,official_product_lineup,2026-07-18,公式ラインアップでバニーセレクションプロ メンテナンス・生後7ヵ月以上を確認。
+pet-rabbit-008,verified_active,https://www.yeaster.co.jp/products/rabbitfood/brand/20,official_product_lineup,2026-07-18,公式ラインアップでバニーセレクションプロ シニア・5歳以上を確認。
+pet-rabbit-017,verified_active,https://www.npf.co.jp/lovision/index.html,official_product_lineup,2026-07-18,公式ブランドページでラビジョン ラビットフード オールステージを確認。
+pet-rabbit-018,verified_active,https://www.npf.co.jp/lovision/index.html,official_product_lineup,2026-07-18,公式ブランドページでラビジョン ラビットフード 5歳からのシニアを確認。
+pet-small_mammal-001,verified_active,https://www.kyorin-net.co.jp/animal/an06.html,official_product_page,2026-07-18,公式商品ページでひかりハムハム・全ハムスター用・全年齢対応完全栄養食を確認。
+pet-small_mammal-009,verified_active,https://www.kyorin-net.co.jp/animal/index.html,official_product_lineup,2026-07-18,公式小動物用飼料一覧でひかりハリネズを確認。
+pet-small_mammal-011,verified_active,https://www.yeaster.co.jp/products/smallanimalfood/brand/15,official_product_lineup,2026-07-18,公式ラインアップでハムスターセレクションを確認。
+pet-small_mammal-014,verified_active,https://www.yeaster.co.jp/news/detail/62,official_product_lineup,2026-07-18,公式新商品案内でモルモットセレクションプロを確認。
+pet-small_mammal-015,verified_active,https://www.yeaster.co.jp/news/detail/62,official_product_lineup,2026-07-18,公式新商品案内でチンチラセレクションプロを確認。
+pet-small_mammal-016,verified_active,https://www.yeaster.co.jp/news/detail/62,official_product_lineup,2026-07-18,公式新商品案内でデグーセレクションプロを確認。
+pet-small_mammal-017,verified_active,https://www.yeaster.co.jp/products/smallanimalfood/brand/15,official_product_lineup,2026-07-18,公式ラインアップでハリネズミセレクションを確認。
+pet-bird-001,verified_active,https://www.kyorin-net.co.jp/bird/index.html,official_product_lineup,2026-07-18,公式鳥用飼料一覧でキラピピ インコ小粒を確認。セキセイインコ・小型インコ向け。
+pet-bird-002,verified_active,https://www.kyorin-net.co.jp/bird/index.html,official_product_lineup,2026-07-18,公式鳥用飼料一覧でキラピピ インコ中粒を確認。オカメインコ・中型インコ向け。
+pet-bird-003,not_found_official,https://www.kyorin-net.co.jp/bird/bird05.html,official_product_lineup,2026-07-18,公式現行ラインアップはキラピピ フィンチのみで小粒バリアントを確認できない。容量・粒径の別表記候補として通常マスタから除外候補。
+pet-bird-004,not_found_official,https://www.kyorin-net.co.jp/bird/bird05.html,official_product_lineup,2026-07-18,公式現行ラインアップはキラピピ フィンチのみで中粒バリアントを確認できない。容量・粒径の別表記候補として通常マスタから除外候補。
+pet-bird-006,not_found_official,https://www.kyorin-net.co.jp/bird/index.html,official_product_lineup,2026-07-18,公式現行名称はキラピピ インコ小粒でありセキセイインコは対象種。別プロダクト名としては確認できないため重複候補。
+pet-bird-007,not_found_official,https://www.kyorin-net.co.jp/bird/index.html,official_product_lineup,2026-07-18,公式現行名称はキラピピ インコ中粒でありオカメインコは対象種。別プロダクト名としては確認できないため重複候補。
+pet-bird-008,not_found_official,https://www.kyorin-net.co.jp/bird/index.html,official_product_lineup,2026-07-18,公式現行名称はキラピピ インコ小粒でありコザクラインコは対象種。別プロダクト名としては確認できないため重複候補。
+pet-aquarium_fish-001,verified_active,https://www.kyorin-net.co.jp/gold/index.html,official_product_lineup,2026-07-18,公式金魚用飼料一覧でひかりチャッピーを確認。
+pet-aquarium_fish-002,verified_active,https://www.kyorin-net.co.jp/gold/index.html,official_product_lineup,2026-07-18,公式金魚用飼料一覧でリュウキンゴールドを確認。
+pet-aquarium_fish-003,verified_active,https://www.kyorin-net.co.jp/gold/index.html,official_product_lineup,2026-07-18,公式金魚用飼料一覧でアイドルを確認。
+pet-aquarium_fish-004,verified_active,https://www.kyorin-net.co.jp/gold/go11.html,official_product_page,2026-07-18,公式商品ページでベビーゴールドを確認。
+pet-aquarium_fish-005,verified_active,https://www.kyorin-net.co.jp/gold/index.html,official_product_lineup,2026-07-18,公式金魚用飼料一覧でプロリアを確認。
+pet-aquarium_fish-006,verified_active,https://www.kyorin-net.co.jp/gold/index.html,official_product_lineup,2026-07-18,公式金魚用飼料一覧でプロリア 色揚を確認。
+pet-aquarium_fish-024,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧ですくすくメダカを確認。
+pet-aquarium_fish-025,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧で教材メダカのエサを確認。
+pet-aquarium_fish-026,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカのエサ うきうきフレークを確認。
+pet-aquarium_fish-027,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧で教材ちびっこメダカのエサを確認。
+pet-aquarium_fish-028,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカプロスベビーを確認。
+pet-aquarium_fish-029,verified_active,https://www.kyorin-net.co.jp/fresh/fr12.html,official_product_page,2026-07-18,公式商品ページでメダカプロスを確認。
+pet-aquarium_fish-030,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカプロス 産卵繁殖を確認。
+pet-aquarium_fish-031,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカプロス色揚を確認。
+pet-aquarium_fish-032,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でひかりメダカフレークを確認。
+pet-aquarium_fish-033,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカベビー・稚魚のエサ ハイパー育成を確認。
+pet-aquarium_fish-034,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカ幼魚 ハイパー育成を確認。
+pet-aquarium_fish-035,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカのエサ 産卵繁殖用を確認。
+pet-aquarium_fish-036,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカのエサ ハイパー色揚を確認。
+pet-aquarium_fish-037,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカのエサ ハイパー良消化を確認。
+pet-aquarium_fish-038,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカの舞ベビーを確認。
+pet-aquarium_fish-039,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカの舞ネクストを確認。
+pet-aquarium_fish-040,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカの舞コンプリートを確認。
+pet-aquarium_fish-041,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカの舞ブリードを確認。
+pet-aquarium_fish-042,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカの舞スーパーオレンジを確認。
+pet-aquarium_fish-043,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式メダカ・川魚用飼料一覧でメダカの舞メンテナンスを確認。
+pet-aquarium_fish-046,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式商品一覧でひかりプランクトンを確認。
+pet-aquarium_fish-047,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_lineup,2026-07-18,公式商品一覧でイージーブラインを確認。
+pet-reptile_amphibian-001,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式両生類・爬虫類用飼料一覧でカメプロスを確認。
+pet-reptile_amphibian-002,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式両生類・爬虫類用飼料一覧でカメプロス プレミアムを確認。
+pet-reptile_amphibian-003,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式両生類・爬虫類用飼料一覧でカメプロス 沈下性を確認。
+pet-reptile_amphibian-004,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式現行名称は超おおきなカメのエサ ハイパークリア。容量を除くプロダクトとして確認。
+pet-reptile_amphibian-005,verified_active,https://www.kyorin-net.co.jp/extra/ex12.html,official_product_page,2026-07-18,公式商品ページでレオパゲルを確認。ヒョウモントカゲモドキ向け総合栄養食。
+pet-reptile_amphibian-006,not_found_official,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式現行名称はフトアゴゲルでありひかりクレスト フトアゴは確認できない。名称変更・重複候補。
+pet-reptile_amphibian-007,not_found_official,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式現行名称はレオパゲルまたはレオパドライでありひかりクレスト レオパは確認できない。名称変更・重複候補。
+pet-reptile_amphibian-008,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式両生類・爬虫類用飼料一覧でひかりクレストタートルを確認。
+pet-reptile_amphibian-009,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式両生類・爬虫類用飼料一覧でひかりベルツノを確認。
+pet-reptile_amphibian-010,verified_active,https://www.kyorin-net.co.jp/turtle/index.html,official_product_lineup,2026-07-18,公式両生類・爬虫類用飼料一覧でひかりウーパールーパーを確認。
+pet-reptile_amphibian-011,verified_active,https://product.gex-fp.co.jp/p_manuals/987/ReptileHeat2024.pdf,official_manual,2026-07-18,ジェックス公式取扱説明書でレプタイルヒートを確認。
+pet-reptile_amphibian-023,verified_active,https://www.gex-fp.co.jp/exoterra/blog/products/rainforest-forestbark/,official_product_page,2026-07-18,Exo Terra公式記事でフォレストバークを確認。
+pet-dog-017,discontinued,https://www.npf.co.jp/news/detail/11,official_discontinuation_notice,2026-07-18,日本ペットフード公式の終売告知でコンボ ドッグ やわらかソフトの販売終了を確認。
+pet-dog-033,verified_active,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-18,いなば公式ドッグフードカタログでちゅ～るごはんシリーズを確認。
+pet-dog-038,verified_active,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-18,いなば公式ドッグフードカタログでちゅ～るビッツシリーズを確認。
+pet-dog-039,verified_active,https://www.inaba-petfood.co.jp/product/detail/%E3%81%A1%E3%82%85%EF%BD%9E%E3%82%8B%E3%83%9C%E3%83%BC%E3%83%AB/11036,official_product_page,2026-07-18,いなば公式商品ページでちゅ～るボール とりささみ チーズ入りを確認。プロダクトはとりささみとして統合。
+pet-dog-013,not_found_official,https://www.npf.co.jp/dog-products/combo_dry,official_product_catalog,2026-07-18,公式現行コンボ ドッグ一覧に子犬用の掲載を確認できない。終売または名称変更候補。
+pet-dog-014,not_found_official,https://www.npf.co.jp/dog-products/combo_dry,official_product_catalog,2026-07-18,公式現行コンボ ドッグ一覧に7歳以上の掲載を確認できない。終売または名称変更候補。
+pet-dog-015,verified_active,https://www.npf.co.jp/dog-products/combo_dry,official_product_catalog,2026-07-18,公式現行コンボ ドッグ一覧で11歳以上を確認。
+pet-dog-016,verified_active,https://www.npf.co.jp/dog-products/combo_dry,official_product_catalog,2026-07-18,公式現行コンボ ドッグ一覧で低脂肪を確認。
+pet-dog-020,not_found_official,https://www.npf.co.jp/dog-products/combo_present_oyatsu,official_product_catalog,2026-07-18,公式カテゴリの表記はコンボプレゼント おやつでありドライフードとしては確認できない。分類誤りまたは終売候補。
+pet-dog-022,not_found_official,https://www.npf.co.jp/dog-products/vita_one_dry,official_product_catalog,2026-07-18,公式現行ビタワン一覧に該当する商品名を確認できない。終売または名称変更候補。
+pet-dog-023,not_found_official,https://www.npf.co.jp/dog-products/vita_one_kun_soft,official_product_catalog,2026-07-18,公式現行ビタワン君一覧にささみ入りミニ粒を確認できない。終売または名称変更候補。
+pet-aquarium_fish-007,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧で咲ひかり金魚 色揚用を確認。
+pet-aquarium_fish-008,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧で咲ひかり金魚 艶姿を確認。
+pet-aquarium_fish-009,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧で咲ひかり金魚 育成用を確認。
+pet-aquarium_fish-010,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でパラクリア ディスクを確認。
+pet-aquarium_fish-011,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にひかりクレスト テトラを確認できない。
+pet-aquarium_fish-012,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でひかりクレスト コリドラスを確認。
+pet-aquarium_fish-013,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でひかりクレスト プレコを確認。
+pet-aquarium_fish-014,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でひかりクレスト ディスカスを確認。
+pet-aquarium_fish-015,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でひかりクレスト グッピーを確認。
+pet-aquarium_fish-016,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でひかりクレスト キャットを確認。
+pet-aquarium_fish-017,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にひかりクレスト シクリッドを確認できない。
+pet-aquarium_fish-018,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でひかりクレスト ミニキャットを確認。
+pet-aquarium_fish-019,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にひかりクレスト フレークを確認できない。
+pet-aquarium_fish-020,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でシクリッドエクセルを確認。
+pet-aquarium_fish-021,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でシクリッドバイオゴールドを確認。
+pet-aquarium_fish-022,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にブラッドレッドパロットプラスを確認できない。
+pet-aquarium_fish-023,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でネオプロスを確認。
+pet-aquarium_fish-044,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でパラクリア パウダーを確認。
+pet-aquarium_fish-045,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧でパラクリア 顆粒を確認。
+pet-aquarium_fish-048,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式商品一覧で観賞魚用メチレンブルー液を確認。
+pet-aquarium_fish-049,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にニューグリーンFを確認できない。
+pet-aquarium_fish-050,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にグリーンFゴールド顆粒を確認できない。
+pet-aquarium_fish-051,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にアグテンを確認できない。
+pet-aquarium_fish-052,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にカミハタ カルキ抜きを確認できない。メーカー不整合候補。
+pet-aquarium_fish-053,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-18,キョーリン公式現行商品一覧にひかりウェーブ 濾材を確認できない。
+pet-small_mammal-002,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にひかりハムハム 寿を確認できない。
+pet-small_mammal-003,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にひかりハムハム クッキーを確認できない。
+pet-small_mammal-004,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にハムスターの主食を確認できない。
+pet-small_mammal-005,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にハムスターの主食 スペシャルを確認できない。
+pet-small_mammal-006,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にハムスターのまんまを確認できない。
+pet-small_mammal-007,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にハムスターのまんま スペシャルを確認できない。
+pet-small_mammal-008,verified_active,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式商品一覧でリックゼリーを確認。
+pet-small_mammal-010,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にひかりハリネズ 群れのごちそうを確認できない。
+pet-bird-005,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にキラピピ 手乗り文鳥を確認できない。キラピピ フィンチへの統合候補。
+pet-bird-009,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にひかり 鳥のエサを確認できない。
+pet-bird-010,not_found_official,https://www.kyorin-net.co.jp/product/index.html,official_product_catalog,2026-07-19,キョーリン公式現行商品一覧にひかり 鳥のエサ 皮つきを確認できない。
+pet-dog-011,verified_active,https://www.npf.co.jp/dog-products/beautypro-dry,official_product_catalog,2026-07-19,日本ペットフード公式商品一覧でビューティープロ ドッグ パウダフル 成犬用を確認。
+pet-dog-012,not_found_official,https://www.npf.co.jp/dog-products/beautypro-dry,official_product_catalog,2026-07-19,日本ペットフード公式現行商品一覧にビューティープロ ドッグ パウダフル 10歳以上を確認できない。
+pet-dog-018,not_found_official,https://www.npf.co.jp/dog-products/combo_dry,official_product_catalog,2026-07-19,日本ペットフード公式現行商品一覧にコンボ ピュア ドッグ 野菜・厳選チーズ入りを確認できない。
+pet-dog-019,not_found_official,https://www.npf.co.jp/dog-products/combo_dry,official_product_catalog,2026-07-19,日本ペットフード公式現行商品一覧にコンボ ピュア ドッグ 鶏肉・野菜入りを確認できない。
+pet-dog-025,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧にささみ＆レバーミンチ 乳酸菌入りを確認できない。
+pet-dog-026,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧に牛肉ミンチを確認できない。
+pet-dog-027,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧に牛肉ミンチ 野菜入りを確認できない。
+pet-dog-028,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧に馬肉のスープ煮を確認できない。
+pet-dog-029,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧に鶏肉＆野菜を確認できない。
+pet-dog-030,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧にシニア犬の食事 ささみ＆すりおろし野菜を確認できない。
+pet-dog-031,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧に子犬の離乳食を確認できない。
+pet-dog-032,not_found_official,https://www.dbfpet.co.jp/product-info/,official_product_catalog,2026-07-19,デビフ公式現行商品一覧にカロリーエースプラス 犬用流動食を確認できない。
+pet-dog-034,not_found_official,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-19,Unicode正規化済みの公式現行カタログでちゅ～るごはん とりささみ・緑黄色野菜を確認できない。
+pet-dog-035,not_found_official,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-19,Unicode正規化済みの公式現行カタログでちゅ～る とりささみを確認できない。
+pet-dog-036,not_found_official,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-19,Unicode正規化済みの公式現行カタログでちゅ～る とりささみ チーズ入りを確認できない。
+pet-dog-037,not_found_official,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-19,Unicode正規化済みの公式現行カタログでちゅ～る とりささみ 緑黄色野菜入りを確認できない。
+pet-dog-040,not_found_official,https://www.inaba-petfood.co.jp/product/dog/,official_product_catalog,2026-07-19,Unicode正規化済みの公式現行カタログで国産いなば 総合栄養食 チキン・野菜入りを確認できない。
+pet-rabbit-020,discontinued,https://www.npf.co.jp/news,official_discontinuation_notice,2026-07-19,日本ペットフード公式お知らせ一覧でラビットフード ヘルシープレミアムの終売告知を確認。
+pet-reptile_amphibian-021,verified_active,https://product.gex-fp.co.jp/exoterra/?m=ProductList&cid=417,official_product_catalog,2026-07-19,GEX公式床材一覧でデザートサンド レッドを確認。色を除くプロダクトとして統合。
+pet-reptile_amphibian-025,verified_active,https://product.gex-fp.co.jp/exoterra/?m=ProductList&cid=417,official_product_catalog,2026-07-19,GEX公式床材一覧でテラリウムソイルを確認。
+pet-small_mammal-012,not_found_official,https://www.yeaster.co.jp/products/smallanimalfood/brand/15,official_product_catalog,2026-07-19,イースター公式現行ラインアップにハムスターセレクション パフォーマンスを確認できない。
+pet-small_mammal-013,not_found_official,https://www.yeaster.co.jp/products/smallanimalfood/brand/15,official_product_catalog,2026-07-19,イースター公式現行ラインアップにモルモットセレクション シニアを確認できない。
+pet-reptile_amphibian-012,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=404&m=ProductList,official_product_catalog,2026-07-19,GEX公式ライティング一覧でヒートグローを確認。ワット数違いは統合。
+pet-reptile_amphibian-013,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=404&m=ProductList,official_product_catalog,2026-07-19,GEX公式ライティング一覧でサングローシリーズを確認。ワット数違いは統合。
+pet-reptile_amphibian-014,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=402&m=ProductList,official_product_catalog,2026-07-19,GEX公式UV球一覧でナチュラルライトを確認。ワット数違いは統合。
+pet-reptile_amphibian-015,not_found_official,https://product.gex-fp.co.jp/exoterra/?cid=402&m=ProductList,official_product_catalog,2026-07-19,GEX公式現行UV球一覧にレプティグローを確認できない。現行掲載はレプタイルUVB。
+pet-reptile_amphibian-016,not_found_official,https://product.gex-fp.co.jp/exoterra/?cid=402&m=ProductList,official_product_catalog,2026-07-19,GEX公式現行UV球一覧にレプティソーラーを確認できない。現行掲載はソーラーグローUV。
+pet-reptile_amphibian-017,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=406&m=ProductList,official_product_catalog,2026-07-19,GEX公式保温器具一覧でヒーティングトップを確認。サイズ違いは統合。
+pet-reptile_amphibian-018,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=405&m=ProductList,official_product_catalog,2026-07-19,GEX公式照明器具一覧でライトドームを確認。サイズ違いは統合。
+pet-reptile_amphibian-019,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=405&m=ProductList,official_product_catalog,2026-07-19,GEX公式照明器具一覧でクリップスタンド グロースタンドを確認。
+pet-reptile_amphibian-020,not_found_official,https://product.gex-fp.co.jp/exoterra/?cid=406&m=ProductList,official_product_catalog,2026-07-19,GEX公式現行保温器具一覧にサーモスタットを商品名として確認できない。現行掲載はイージーグローサーモとタイマーサーモ。
+pet-reptile_amphibian-022,not_found_official,https://product.gex-fp.co.jp/exoterra/?cid=417&m=ProductList,official_product_catalog,2026-07-19,GEX公式現行床材一覧にサンドマットを確認できない。
+pet-reptile_amphibian-024,not_found_official,https://product.gex-fp.co.jp/exoterra/?cid=417&m=ProductList,official_product_catalog,2026-07-19,GEX公式現行床材一覧にココナッツチップを確認できない。現行掲載はテラリウムハスク。
+pet-reptile_amphibian-026,not_found_official,https://product.gex-fp.co.jp/exoterra/?cid=412&m=ProductList,official_product_catalog,2026-07-19,GEX公式現行えさ皿一覧にレプティボウルを確認できない。現行掲載はフィーディングディッシュ。
+pet-reptile_amphibian-027,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=413&m=ProductList,official_product_catalog,2026-07-19,GEX公式水のみ皿一覧でウォーターディッシュを確認。サイズ違いは統合。
+pet-reptile_amphibian-028,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=410&m=ProductList,official_product_catalog,2026-07-19,GEX公式栄養補助食品一覧でカルシウムを確認。容量違いは統合。
+pet-reptile_amphibian-029,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=410&m=ProductList,official_product_catalog,2026-07-19,GEX公式栄養補助食品一覧でマルチビタミンを確認。ビタミンパウダーとして統合。
+pet-reptile_amphibian-030,verified_active,https://product.gex-fp.co.jp/exoterra/?cid=408&m=ProductList,official_product_catalog,2026-07-19,GEX公式湿度管理用品一覧でモンスーンナノとモンスーンソロを確認。
+pet-rabbit-019,not_found_official,https://www.npf.co.jp/smallanimal-products/rabbit,official_product_catalog,2026-07-19,日本ペットフード公式現行うさぎフード一覧にラビットフード コンフィデンスを確認できない。
+pet-rabbit-021,not_found_official,https://www.npf.co.jp/smallanimal-products/rabbit,official_product_catalog,2026-07-19,日本ペットフード公式現行うさぎフード一覧にラビットフード チモシーを確認できない。
+pet-bird-011,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル 十姉妹を確認できない。
+pet-bird-012,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル オカメインコを確認できない。
+pet-bird-013,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル 中型インコを確認できない。
+pet-bird-014,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル 大型インコを確認できない。
+pet-bird-015,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル カナリアを確認できない。
+pet-bird-016,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル 鳩を確認できない。
+pet-bird-017,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル バードフードを確認できない。
+pet-bird-018,not_found_official,https://www.npf.co.jp/smallanimal-products/birdfood,official_product_catalog,2026-07-19,日本ペットフード公式現行鳥フード一覧にエクセル 皮つき餌を確認できない。
+pet-rabbit-009,verified_active,https://www.hipet.co.jp/product/%E3%83%81%E3%83%A2%E3%82%B7%E3%83%BC%E3%81%AE%E6%81%B5/,official_product_page,2026-07-19,ハイペット公式商品ページでチモシーの恵を確認。
+pet-rabbit-011,verified_active,https://www.hipet.co.jp/product/%E3%81%86%E3%81%95%E3%81%8E%E3%81%AE%E3%81%8D%E3%82%8F%E3%81%BF-850g/,official_product_page,2026-07-19,ハイペット公式商品ページでうさぎのきわみを確認。容量違いは統合。
+pet-rabbit-012,verified_active,https://www.hipet.co.jp/en/product/%E8%8B%B1%E8%AA%9E%E3%80%80%E3%81%86%E3%81%95%E3%81%8E%E3%81%AE%E3%81%8D%E3%82%8F%E3%81%BF%E3%83%88%E3%83%AA%E3%83%BC%E3%83%84%E6%AF%9B%E7%8E%89%E3%82%B1%E3%82%A2%E3%80%80%EF%BC%91%EF%BC%90%EF%BC%90/,official_product_page,2026-07-19,ハイペット公式商品ページでうさぎのきわみ トリーツ毛玉ケアを確認。
+pet-rabbit-013,verified_active,https://www.hipet.co.jp/product/%E3%83%91%E3%82%B9%E3%83%81%E3%83%A3%E3%83%BC%E3%83%81%E3%83%A2%E3%82%B7%E3%83%BC/,official_product_page,2026-07-19,ハイペット公式商品ページでパスチャーチモシーを確認。
+pet-rabbit-014,verified_active,https://www.hipet.co.jp/product/%E3%83%91%E3%82%B9%E3%83%81%E3%83%A3%E3%83%BC%E3%82%A2%E3%83%AB%E3%83%95%E3%82%A1%E3%83%AB%E3%83%95%E3%82%A1/,official_product_page,2026-07-19,ハイペット公式商品ページでパスチャーアルファルファを確認。
+pet-rabbit-015,verified_active,https://www.hipet.co.jp/product/%E6%81%B5%E3%83%90%E3%82%A4%E3%82%BF%E3%83%AB%E3%83%A9%E3%83%93%E3%83%83%E3%83%88300g/,official_product_page,2026-07-19,ハイペット公式商品ページで恵バイタルラビットを確認。
+pet-bird-019,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥の主食 セキセイインコを確認できない。
+pet-bird-020,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥の主食 文鳥を確認できない。
+pet-bird-021,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥の主食 オカメインコを確認できない。
+pet-bird-022,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥の主食 中型インコを確認できない。
+pet-bird-023,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥の主食 大型インコを確認できない。
+pet-bird-024,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥のおやつ 粟の穂を確認できない。
+pet-bird-025,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥のおやつ 青菜を確認できない。
+pet-bird-026,not_found_official,https://page.mkgr.jp/product/bird/category-1341/,official_product_catalog,2026-07-19,マルカン公式現行小鳥フード一覧に小鳥のおやつ ボレー粉を確認できない。
+pet-insect-013,not_found_official,https://page.mkgr.jp/product/insect/category-1359/,official_product_catalog,2026-07-19,マルカン公式現行昆虫フード一覧に昆虫ゼリー フルーツを確認できない。現行掲載はフルーツ農園フラット。
+pet-insect-014,not_found_official,https://page.mkgr.jp/product/insect/category-1359/,official_product_catalog,2026-07-19,マルカン公式現行昆虫フード一覧に昆虫ゼリー 昆虫飼育用を確認できない。
+pet-insect-015,not_found_official,https://page.mkgr.jp/product/insect/category-1359/,official_product_catalog,2026-07-19,マルカン公式現行昆虫フード一覧にカブトムシの蜜を確認できない。
+pet-insect-016,not_found_official,https://page.mkgr.jp/product/insect/,official_product_catalog,2026-07-19,マルカン公式現行昆虫用品一覧に昆虫用保湿スプレーを確認できない。
+pet-insect-017,not_found_official,https://page.mkgr.jp/product/insect/,official_product_catalog,2026-07-19,マルカン公式現行昆虫用品一覧に昆虫飼育用止まり木を確認できない。
+pet-rabbit-005,verified_active,https://www.yeaster.co.jp/products/rabbitfood/item/102,official_product_page,2026-07-19,イースター公式商品ページでバニーセレクション メンテナンスを確認。チモシー牧草主原料の表記を含むプロダクトとして確認。
+pet-rabbit-010,not_found_official,https://www.hipet.co.jp/product/%E3%83%81%E3%83%A2%E3%82%B7%E3%83%BC%E3%81%AE%E6%81%B5/,official_product_catalog,2026-07-19,ハイペット公式現行商品ページと公式サイト検索にチモシーの恵 フィールドを確認できない。
+pet-rabbit-016,not_found_official,https://www.hipet.co.jp/,official_product_catalog,2026-07-19,ハイペット公式現行商品ページと公式サイト検索にうさぎのヘルシープレミアムを確認できない。
+pet-small_mammal-018,not_found_official,https://page.mkgr.jp/product/category-1425/,official_product_catalog,2026-07-19,マルカン公式現行ミニマルPRO一覧にハムスターの主食 ミックスフードを確認できない。現行掲載はリス・ハムの主食ミックスフードPRO。
+pet-small_mammal-019,not_found_official,https://page.mkgr.jp/product/category-1425/,official_product_catalog,2026-07-19,マルカン公式現行ミニマルPRO一覧にハムスターの主食 おいしい野菜ミックスを確認できない。
+pet-small_mammal-020,not_found_official,https://page.mkgr.jp/product/category-1425/,official_product_catalog,2026-07-19,マルカン公式現行ミニマルPRO一覧にハムスターの主食 おいしい穀物ミックスを確認できない。
+pet-small_mammal-021,verified_active,https://page.mkgr.jp/?p=3937,official_product_page,2026-07-19,マルカン公式商品ページでリス・ハムの主食ミックスフードを確認。容量違いは統合。
+pet-small_mammal-022,not_found_official,https://page.mkgr.jp/product/small_animals/category-1342/,official_product_catalog,2026-07-19,マルカン公式現行小動物フード一覧にモルモットの主食を確認できない。現行掲載はモルモットの主食逸品グルメ。
+pet-small_mammal-023,not_found_official,https://page.mkgr.jp/product/small_animals/category-1342/,official_product_catalog,2026-07-19,マルカン公式現行小動物フード一覧にチンチラの主食を確認できない。現行掲載はチンチラの主食逸品グルメ。
+pet-small_mammal-024,not_found_official,https://page.mkgr.jp/product/small_animals/category-1342/,official_product_catalog,2026-07-19,マルカン公式現行小動物フード一覧にデグーの主食を確認できない。現行掲載はデグーの主食逸品グルメ。
+pet-small_mammal-025,not_found_official,https://page.mkgr.jp/product/small_animals/category-1342/,official_product_catalog,2026-07-19,マルカン公式現行小動物フード一覧にハリネズミの主食を確認できない。現行掲載はハリネズミの主食逸品グルメおよびトリプルバランス。
+pet-small_mammal-026,not_found_official,https://page.mkgr.jp/product/category-1425/,official_product_catalog,2026-07-19,マルカン公式現行ミニマルPRO一覧に小動物の果実ミックスを確認できない。現行掲載はフルーツミックスPRO。
+pet-small_mammal-027,not_found_official,https://page.mkgr.jp/product/category-1425/,official_product_catalog,2026-07-19,マルカン公式現行ミニマルPRO一覧に小動物の野菜ミックスを確認できない。
+pet-insect-001,not_found_official,https://www.fujikon.net/04mat.htm,official_product_catalog,2026-07-19,フジコン公式現行昆虫マット一覧にバイオ育成クヌギマットを確認できない。
+pet-insect-002,not_found_official,https://wraios.co.jp/kbfarm.htm,official_product_catalog,2026-07-19,KBファーム公式現行商品一覧にすこやかゼリーを確認できない。現行掲載はプロゼリー。
+pet-insect-003,not_found_official,https://wraios.co.jp/kbfarm.htm,official_product_catalog,2026-07-19,KBファーム公式現行商品一覧に昆虫ゼリー 高タンパクを確認できない。現行掲載はプロゼリー。
+pet-insect-004,not_found_official,https://wraios.co.jp/kbfarm.htm,official_product_catalog,2026-07-19,KBファーム公式現行商品一覧に昆虫ゼリー カブトムシ用を確認できない。
+pet-insect-005,not_found_official,https://wraios.co.jp/kbfarm.htm,official_product_catalog,2026-07-19,KBファーム公式現行商品一覧に昆虫ゼリー クワガタ用を確認できない。
+pet-insect-006,not_found_official,https://www.fujikon.net/04mat.htm,official_product_catalog,2026-07-19,フジコン公式現行昆虫マット一覧にバイオ発酵マットを確認できない。現行掲載はデブロPro発酵マット等。
+pet-insect-007,not_found_official,https://www.fujikon.net/04mat.htm,official_product_catalog,2026-07-19,フジコン公式現行昆虫マット一覧にくぬぎマットを確認できない。
+pet-insect-008,not_found_official,https://www.fujikon.net/04mat.htm,official_product_catalog,2026-07-19,フジコン公式現行昆虫マット一覧に昆虫育成マットを確認できない。
+pet-insect-009,not_found_official,https://www.fujikon.net/04mat.htm,official_product_catalog,2026-07-19,フジコン公式現行昆虫マット一覧にカブトムシ育成マットを確認できない。
+pet-insect-010,not_found_official,https://www.fujikon.net/04mat02.htm,official_product_catalog,2026-07-19,フジコン公式現行昆虫マット一覧にクワガタ育成マットを確認できない。
+pet-insect-011,not_found_official,https://fujikon.net/,official_product_catalog,2026-07-19,フジコン公式現行商品一覧に昆虫飼育用朽木を確認できない。現行掲載は用途別の産卵材。
+pet-insect-012,not_found_official,https://fujikon.net/,official_product_catalog,2026-07-19,フジコン公式現行商品一覧に産卵木を確認できない。現行掲載は用途別の産卵材。

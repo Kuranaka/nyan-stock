@@ -148,7 +148,7 @@ export default function PurchaseHistoryScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <AppCard style={styles.summaryCard}>
-        <Text style={styles.total}>{activeMonthLabel}の猫用品：{monthlyTotal.toLocaleString()}円</Text>
+        <Text style={styles.total}>{activeMonthLabel}のペット用品：{monthlyTotal.toLocaleString()}円</Text>
         {monthOptions.length > 0 ? (
           <View style={styles.monthTabs}>
             {monthOptions.map((month) => (
@@ -217,7 +217,7 @@ export default function PurchaseHistoryScreen() {
               </View>
               <Text style={styles.name}>{entry.itemName ?? itemNames.get(entry.inventoryItemId) ?? '削除済みの商品'}</Text>
               <Text style={styles.catName}>
-                {itemCatNames.get(entry.inventoryItemId) || '猫プロフィール未設定'}
+                {itemCatNames.get(entry.inventoryItemId) || 'ペットプロフィール未設定'}
               </Text>
               {editingHistoryId === entry.id ? (
                 <View style={styles.editArea}>

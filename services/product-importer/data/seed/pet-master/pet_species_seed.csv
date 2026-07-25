@@ -1,0 +1,63 @@
+code,pet_group,parent_species_code,name_ja,name_en,sort_order,enabled
+cat,cat,,猫,Cat,10,true
+dog,dog,,犬,Dog,10,true
+rabbit,rabbit,,うさぎ,Rabbit,10,true
+hamster,small_animal,,ハムスター,Hamster,10,true
+syrian_hamster,small_animal,hamster,ゴールデンハムスター,Syrian Hamster,11,true
+dwarf_hamster,small_animal,hamster,ドワーフハムスター,Dwarf Hamster,12,true
+roborovski_hamster,small_animal,hamster,ロボロフスキーハムスター,Roborovski Hamster,13,true
+chinese_hamster,small_animal,hamster,チャイニーズハムスター,Chinese Hamster,14,true
+other_hamster,small_animal,hamster,その他のハムスター,Other Hamster,15,true
+gerbil,small_animal,,スナネズミ,Gerbil,20,true
+guinea_pig,small_animal,,モルモット,Guinea Pig,30,true
+chinchilla,small_animal,,チンチラ,Chinchilla,40,true
+degu,small_animal,,デグー,Degu,50,true
+ferret,small_animal,,フェレット,Ferret,60,true
+hedgehog,small_animal,,ハリネズミ,Hedgehog,70,true
+sugar_glider,small_animal,,フクロモモンガ,Sugar Glider,80,true
+squirrel,small_animal,,リス,Squirrel,90,true
+prairie_dog,small_animal,,プレーリードッグ,Prairie Dog,100,true
+other_small_animal,small_animal,,その他の小動物,Other Small Animal,110,true
+budgerigar,bird,,セキセイインコ,Budgerigar,10,true
+cockatiel,bird,,オカメインコ,Cockatiel,20,true
+lovebird,bird,,ラブバード,Lovebird,30,true
+parrot,bird,,オウム,Parrot,40,true
+parakeet,bird,,インコ,Parakeet,50,true
+java_sparrow,bird,,文鳥,Java Sparrow,60,true
+finch,bird,,フィンチ,Finch,70,true
+canary,bird,,カナリア,Canary,80,true
+chicken,bird,,鶏,Chicken,90,true
+quail,bird,,うずら,Quail,100,true
+other_bird,bird,,その他の鳥,Other Bird,110,true
+goldfish,aquarium,,金魚,Goldfish,10,true
+medaka,aquarium,,メダカ,Medaka,20,true
+betta,aquarium,,ベタ,Betta,30,true
+tropical_fish,aquarium,,熱帯魚,Tropical Fish,40,true
+marine_fish,aquarium,,海水魚,Marine Fish,50,true
+freshwater_fish,aquarium,,淡水魚,Freshwater Fish,60,true
+shrimp,aquarium,,観賞エビ,Aquarium Shrimp,70,true
+crayfish,aquarium,,ザリガニ,Crayfish,80,true
+aquatic_turtle,aquarium,,水棲ガメ,Aquatic Turtle,90,true
+aquatic_plant,aquarium,,水草,Aquatic Plant,100,true
+other_aquarium,aquarium,,その他の観賞魚,Other Aquarium,110,true
+aquatic_turtle,reptile_amphibian,,水棲ガメ,Aquatic Turtle,10,true
+tortoise,reptile_amphibian,,リクガメ,Tortoise,20,true
+lizard,reptile_amphibian,,トカゲ,Lizard,30,true
+gecko,reptile_amphibian,,ヤモリ,Gecko,40,true
+snake,reptile_amphibian,,ヘビ,Snake,50,true
+frog,reptile_amphibian,,カエル,Frog,60,true
+newt,reptile_amphibian,,イモリ,Newt,70,true
+salamander,reptile_amphibian,,サンショウウオ,Salamander,80,true
+axolotl,reptile_amphibian,,ウーパールーパー,Axolotl,90,true
+other_reptile,reptile_amphibian,,その他の爬虫類,Other Reptile,100,true
+other_amphibian,reptile_amphibian,,その他の両生類,Other Amphibian,110,true
+rhinoceros_beetle,insect,,カブトムシ,Rhinoceros Beetle,10,true
+stag_beetle,insect,,クワガタ,Stag Beetle,20,true
+cricket,insect,,コオロギ,Cricket,30,true
+bell_cricket,insect,,スズムシ,Bell Cricket,40,true
+mantis,insect,,カマキリ,Mantis,50,true
+butterfly,insect,,チョウ,Butterfly,60,true
+moth,insect,,ガ,Moth,70,true
+ant,insect,,アリ,Ant,80,true
+beetle,insect,,甲虫,Beetle,90,true
+other_insect,insect,,その他の昆虫,Other Insect,100,true

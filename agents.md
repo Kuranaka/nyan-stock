@@ -136,6 +136,18 @@ The default Next.js preset is usually sufficient.
 - Every schema change must be a new migration file with a unique, chronologically later version number than all existing local migration files.
 - If a migration needs correction, add a follow-up migration that makes the required change; do not modify migration history.
 
+### Supabase Large-Table Reads
+
+- Treat `retailer_listings_raw`, `product_candidates`, `product_review_queue`, and other unbounded importer tables as large tables. A feature-specific command must not call `loadQualitySnapshot()` or `selectAll()` merely to find its own subset.
+- Reserve the full quality snapshot for `quality:pet-catalog`, where an all-table consistency check is intentional. Review, merge, export, and maintenance commands must expose and use a targeted repository method.
+- Filter at Supabase/PostgREST before downloading rows, and select only the columns the command needs. In particular, do not fetch `retailer_listings_raw.raw_json` unless the operation actually consumes it.
+- For a long ordered scan, prefer keyset pagination using a stable unique cursor such as `id=gt.<last_id>` with `order=id.asc`. Avoid deep `offset` pagination on large or wide tables. Offset pagination is acceptable only for a deliberately bounded/small result set or a full quality check that requires it.
+- Resolve relationships in stages: fetch the narrow parent/result rows first, collect their IDs, then fetch related rows with `in.(...)` batches of at most 100 IDs. Avoid large PostgREST embedded joins, especially joins that pull raw JSON payloads.
+- Keep large-table requests sequential or explicitly concurrency-bounded. Do not start several full-table page scans in parallel, because this can exhaust Supabase statement memory even when each individual page is 1,000 rows.
+- HTTP 500 retries are only for transient failures. If the same table/page or deep offset repeatedly returns HTTP 500, redesign the query using narrower filters, fewer columns, keyset pagination, and ID batches; do not treat eventual retry success as the fix.
+- Add an index through a new migration when a targeted filter plus keyset order lacks suitable database support. Never rewrite an applied migration to add that index.
+- For blocking-review CSV work, use `loadBlockingReviewSnapshot()`: export reads only open blocking issues and their candidates/listings, while apply reads only candidate IDs present in the edited CSV.
+
 ### Mobile App
 
 - Keep screens out of direct storage details. Use the storage modules in `apps/mobile/src/features/**`.

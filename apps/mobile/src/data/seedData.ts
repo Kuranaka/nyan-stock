@@ -11,6 +11,7 @@ export function createSeedCat(): Cat {
   return {
     id: createId('cat'),
     name: 'ミルク',
+    petType: 'cat',
     gender: 'unknown',
     memo: '開発用サンプルです',
     createdAt: now,

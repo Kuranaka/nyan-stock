@@ -96,7 +96,7 @@ async function ensureNotificationChannel(): Promise<void> {
 
   await Notifications.setNotificationChannelAsync(inventoryNotificationChannelId, {
     name: '在庫リマインダー',
-    description: '猫用品の在庫が少なくなる前にお知らせします。',
+    description: 'ペット用品の在庫が少なくなる前にお知らせします。',
     importance: Notifications.AndroidImportance.DEFAULT,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     showBadge: false,

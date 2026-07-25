@@ -60,7 +60,7 @@ export default function SubscriptionScreen() {
       Alert.alert(
         nextEntitlement.isPlus ? 'Plusが有効になりました' : '購入を確認しました',
         nextEntitlement.isPlus
-          ? '在庫と猫プロフィールの登録数上限を解除し、広告を非表示にしました。'
+          ? '在庫とペットプロフィールの登録数上限を解除し、広告を非表示にしました。'
           : '購入状況を確認しています。反映されない場合は、しばらくしてからもう一度アプリを開いてください。',
       );
     } catch (error) {
@@ -136,7 +136,7 @@ export default function SubscriptionScreen() {
 
       <AppCard style={styles.card}>
         <Text style={styles.sectionTitle}>無料プラン</Text>
-        <PlanRow label={`猫プロフィール ${freePlanCatLimit}匹まで`} />
+        <PlanRow label={`ペットプロフィール ${freePlanCatLimit}件まで`} />
         <PlanRow label={`在庫登録 ${freePlanInventoryLimit}件まで`} />
         <PlanRow label="家族共有・複数端末同期" />
         <PlanRow label="購入履歴・月別費用レポート" />
@@ -145,7 +145,7 @@ export default function SubscriptionScreen() {
 
       <AppCard style={styles.card}>
         <Text style={styles.sectionTitle}>Plus</Text>
-        <PlanRow label="猫プロフィール 無制限" />
+        <PlanRow label="ペットプロフィール 無制限" />
         <PlanRow label="在庫登録 無制限" />
         <PlanRow label="広告非表示" />
       </AppCard>

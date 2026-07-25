@@ -14,6 +14,7 @@ export const config = {
   environment,
   rakutenApplicationId: process.env.RAKUTEN_APPLICATION_ID,
   rakutenAccessKey: process.env.RAKUTEN_ACCESS_KEY,
+  rakutenAffiliateId: process.env.RAKUTEN_AFFILIATE_ID,
   yahooClientId: process.env.YAHOO_CLIENT_ID,
   databaseUrl: process.env.DATABASE_URL,
   supabaseUrl: process.env.SUPABASE_URL,
@@ -23,9 +24,14 @@ export const config = {
   yahooRequestIntervalMs: Number(process.env.YAHOO_REQUEST_INTERVAL_MS ?? 2200),
   yahooRateLimitRetryDelayMs: Number(process.env.YAHOO_RATE_LIMIT_RETRY_DELAY_MS ?? 60_000),
   yahooMaxRetries: Number(process.env.YAHOO_MAX_RETRIES ?? 3),
+  supabaseRequestMaxRetries: Number(process.env.SUPABASE_REQUEST_MAX_RETRIES ?? 4),
+  supabaseRequestRetryBaseMs: Number(process.env.SUPABASE_REQUEST_RETRY_BASE_MS ?? 750),
   outputJsonPath:
     process.env.PRODUCT_MASTER_OUTPUT_PATH ??
     path.join(serviceDir, 'data', 'generated', 'productMaster.generated.json'),
+  petCatalogOutputPath:
+    process.env.PET_CATALOG_OUTPUT_PATH ??
+    path.join(serviceDir, 'data', 'generated', 'petCatalog.preview.json'),
 };
 
 export function delay(ms = config.requestDelayMs): Promise<void> {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
@@ -9,7 +9,8 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { DatePickerField } from '@/components/DatePickerField';
 import { colors } from '@/constants/colors';
 import { deleteCat, getCat, getCats, saveCat } from '@/features/cats/catStorage';
-import { Cat, CatGender } from '@/features/cats/catTypes';
+import { getDefaultPetTypeIcon } from '@/features/cats/petTypeIcons';
+import { Cat, CatGender, PetType, petTypes } from '@/features/cats/catTypes';
 import {
   deleteInventoryItemsForCat,
   getInventoryItems,
@@ -39,6 +40,7 @@ const genderOptions: { label: string; value: CatGender }[] = [
 type CatProfileSnapshot = {
   profileId?: string;
   name: string;
+  petType: PetType;
   birthday: string;
   weight: string;
   gender: CatGender;
@@ -58,9 +60,11 @@ export default function CatProfileScreen() {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [draftCatId, setDraftCatId] = useState(() => createId('cat'));
   const [name, setName] = useState('');
+  const [petType, setPetType] = useState<PetType>('cat');
   const [birthday, setBirthday] = useState('');
   const [weight, setWeight] = useState('');
   const [gender, setGender] = useState<CatGender>('unknown');
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [iconUrl, setIconUrl] = useState<string | undefined>();
   const [iconUploading, setIconUploading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -72,13 +76,14 @@ export default function CatProfileScreen() {
     () => ({
       profileId: current?.id,
       name,
+      petType,
       birthday,
       weight,
       gender,
       iconUrl,
       memo,
     }),
-    [birthday, current?.id, gender, iconUrl, memo, name, weight],
+    [birthday, current?.id, gender, iconUrl, memo, name, petType, weight],
   );
 
   const hasUnsavedChanges = useMemo(() => {
@@ -87,13 +92,13 @@ export default function CatProfileScreen() {
     return JSON.stringify(initialSnapshot) !== JSON.stringify(profileSnapshot);
   }, [formInitialized, profileSnapshot]);
 
-  const scrollToY = useCallback((y: number) => {
+  const scrollToField = useCallback((field: 'name' | 'birthday') => {
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({
-        y: Math.max(y - 12, 0),
+        y: Math.max((fieldYRefs.current[field] ?? 0) - 12, 0),
         animated: true,
       });
-    }, 100);
+    }, 150);
   }, []);
 
   const setFieldY = useCallback((field: 'name' | 'birthday') => {
@@ -136,14 +141,17 @@ export default function CatProfileScreen() {
     setCurrent(undefined);
     setDraftCatId(nextDraftCatId);
     setName('');
+    setPetType('cat');
     setBirthday('');
     setWeight('');
     setGender('unknown');
+    setDetailsExpanded(false);
     setIconUrl(undefined);
     setMemo('');
     initialProfileSnapshotRef.current = {
       profileId: undefined,
       name: '',
+      petType: 'cat',
       birthday: '',
       weight: '',
       gender: 'unknown',
@@ -157,17 +165,20 @@ export default function CatProfileScreen() {
     setIsCreatingNew(false);
     setCurrent(cat);
     setName(cat.name);
+    setPetType(cat.petType ?? 'cat');
     setBirthday(cat.birthday ?? '');
     setWeight(cat.weight?.toString() ?? '');
-    setGender(cat.gender);
+    setGender(cat.gender ?? 'unknown');
+    setDetailsExpanded(false);
     setIconUrl(cat.iconUrl);
     setMemo(cat.memo ?? '');
     initialProfileSnapshotRef.current = {
       profileId: cat.id,
       name: cat.name,
+      petType: cat.petType ?? 'cat',
       birthday: cat.birthday ?? '',
       weight: cat.weight?.toString() ?? '',
-      gender: cat.gender,
+      gender: cat.gender ?? 'unknown',
       iconUrl: cat.iconUrl,
       memo: cat.memo ?? '',
     };
@@ -204,12 +215,13 @@ export default function CatProfileScreen() {
   const save = async () => {
     if (savingProfile) return;
     if (!name.trim()) {
-      scrollToY(fieldYRefs.current.name ?? 0);
-      Alert.alert('入力を確認してください', '猫の名前は必須です。');
+      scrollToField('name');
+      Alert.alert('入力を確認してください', 'ペットの名前は必須です。');
       return;
     }
     if (birthday && isFutureIsoDate(birthday)) {
-      scrollToY(fieldYRefs.current.birthday ?? 0);
+      setDetailsExpanded(true);
+      scrollToField('birthday');
       Alert.alert('入力を確認してください', '誕生日は今日以前の日付を選んでください。');
       return;
     }
@@ -219,8 +231,8 @@ export default function CatProfileScreen() {
       const latestCats = await getCats();
       if (!canCreateCat(entitlement, latestCats.length)) {
         Alert.alert(
-          '無料プランでは猫は2匹までです',
-          'Plusにすると、猫プロフィールを無制限に登録できます。',
+          '無料プランではペットプロフィールは2件までです',
+          'Plusにすると、ペットプロフィールを無制限に登録できます。',
           [
             { text: 'あとで', style: 'cancel' },
             { text: 'Plusを見る', onPress: () => router.push('/subscription') },
@@ -237,6 +249,7 @@ export default function CatProfileScreen() {
       await saveCat({
         id: catId,
         name: name.trim(),
+        petType,
         iconUrl,
         birthday: birthday.trim() || undefined,
         weight: parseOptionalNumber(weight),
@@ -270,8 +283,8 @@ export default function CatProfileScreen() {
     const entitlement = await getSubscriptionEntitlement();
     if (!canCreateCat(entitlement, cats.length)) {
       Alert.alert(
-        '無料プランでは猫は2匹までです',
-        'Plusにすると、猫プロフィールを無制限に登録できます。',
+        '無料プランではペットプロフィールは2件までです',
+        'Plusにすると、ペットプロフィールを無制限に登録できます。',
         [
           { text: 'あとで', style: 'cancel' },
           { text: 'Plusを見る', onPress: () => router.push('/subscription') },
@@ -312,8 +325,8 @@ export default function CatProfileScreen() {
   const remove = () => {
     if (!current || deletingProfile) return;
     Alert.alert(
-      '猫プロフィールを削除しますか？',
-      `${current.name}のプロフィールを削除します。この猫だけに紐づく在庫は削除され、購入履歴は残ります。共有中の商品は他の猫の在庫として残ります。`,
+      'ペットプロフィールを削除しますか？',
+      `${current.name}のプロフィールを削除します。このペットだけに紐づく在庫は削除され、購入履歴は残ります。共有中の商品は他のペットの在庫として残ります。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -366,11 +379,11 @@ export default function CatProfileScreen() {
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="never"
     >
-      <Text style={styles.lead}>猫ごとにプロフィールと在庫を分けて記録できます。</Text>
+      <Text style={styles.lead}>ペットごとにプロフィールと在庫を分けて記録できます。</Text>
 
       {cats.length > 0 ? (
         <AppCard style={styles.card}>
-          <Text style={styles.sectionTitle}>登録中の猫</Text>
+          <Text style={styles.sectionTitle}>登録中のペット</Text>
           <View style={styles.catList}>
             {cats.map((cat) => (
               <AppButton
@@ -392,15 +405,26 @@ export default function CatProfileScreen() {
       ) : null}
 
       <Text style={styles.sectionTitle}>{current ? 'プロフィール編集' : 'プロフィール追加'}</Text>
+      <FieldLabel label="ペット種別" requirement="required" />
+      <View style={styles.petTypeGrid}>
+        {petTypes.map((option) => (
+          <AppButton
+            key={option.value}
+            title={option.label}
+            variant={petType === option.value ? 'primary' : 'secondary'}
+            onPress={() => setPetType(option.value)}
+            style={styles.petTypeButton}
+          />
+        ))}
+      </View>
       <FieldLabel label="アイコン" requirement="optional" />
       <View style={styles.iconRow}>
-        {iconUrl ? (
-          <Image source={{ uri: iconUrl }} style={styles.catIcon} resizeMode="cover" />
-        ) : (
-          <View style={styles.catIconPlaceholder}>
-            <Text style={styles.catIconPlaceholderText}>猫</Text>
-          </View>
-        )}
+        <Image
+          accessibilityIgnoresInvertColors
+          source={iconUrl ? { uri: iconUrl } : getDefaultPetTypeIcon(petType)}
+          style={styles.catIcon}
+          resizeMode="cover"
+        />
         <View style={styles.iconActions}>
           <AppButton
             title={
@@ -421,55 +445,74 @@ export default function CatProfileScreen() {
       </View>
       <View onLayout={setFieldY('name')}>
         <AppTextInput
-          label="猫の名前"
+          label="ペットの名前"
           value={name}
           onChangeText={setName}
           placeholder="例：ミルク"
           requirement="required"
         />
       </View>
-      <View onLayout={setFieldY('birthday')}>
-        <DatePickerField
-          label="誕生日"
-          value={birthday}
-          onChange={setBirthday}
-          requirement="optional"
-          placeholder="未設定"
-        />
+      <View style={styles.detailsSection}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: detailsExpanded }}
+          onPress={() => setDetailsExpanded((expanded) => !expanded)}
+          style={({ pressed }) => [styles.detailsToggle, pressed && styles.detailsTogglePressed]}
+        >
+          <View style={styles.detailsToggleCopy}>
+            <Text style={styles.detailsToggleTitle}>プロフィール詳細</Text>
+            <Text style={styles.detailsToggleHint}>誕生日・体重・性別・メモ</Text>
+          </View>
+          <Text style={styles.detailsToggleIcon}>{detailsExpanded ? '⌃' : '⌄'}</Text>
+        </Pressable>
+
+        {detailsExpanded ? (
+          <View style={styles.detailsContent}>
+            <View onLayout={setFieldY('birthday')}>
+              <DatePickerField
+                label="誕生日"
+                value={birthday}
+                onChange={setBirthday}
+                requirement="optional"
+                placeholder="未設定"
+              />
+            </View>
+            <View style={styles.ageBox}>
+              <Text style={styles.ageLabel}>年齢</Text>
+              <Text style={styles.ageValue}>{formatAgeFromBirthday(birthday)}</Text>
+            </View>
+            <AppTextInput
+              label="体重"
+              value={weight}
+              onChangeText={setWeight}
+              keyboardType="decimal-pad"
+              placeholder="例：4.2"
+              requirement="optional"
+            />
+            <FieldLabel label="性別" requirement="optional" />
+            <View style={styles.segment}>
+              {genderOptions.map((option) => (
+                <AppButton
+                  key={option.value}
+                  title={option.label}
+                  variant={gender === option.value ? 'primary' : 'secondary'}
+                  onPress={() => setGender(option.value)}
+                  style={styles.segmentButton}
+                />
+              ))}
+            </View>
+            <AppTextInput
+              label="メモ"
+              value={memo}
+              onChangeText={setMemo}
+              multiline
+              placeholder="通院時のメモなど"
+              style={styles.memo}
+              requirement="optional"
+            />
+          </View>
+        ) : null}
       </View>
-      <View style={styles.ageBox}>
-        <Text style={styles.ageLabel}>年齢</Text>
-        <Text style={styles.ageValue}>{formatAgeFromBirthday(birthday)}</Text>
-      </View>
-      <AppTextInput
-        label="体重"
-        value={weight}
-        onChangeText={setWeight}
-        keyboardType="decimal-pad"
-        placeholder="例：4.2"
-        requirement="optional"
-      />
-      <FieldLabel label="性別" requirement="required" />
-      <View style={styles.segment}>
-        {genderOptions.map((option) => (
-          <AppButton
-            key={option.value}
-            title={option.label}
-            variant={gender === option.value ? 'primary' : 'secondary'}
-            onPress={() => setGender(option.value)}
-            style={styles.segmentButton}
-          />
-        ))}
-      </View>
-      <AppTextInput
-        label="メモ"
-        value={memo}
-        onChangeText={setMemo}
-        multiline
-        placeholder="通院時のメモなど"
-        style={styles.memo}
-        requirement="optional"
-      />
       <AppButton
         title={savingProfile ? '保存中...' : '保存する'}
         loading={savingProfile}
@@ -485,10 +528,10 @@ export default function CatProfileScreen() {
         <AppCard style={styles.dangerZone}>
           <Text style={styles.dangerZoneTitle}>削除</Text>
           <Text style={styles.dangerZoneText}>
-            この猫だけに紐づく在庫を削除します。購入履歴は残ります。
+            このペットだけに紐づく在庫を削除します。購入履歴は残ります。
           </Text>
           <AppButton
-            title={deletingProfile ? '削除中...' : 'この猫を削除'}
+            title={deletingProfile ? '削除中...' : 'このペットを削除'}
             variant="danger"
             loading={deletingProfile}
             onPress={remove}
@@ -580,21 +623,6 @@ const styles = StyleSheet.create({
     height: 72,
     width: 72,
   },
-  catIconPlaceholder: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.border,
-    borderRadius: 36,
-    borderWidth: 1,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
-  },
-  catIconPlaceholderText: {
-    color: colors.primaryDark,
-    fontSize: 18,
-    fontWeight: '900',
-  },
   iconActions: {
     flex: 1,
     gap: 8,
@@ -642,12 +670,67 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
   },
+  detailsSection: {
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  detailsToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    minHeight: 68,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  detailsTogglePressed: {
+    backgroundColor: colors.primaryLight,
+  },
+  detailsToggleCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  detailsToggleTitle: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  detailsToggleHint: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  detailsToggleIcon: {
+    color: colors.primaryDark,
+    fontSize: 20,
+    fontWeight: '800',
+    width: 24,
+  },
+  detailsContent: {
+    borderColor: colors.border,
+    borderTopWidth: 1,
+    gap: 16,
+    padding: 16,
+  },
   segment: {
     flexDirection: 'row',
     gap: 8,
   },
   segmentButton: {
     flex: 1,
+  },
+  petTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  petTypeButton: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    paddingHorizontal: 10,
   },
   memo: {
     minHeight: 90,

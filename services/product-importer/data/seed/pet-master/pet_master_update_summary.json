@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-07-18",
+  "master_granularity": "product",
+  "source_candidate_count": 355,
+  "superseded_preliminary_row_count": 28,
+  "capacity_variant_rows_created": 0,
+  "capacity_variants_collapsed": 0,
+  "final_product_count": 327,
+  "product_names_with_capacity_or_packaging": 0,
+  "jan_codes_registered": 0,
+  "official_source_record_count": 327,
+  "review_required_count": 0,
+  "per_pet_type": {
+    "insect": {
+      "product_count": 30,
+      "brand_count": 3,
+      "category_count": 14,
+      "subcategory_count": 17,
+      "official_source_record_count": 30,
+      "review_required_count": 0
+    },
+    "dog": {
+      "product_count": 58,
+      "brand_count": 12,
+      "category_count": 19,
+      "subcategory_count": 21,
+      "official_source_record_count": 58,
+      "review_required_count": 0
+    },
+    "rabbit": {
+      "product_count": 36,
+      "brand_count": 5,
+      "category_count": 16,
+      "subcategory_count": 17,
+      "official_source_record_count": 36,
+      "review_required_count": 0
+    },
+    "small_mammal": {
+      "product_count": 40,
+      "brand_count": 3,
+      "category_count": 14,
+      "subcategory_count": 16,
+      "official_source_record_count": 40,
+      "review_required_count": 0
+    },
+    "bird": {
+      "product_count": 41,
+      "brand_count": 4,
+      "category_count": 16,
+      "subcategory_count": 18,
+      "official_source_record_count": 41,
+      "review_required_count": 0
+    },
+    "aquarium_fish": {
+      "product_count": 77,
+      "brand_count": 4,
+      "category_count": 25,
+      "subcategory_count": 28,
+      "official_source_record_count": 77,
+      "review_required_count": 0
+    },
+    "reptile_amphibian": {
+      "product_count": 45,
+      "brand_count": 3,
+      "category_count": 15,
+      "subcategory_count": 17,
+      "official_source_record_count": 45,
+      "review_required_count": 0
+    }
+  },
+  "notes": [
+    "容量・入数のみが異なるSKUはプロダクト行に追加しない。",
+    "公式URLは存在確認用のカタログ参照であり、個別SKUの検証済みを意味しない。",
+    "対象種が未確定の114件は要確認キューで安全性確認を要求する。"
+  ]
+}

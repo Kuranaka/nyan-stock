@@ -14,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -24,7 +25,11 @@ import { insertSeedData } from '@/data/seedData';
 import { areAdMobPrivacyOptionsRequired, showAdMobPrivacyOptions } from '@/features/ads/adMob';
 import { clearAuthSession } from '@/features/auth/authStorage';
 import { AuthSession } from '@/features/auth/authTypes';
-import { deleteSupabaseAccount, getCurrentAuthSession, signOutSupabaseAuth } from '@/features/auth/supabaseAuth';
+import {
+  deleteSupabaseAccount,
+  getCurrentAuthSession,
+  signOutSupabaseAuth,
+} from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import {
   cancelAllInventoryNotifications,
@@ -33,12 +38,14 @@ import {
 } from '@/features/notifications/notificationService';
 import { submitSupportInquiry } from '@/features/reports/supportInquiryService';
 import { resetReviewPromptState, showReviewPromptForDebug } from '@/features/review/reviewPrompt';
-import { getSettings, onboardingVisibilityEventName, saveSettings } from '@/features/settings/settingsStorage';
+import {
+  getSettings,
+  onboardingVisibilityEventName,
+  saveSettings,
+} from '@/features/settings/settingsStorage';
 import { AppSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
-import {
-  createSubscriptionEntitlement,
-} from '@/features/subscription/subscriptionService';
+import { createSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
 import {
   createHouseholdSyncSpace,
   HouseholdMember,
@@ -62,6 +69,7 @@ import googleLogo from '@/assets/google-g-logo.png';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<AppSettings | undefined>();
   const [authSession, setAuthSession] = useState<AuthSession | undefined>();
   const [syncState, setSyncState] = useState<HouseholdSyncState | undefined>();
@@ -157,20 +165,26 @@ export default function SettingsScreen() {
   };
 
   const resetData = () => {
-    Alert.alert('データを初期化しますか？', '猫プロフィール、在庫、購入履歴、設定を削除します。', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '初期化する',
-        style: 'destructive',
-        onPress: async () => {
-          await cancelAllInventoryNotifications();
-          await Promise.all(Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)));
-          DeviceEventEmitter.emit(onboardingVisibilityEventName, false);
-          await load();
-          router.replace('/');
+    Alert.alert(
+      'データを初期化しますか？',
+      'ペットプロフィール、在庫、購入履歴、設定を削除します。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '初期化する',
+          style: 'destructive',
+          onPress: async () => {
+            await cancelAllInventoryNotifications();
+            await Promise.all(
+              Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)),
+            );
+            DeviceEventEmitter.emit(onboardingVisibilityEventName, false);
+            await load();
+            router.replace('/');
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const clearLocalDeviceData = async () => {
@@ -181,7 +195,7 @@ export default function SettingsScreen() {
   const addSeedData = () => {
     Alert.alert(
       'サンプルデータを追加しますか？',
-      '開発確認用の猫プロフィールと在庫2件を追加します。既存データは削除しません。',
+      '開発確認用のペットプロフィールと在庫2件を追加します。既存データは削除しません。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -210,7 +224,7 @@ export default function SettingsScreen() {
   const signOut = () => {
     Alert.alert(
       'ログアウトしますか？',
-      'ログアウトすると、この端末内の猫プロフィール、在庫、購入履歴、設定が初期化されます。クラウド側の共有データは削除されません。',
+      'ログアウトすると、この端末内のペットプロフィール、在庫、購入履歴、設定が初期化されます。クラウド側の共有データは削除されません。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -332,7 +346,7 @@ export default function SettingsScreen() {
   const pullSharedData = () => {
     Alert.alert(
       '共有データを取り込みますか？',
-      'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。',
+      'この端末のペットプロフィール、在庫、購入履歴を共有データで上書きします。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -357,7 +371,7 @@ export default function SettingsScreen() {
 
     Alert.alert(
       '共有スペースに参加しますか？',
-      'この端末の猫プロフィール、在庫、購入履歴を共有データで上書きします。',
+      'この端末のペットプロフィール、在庫、購入履歴を共有データで上書きします。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -388,7 +402,7 @@ export default function SettingsScreen() {
     const inviteCode = syncState.inviteCode ?? syncState.householdId;
     void Share.share({
       message: [
-        'にゃんストックで猫用品を共有しよう🐱',
+        'にゃんストックでペット用品を共有しよう🐾',
         '',
         '【共有コード】',
         inviteCode,
@@ -444,8 +458,13 @@ export default function SettingsScreen() {
             setSyncBusy(true);
             try {
               await removeHouseholdMember(member.userId);
-              setSharedMembers((members) => members.filter((nextMember) => nextMember.userId !== member.userId));
-              Alert.alert('共有から外しました', `${memberLabel}は共有データにアクセスできなくなりました。`);
+              setSharedMembers((members) =>
+                members.filter((nextMember) => nextMember.userId !== member.userId),
+              );
+              Alert.alert(
+                '共有から外しました',
+                `${memberLabel}は共有データにアクセスできなくなりました。`,
+              );
             } catch (error) {
               Alert.alert(
                 '共有から外せませんでした',
@@ -512,7 +531,9 @@ export default function SettingsScreen() {
   const canLeaveSharedSpace = Boolean(syncState && !syncState.createdBy);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[styles.container, { paddingTop: Math.max(18, insets.top + 12) }]}
+    >
       <View style={styles.header}>
         <Text style={styles.screenTitle}>設定</Text>
         <Text style={styles.screenLead}>通知、共有、アカウントまわりをまとめて管理できます。</Text>
@@ -533,17 +554,14 @@ export default function SettingsScreen() {
           </View>
         </View>
         <View style={styles.statGrid}>
-          <StatChip label="猫プロフィール" value={formatLimit(entitlement.catLimit)} />
+          <StatChip label="ペットプロフィール" value={formatLimit(entitlement.catLimit)} />
           <StatChip label="在庫登録" value={formatLimit(entitlement.inventoryLimit)} />
           <StatChip label="広告" value={entitlement.shouldShowAds ? '表示あり' : '非表示'} />
         </View>
         <AppButton title="にゃんストック Plusを見る" onPress={() => router.push('/subscription')} />
       </AppCard>
 
-      <SettingSection
-        title="アカウント"
-        description="ログインをすると共有コードの作成ができます。"
-      >
+      <SettingSection title="アカウント" description="ログインをすると共有コードの作成ができます。">
         <View style={styles.accountPanel}>
           <AccountProviderIcon session={authSession} />
           <View style={styles.accountBody}>
@@ -616,7 +634,7 @@ export default function SettingsScreen() {
 
       <SettingSection
         title="家族・他アカウントと共有"
-        description="猫プロフィール、在庫、購入履歴を共有できます。"
+        description="ペットプロフィール、在庫、購入履歴を共有できます。"
       >
         <View style={styles.syncStatusRow}>
           <Text style={styles.rowTitle}>共有ステータス</Text>
@@ -680,7 +698,9 @@ export default function SettingsScreen() {
                     .map((member, index) => (
                       <View key={member.userId} style={styles.memberRow}>
                         <View style={styles.memberText}>
-                          <Text style={styles.rowTitle}>{member.displayName || `参加者 ${index + 1}`}</Text>
+                          <Text style={styles.rowTitle}>
+                            {member.displayName || `参加者 ${index + 1}`}
+                          </Text>
                           <Text style={styles.rowDescription}>共有中</Text>
                         </View>
                         <Pressable
@@ -732,7 +752,9 @@ export default function SettingsScreen() {
               <AppButton
                 title="共有スペースに参加"
                 variant="secondary"
-                disabled={syncBusy || !joinCode.trim() || !joinName.trim() || !isHouseholdSyncConfigured()}
+                disabled={
+                  syncBusy || !joinCode.trim() || !joinName.trim() || !isHouseholdSyncConfigured()
+                }
                 onPress={joinSharedSpace}
               />
             </View>
@@ -789,7 +811,10 @@ export default function SettingsScreen() {
         />
       </SettingSection>
 
-      <SettingSection title="データ管理" description="端末内のデータとログインアカウントを扱う操作です。">
+      <SettingSection
+        title="データ管理"
+        description="端末内のデータとログインアカウントを扱う操作です。"
+      >
         <AppButton title="データ初期化" variant="danger" onPress={resetData} />
         {authSession?.supabaseUserId ? (
           <>
@@ -1372,7 +1397,7 @@ const todoItems = [
   { label: 'バーコード、OCR', status: '初期版では未対応' },
   {
     label: '多頭飼いUIの完全対応',
-    status: 'プロフィール管理と在庫の猫別表示を追加済み',
+    status: 'プロフィール管理と在庫のペット別表示を追加済み',
     done: true,
   },
   { label: '正式なアプリアイコン/スプラッシュ画像', status: 'Expo設定に追加済み', done: true },

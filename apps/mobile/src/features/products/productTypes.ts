@@ -1,4 +1,7 @@
 export type {
+  PetProductGroup,
+  PetProductMaster,
+  PetProductMasterRetailer,
   ProductCategory,
   ProductMaster,
   ProductProvider,

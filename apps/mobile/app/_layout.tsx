@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DeviceEventEmitter, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AdBanner, BottomShortcuts } from '@/components/AdBanner';
 import { colors } from '@/constants/colors';
@@ -34,7 +34,10 @@ export default function RootLayout() {
     void getSettings().then((settings) => {
       if (active) setOnboardingCompleted(settings.onboardingCompleted);
     });
-    const listener = DeviceEventEmitter.addListener(onboardingVisibilityEventName, setOnboardingCompleted);
+    const listener = DeviceEventEmitter.addListener(
+      onboardingVisibilityEventName,
+      setOnboardingCompleted,
+    );
     return () => {
       active = false;
       listener.remove();
@@ -42,6 +45,8 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     const openInventoryItem = (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
       const inventoryItemId = getInventoryItemIdFromNotificationResponse(response);
@@ -52,7 +57,8 @@ export default function RootLayout() {
     };
 
     openInventoryItem(Notifications.getLastNotificationResponse());
-    const responseListener = Notifications.addNotificationResponseReceivedListener(openInventoryItem);
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener(openInventoryItem);
     return () => {
       responseListener.remove();
     };
@@ -158,7 +164,10 @@ export default function RootLayout() {
                   }
                   router.replace('/');
                 }}
-                style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+                style={({ pressed }) => [
+                  styles.headerBackButton,
+                  pressed && styles.headerBackButtonPressed,
+                ]}
               >
                 <Text style={[styles.headerBackText, { color: tintColor }]}>‹ 戻る</Text>
               </Pressable>
@@ -166,13 +175,16 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="cat-profile" options={{ title: '猫プロフィール' }} />
+          <Stack.Screen name="cat-profile" options={{ title: 'ペットプロフィール' }} />
           <Stack.Screen name="inventory-form" options={{ title: '商品登録' }} />
           <Stack.Screen name="barcode-scan" options={{ title: 'バーコード読み取り' }} />
           <Stack.Screen name="inventory-detail" options={{ title: '商品詳細' }} />
-          <Stack.Screen name="cost-dashboard" options={{ title: '費用ダッシュボード' }} />
+          <Stack.Screen
+            name="cost-dashboard"
+            options={{ headerShown: false, gestureEnabled: false }}
+          />
           <Stack.Screen name="purchase-history" options={{ title: '購入履歴' }} />
-          <Stack.Screen name="settings" options={{ title: '設定' }} />
+          <Stack.Screen name="settings" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="help" options={{ title: 'ヘルプ' }} />
           <Stack.Screen name="subscription" options={{ title: 'にゃんストック Plus' }} />
           <Stack.Screen name="privacy" options={{ title: 'プライバシーポリシー' }} />
@@ -184,6 +196,7 @@ export default function RootLayout() {
       <AdBanner
         adRequestsReady={adRequestsReady}
         personalizedAdsAllowed={personalizedAdsAllowed}
+        show={onboardingCompleted === true}
       />
       <BottomShortcuts show={onboardingCompleted === true} />
     </View>

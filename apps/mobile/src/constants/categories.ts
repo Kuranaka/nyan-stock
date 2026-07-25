@@ -4,7 +4,7 @@ export const categoryLabels: Record<InventoryCategory, string> = {
   dry_food: 'ドライフード',
   wet_food: 'ウェットフード',
   treat: 'おやつ',
-  cat_litter: '猫砂',
+  cat_litter: 'トイレ・床材',
   supplement: 'サプリ',
   medicine: '療養食',
   care: 'ケア用品',

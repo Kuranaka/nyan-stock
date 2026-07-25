@@ -54,9 +54,9 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>猫や商品のアイコンに使う写真を撮影して追加するためにカメラを使用します。</string>
+	<string>ペットや商品のアイコンに使う写真を撮影して追加するためにカメラを使用します。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>猫や商品のアイコン画像を選択するために写真ライブラリを使用します。</string>
+	<string>ペットや商品のアイコン画像を選択するために写真ライブラリを使用します。</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

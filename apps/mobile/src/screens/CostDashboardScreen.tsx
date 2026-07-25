@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { isSameMonth, parseISO } from 'date-fns';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
@@ -17,15 +18,29 @@ import {
   isInventoryItemForCat,
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inventoryStorage';
-import { InventoryCategory, InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import {
+  InventoryCategory,
+  InventoryItem,
+  PurchaseHistory,
+} from '@/features/inventory/inventoryTypes';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 
 const allCatsFilter = 'all';
-const chartColors = ['#D99A4E', '#4E9F3D', '#F0A202', '#6C8AE4', '#D9534F', '#8A6BBE', '#3AA6A6', '#A86421'];
+const chartColors = [
+  '#D99A4E',
+  '#4E9F3D',
+  '#F0A202',
+  '#6C8AE4',
+  '#D9534F',
+  '#8A6BBE',
+  '#3AA6A6',
+  '#A86421',
+];
 const donutSegmentCount = 72;
 
 export default function CostDashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [history, setHistory] = useState<PurchaseHistory[]>([]);
@@ -59,7 +74,10 @@ export default function CostDashboardScreen() {
         : items.filter((item) => isInventoryItemForCat(item, selectedCatId)),
     [items, selectedCatId],
   );
-  const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems]);
+  const visibleItemIds = useMemo(
+    () => new Set(visibleItems.map((item) => item.id)),
+    [visibleItems],
+  );
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const costRows = useMemo(
     () =>
@@ -76,7 +94,9 @@ export default function CostDashboardScreen() {
   const monthlyEstimate = pricedRows.reduce((sum, row) => sum + (row.monthlyCost ?? 0), 0);
   const monthlyActual = history
     .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
-    .filter((entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
+    .filter(
+      (entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()),
+    )
     .reduce((sum, entry) => sum + (entry.price ?? 0), 0);
   const actualBreakdown = useMemo(
     () => buildActualBreakdown(history, visibleItemIds, itemById),
@@ -84,26 +104,33 @@ export default function CostDashboardScreen() {
   );
   const actualChartRows = useMemo(
     () =>
-      actualBreakdown.map((row, index) => ({
-        id: row.inventoryItemId,
-        label: `${row.item.name}・${row.count}件`,
-        amount: row.total,
-        color: chartColors[index % chartColors.length],
-      })).filter((row) => row.amount > 0),
+      actualBreakdown
+        .map((row, index) => ({
+          id: row.inventoryItemId,
+          label: `${row.item.name}・${row.count}件`,
+          amount: row.total,
+          color: chartColors[index % chartColors.length],
+        }))
+        .filter((row) => row.amount > 0),
     [actualBreakdown],
   );
   const monthlyActualMissingPriceCount = history
     .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
-    .filter((entry) => entry.price === undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
-    .length;
+    .filter(
+      (entry) => entry.price === undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()),
+    ).length;
   const yearlyEstimate = monthlyEstimate * 12;
   const categoryBreakdown = useMemo(() => buildCategoryBreakdown(costRows), [costRows]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[styles.container, { paddingTop: Math.max(18, insets.top + 12) }]}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>費用ダッシュボード</Text>
-        <Text style={styles.lead}>商品に設定した価格と使い切る周期から、月あたりの目安を表示します。</Text>
+        <Text style={styles.lead}>
+          商品に設定した価格と使い切る周期から、月あたりの目安を表示します。
+        </Text>
       </View>
 
       {cats.length > 1 ? (
@@ -129,12 +156,26 @@ export default function CostDashboardScreen() {
       <AppCard style={styles.card}>
         <Text style={styles.sectionTitle}>費用サマリー</Text>
         <View style={styles.summaryGrid}>
-          <Summary label="月額目安" value={`${Math.round(monthlyEstimate).toLocaleString()}円`} tone="primary" />
-          <Summary label="年額目安" value={`${Math.round(yearlyEstimate).toLocaleString()}円`} tone="normal" />
+          <Summary
+            label="月額目安"
+            value={`${Math.round(monthlyEstimate).toLocaleString()}円`}
+            tone="primary"
+          />
+          <Summary
+            label="年額目安"
+            value={`${Math.round(yearlyEstimate).toLocaleString()}円`}
+            tone="normal"
+          />
           <Summary label="今月の実績" value={`${monthlyActual.toLocaleString()}円`} tone="normal" />
         </View>
-        <AppButton title="購入履歴を見る" variant="secondary" onPress={() => router.push('/purchase-history')} />
-        <Text style={styles.note}>価格未入力、または使い切る周期を計算できない商品は目安から除外しています。</Text>
+        <AppButton
+          title="購入履歴を見る"
+          variant="secondary"
+          onPress={() => router.push('/purchase-history')}
+        />
+        <Text style={styles.note}>
+          価格未入力、または使い切る周期を計算できない商品は目安から除外しています。
+        </Text>
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -145,7 +186,9 @@ export default function CostDashboardScreen() {
           <Text style={styles.note}>今月の価格入力済みの購入履歴はまだありません。</Text>
         )}
         {monthlyActualMissingPriceCount > 0 ? (
-          <Text style={styles.note}>価格未入力の購入履歴 {monthlyActualMissingPriceCount}件は実績から除外しています。</Text>
+          <Text style={styles.note}>
+            価格未入力の購入履歴 {monthlyActualMissingPriceCount}件は実績から除外しています。
+          </Text>
         ) : null}
       </AppCard>
 
@@ -169,18 +212,24 @@ export default function CostDashboardScreen() {
                 <View style={styles.itemTitleWrap}>
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemMeta}>
-                    {[categoryLabels[item.category], getCatLabel(item, catNames)].filter(Boolean).join(' ・ ')}
+                    {[categoryLabels[item.category], getCatLabel(item, catNames)]
+                      .filter(Boolean)
+                      .join(' ・ ')}
                   </Text>
                 </View>
                 <Text style={styles.itemCost}>
-                  {monthlyCost === undefined ? '未計算' : `${Math.round(monthlyCost).toLocaleString()}円/月`}
+                  {monthlyCost === undefined
+                    ? '未計算'
+                    : `${Math.round(monthlyCost).toLocaleString()}円/月`}
                 </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detail}>
                   価格：{item.price === undefined ? '未入力' : `${item.price.toLocaleString()}円`}
                 </Text>
-                <Text style={styles.detail}>周期：{cycleDays === undefined ? '未計算' : `${cycleDays}日`}</Text>
+                <Text style={styles.detail}>
+                  周期：{cycleDays === undefined ? '未計算' : `${cycleDays}日`}
+                </Text>
               </View>
             </AppCard>
           ))}
@@ -190,10 +239,24 @@ export default function CostDashboardScreen() {
   );
 }
 
-function Summary({ label, value, tone }: { label: string; value: string; tone: 'primary' | 'normal' | 'warning' }) {
+function Summary({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: 'primary' | 'normal' | 'warning';
+}) {
   return (
     <View style={styles.summaryItem}>
-      <Text style={[styles.summaryValue, tone === 'primary' && styles.primaryValue, tone === 'warning' && styles.warningValue]}>
+      <Text
+        style={[
+          styles.summaryValue,
+          tone === 'primary' && styles.primaryValue,
+          tone === 'warning' && styles.warningValue,
+        ]}
+      >
         {value}
       </Text>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -221,14 +284,28 @@ type ActualBreakdownRow = {
   total: number;
 };
 
-function CostDonutChart({ rows, total, centerLabel }: { rows: DonutChartRow[]; total: number; centerLabel: string }) {
+function CostDonutChart({
+  rows,
+  total,
+  centerLabel,
+}: {
+  rows: DonutChartRow[];
+  total: number;
+  centerLabel: string;
+}) {
   return (
     <View style={styles.chartWrap}>
       <View style={styles.donut}>
         {Array.from({ length: donutSegmentCount }).map((_, index) => {
           const color = getDonutSegmentColor(rows, total, index);
           return (
-            <View key={index} style={[styles.donutSegmentWrap, { transform: [{ rotate: `${(360 / donutSegmentCount) * index}deg` }] }]}>
+            <View
+              key={index}
+              style={[
+                styles.donutSegmentWrap,
+                { transform: [{ rotate: `${(360 / donutSegmentCount) * index}deg` }] },
+              ]}
+            >
               <View style={[styles.donutSegment, { backgroundColor: color }]} />
             </View>
           );
@@ -278,7 +355,9 @@ function buildActualBreakdown(
   const rows = new Map<string, ActualBreakdownRow>();
   history
     .filter((entry) => visibleItemIds.has(entry.inventoryItemId))
-    .filter((entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()))
+    .filter(
+      (entry) => entry.price !== undefined && isSameMonth(parseISO(entry.purchasedAt), new Date()),
+    )
     .forEach((entry) => {
       const item = itemById.get(entry.inventoryItemId);
       if (!item) return;

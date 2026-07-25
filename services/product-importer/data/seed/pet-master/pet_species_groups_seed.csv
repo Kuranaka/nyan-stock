@@ -1,0 +1,4 @@
+code,pet_group,name_ja,name_en,sort_order,enabled
+small_bird,bird,小鳥,Small Bird,10,true
+medium_parrot,bird,中型インコ,Medium Parrot,20,true
+large_parrot,bird,大型インコ,Large Parrot,30,true

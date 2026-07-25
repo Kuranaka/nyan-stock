@@ -98,7 +98,7 @@ const corsHeaders = {
 const rakutenEndpoint = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701';
 const yahooEndpoint = 'https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch';
 const cacheTableName = Deno.env.get('SUPABASE_EDGE_CACHE_TABLE') ?? 'edge_function_cache';
-const productMasterTableName = Deno.env.get('SUPABASE_PRODUCT_MASTER_TABLE') ?? 'product_masters';
+const productMasterTableName = Deno.env.get('SUPABASE_PET_PRODUCT_MASTER_TABLE') ?? 'pet_product_masters';
 const searchResultCacheTtlSeconds = 6 * 60 * 60;
 const priceCacheTtlSeconds = 3 * 60 * 60;
 const affiliateCacheTtlSeconds = 7 * 24 * 60 * 60;
@@ -407,7 +407,7 @@ async function loadProductMasters(): Promise<ProductMaster[]> {
   try {
     const endpoint = `${supabaseUrl}/rest/v1/${encodeURIComponent(
       productMasterTableName,
-    )}?select=data&limit=1000&order=id.asc`;
+    )}?select=data&status=eq.published&limit=1000&order=id.asc`;
     const response = await fetch(endpoint, {
       headers: supabaseHeaders(serviceRoleKey),
     });
@@ -617,7 +617,9 @@ function buildAmazonAffiliateUrl(purchaseUrl: string): string | undefined {
 
   try {
     const url = new URL(purchaseUrl);
-    if (!isAmazonHost(url.hostname) || url.searchParams.has('tag')) return undefined;
+    if (!isAmazonHost(url.hostname)) return undefined;
+    // Registered URLs may contain another publisher's Amazon Associate tag.
+    // Always replace it with this app's configured tag before opening.
     url.searchParams.set('tag', associateTag);
     return url.toString();
   } catch {

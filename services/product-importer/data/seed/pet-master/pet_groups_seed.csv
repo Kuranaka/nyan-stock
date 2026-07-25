@@ -1,0 +1,9 @@
+code,name_ja,name_en,sort_order,enabled
+cat,猫,Cat,10,true
+dog,犬,Dog,20,true
+rabbit,うさぎ,Rabbit,30,true
+small_animal,小動物,Small Animal,40,true
+bird,鳥,Bird,50,true
+aquarium,観賞魚,Aquarium,60,true
+reptile_amphibian,爬虫類・両生類,Reptile and Amphibian,70,true
+insect,昆虫,Insect,80,true
