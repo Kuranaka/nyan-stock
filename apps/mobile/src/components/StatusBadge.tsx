@@ -8,7 +8,7 @@ const labels: Record<InventoryStatus, string> = {
   watch: 'そろそろ',
   warning: 'もうすぐ',
   out: '在庫切れ',
-  unknown: '日数未設定',
+  unknown: '予測なし',
 };
 
 const badgeColors: Record<InventoryStatus, { bg: string; fg: string }> = {
@@ -21,16 +21,18 @@ const badgeColors: Record<InventoryStatus, { bg: string; fg: string }> = {
 
 type Props = {
   status: InventoryStatus;
+  label?: string;
 };
 
-export function StatusBadge({ status }: Props) {
+export function StatusBadge({ status, label }: Props) {
   const palette = badgeColors[status];
+  const displayLabel = label ?? labels[status];
   return (
     <Text
-      accessibilityLabel={`在庫状況: ${labels[status]}`}
+      accessibilityLabel={`在庫状況: ${displayLabel}`}
       style={[styles.badge, { backgroundColor: palette.bg, color: palette.fg }]}
     >
-      {labels[status]}
+      {displayLabel}
     </Text>
   );
 }

@@ -35,6 +35,7 @@ async function main(): Promise<void> {
   };
   let rawCount = 0;
   let candidateCount = 0;
+  const processedCandidateIds: string[] = [];
   console.log(`[pet-catalog:process] write-concurrency=${dryRun ? 1 : concurrency}`);
 
   try {
@@ -48,6 +49,7 @@ async function main(): Promise<void> {
         candidate: normalizeRetailerListing(listing, query, aliases),
       }));
       candidateCount += normalized.length;
+      processedCandidateIds.push(...normalized.map(({ candidate }) => candidate.id));
       if (!dryRun) {
         await forEachWithConcurrency(normalized, concurrency, async ({ candidate, listing }) => {
           await repository.upsertCandidate(candidate);
@@ -67,8 +69,8 @@ async function main(): Promise<void> {
       }
     }
     if (!dryRun) {
-      const exactMatches = await repository.resolveExactNameBrandMatches();
-      console.log(`[pet-catalog:process] exact-name-brand-auto-approved=${exactMatches}`);
+      const canonicalMatches = await repository.resolveCanonicalKeyMatches(processedCandidateIds);
+      console.log(`[pet-catalog:process] canonical-key-auto-approved=${canonicalMatches}`);
     }
   } finally {
     await repository.close();

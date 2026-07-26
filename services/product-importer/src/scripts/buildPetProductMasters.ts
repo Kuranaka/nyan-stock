@@ -9,6 +9,7 @@ import { PET_GROUPS, PetGroup } from '../petCatalog/types.js';
 type Options = {
   dryRun: boolean;
   includeLegacyVariants: boolean;
+  keepDraftProducts: boolean;
   petGroup?: PetGroup;
   limit?: number;
   outputPath: string;
@@ -41,6 +42,7 @@ async function main(): Promise<void> {
       filters: {
         petGroup: options.petGroup ?? null,
         includeLegacyVariants: options.includeLegacyVariants,
+        keepDraftProducts: options.keepDraftProducts,
         limit: options.limit ?? null,
       },
       totals: {
@@ -70,6 +72,7 @@ async function main(): Promise<void> {
 function parseOptions(args: string[]): Options {
   let dryRun = false;
   let includeLegacyVariants = false;
+  let keepDraftProducts = false;
   let petGroup: PetGroup | undefined;
   let limit: number | undefined;
   let concurrency = defaultWriteConcurrency;
@@ -80,6 +83,7 @@ function parseOptions(args: string[]): Options {
   for (const argument of args) {
     if (argument === '--dry-run') dryRun = true;
     else if (argument === '--include-legacy-variants') includeLegacyVariants = true;
+    else if (argument === '--draft') keepDraftProducts = true;
     else if (argument.startsWith('--pet-group=')) {
       const value = argument.slice('--pet-group='.length);
       if (!PET_GROUPS.includes(value as PetGroup)) throw new Error(`Unknown pet group: ${value}`);
@@ -99,7 +103,7 @@ function parseOptions(args: string[]): Options {
       throw new Error(`Unknown option: ${argument}`);
     }
   }
-  return { dryRun, includeLegacyVariants, petGroup, limit, outputPath, concurrency };
+  return { dryRun, includeLegacyVariants, keepDraftProducts, petGroup, limit, outputPath, concurrency };
 }
 
 function assertUnique(values: string[], label: string): void {

@@ -131,7 +131,7 @@ const quantityPatterns = [
   /(?<![\d一二三四五六七八九十百千])(\d{1,6}|[一二三四五六七八九十百千]+)(?![\d一二三四五六七八九十百千])\s*セット\s*(?:入り?)?/i,
   /(?<![\d一二三四五六七八九十百千])(\d{1,6}|[一二三四五六七八九十百千]+)(?![\d一二三四五六七八九十百千])\s*(?:個|コ|袋|枚|本|缶|箱|パック|包)\s*(?:入り?|セット)/i,
   /(?:[×xX＊*]\s*)(\d{1,6}|[一二三四五六七八九十百千]+)(?![\d一二三四五六七八九十百千])\s*(?:(?:個|コ|袋|枚|本|缶|箱|パック|包)\s*(?:入り?)?|セット\s*(?:入り?)?)?/i,
-  /(?<![\d一二三四五六七八九十百千])(\d{1,6}|[一二三四五六七八九十百千]+)(?![\d一二三四五六七八九十百千])\s*(?:個|コ|袋|枚|本|缶|箱|パック|包)(?![ぁ-んァ-ヶ一-龠A-Za-z0-9])/i,
+  /(?<![\d一二三四五六七八九十百千])(\d{1,6}|[一二三四五六七八九十百千]+)(?![\d一二三四五六七八九十百千])\s*(?:個|コ|袋|枚|本|缶|箱|パック|包)(?!\s*[×xX＊*])(?![ぁ-んァ-ヶ一-龠A-Za-z0-9])/i,
 ];
 const unitPriceNoticePattern =
   /(?:表示)?価格は\s*(?:\d+|[一二三四五六七八九十百千]+)\s*(?:個|コ|袋|枚|本|缶|箱|パック|包|セット)\s*(?:分)?\s*の?\s*(?:お値段|価格)です[。.]?/gi;
@@ -177,7 +177,11 @@ export function normalizeRetailerListing(
     ...detectSpecies(description, 'description', evidence),
     ...detectAliasSpecies(description, 'description', listing.contentLocale, aliases, evidence),
   ];
-  const targetSpecies = collapseGenericSpecies([...titleSpecies, ...descriptionSpecies]).sort();
+  // Retailer descriptions frequently contain recommendations and related
+  // product names for other animals. An explicit species in the title is the
+  // stronger product-level signal; use description species only when the title
+  // itself has no species evidence.
+  const targetSpecies = collapseGenericSpecies(titleSpecies.length > 0 ? titleSpecies : descriptionSpecies).sort();
   detectGroupEvidence(normalizedTitle, 'title', evidence);
   detectGroupEvidence(description, 'description', evidence);
   detectApiCategoryEvidence(categoryText, evidence);
@@ -185,11 +189,16 @@ export function normalizeRetailerListing(
   detectSpeciesGroups(description, 'description', evidence);
 
   const candidateGroups = new Set<PetGroup>([
-    ...evidence.petGroup.map((item) => item.value),
+    ...evidence.petGroup
+      .filter((item) => titleSpecies.length === 0 || item.source !== 'description')
+      .map((item) => item.value),
     ...targetSpecies.flatMap((code) => speciesRules.filter((item) => item.code === code).map((item) => item.petGroup)),
   ]);
   const petGroup = candidateGroups.size === 1 ? [...candidateGroups][0] : undefined;
-  const targetSpeciesGroup = unique(evidence.targetSpeciesGroup.map((item) => item.value))[0];
+  const titleSpeciesGroups = evidence.targetSpeciesGroup.filter((item) => item.source === 'title');
+  const targetSpeciesGroup = unique(
+    (titleSpeciesGroups.length > 0 ? titleSpeciesGroups : evidence.targetSpeciesGroup).map((item) => item.value),
+  )[0];
   const targetScope = targetSpecies.length === 1 ? 'species_specific' : targetSpecies.length > 1 ? 'multi_species' : 'unconfirmed';
   const packageData = extractPackageData(normalizedTitle);
   const brandAlias = findNormalizationAliases(
@@ -210,8 +219,8 @@ export function normalizeRetailerListing(
   const purpose = detectPurpose(normalizedTitle);
   const targetAge = detectTargetAge(normalizedTitle);
   const lifeStage = detectLifeStage(normalizedTitle);
-  const habitatType = detectHabitatType(`${normalizedTitle} ${description}`, targetSpecies);
-  const feedingType = detectFeedingType(`${normalizedTitle} ${description}`);
+  const habitatType = detectHabitatType(normalizedTitle, targetSpecies) ?? detectHabitatType(description, targetSpecies);
+  const feedingType = detectFeedingType(normalizedTitle) ?? detectFeedingType(description);
   const targetSize = detectTargetSize(normalizedTitle);
   const packageType = /詰め替え|詰替え|つめかえ/.test(normalizedTitle) ? 'refill' : /本体/.test(normalizedTitle) ? 'main' : undefined;
   const canonicalKey = buildCanonicalKey({
@@ -352,7 +361,9 @@ export function normalizeBaseProductName(title: string, brand?: string, janCode?
   for (const pattern of promotionPatterns) result = result.replace(pattern, ' ');
   while (packagePattern.test(result)) result = result.replace(packagePattern, ' ');
   while (packedItemCountPattern.test(result)) result = result.replace(packedItemCountPattern, ' ');
-  for (const pattern of quantityPatterns) result = result.replace(pattern, ' ');
+  for (const pattern of quantityPatterns) {
+    while (pattern.test(result)) result = result.replace(pattern, ' ');
+  }
   result = result.replace(orphanedPackageOperatorPattern, ' ');
   result = result.replace(decorativeSymbolPattern, ' ');
   if (brand) result = result.replace(new RegExp(escapeRegExp(brand.normalize('NFKC')), 'ig'), ' ');
@@ -360,6 +371,7 @@ export function normalizeBaseProductName(title: string, brand?: string, janCode?
   return result
     .replace(/[（(［\[【「『〔〈《]\s*[）)］\]】」』〕〉》]/g, ' ')
     .replace(/[【】\[\]「」『』〔〕〈〉《》]/g, ' ')
+    .replace(/(?:^|\s)[/／](?=\s|$)/g, ' ')
     .replace(/[\s　]+/g, ' ')
     .replace(/^[\s・,/|｜-]+|[\s・,/|｜-]+$/g, '')
     .trim();
@@ -440,10 +452,17 @@ function extractPackageData(title: string): {
 } {
   const packageSource = title.replace(unitPriceNoticePattern, ' ');
   const capacity = packageSource.match(packagePattern);
-  const quantity =
-    quantityPatterns.map((pattern) => packageSource.match(pattern)?.[1]).find(Boolean) ??
-    capacity?.[3] ??
-    packageSource.match(packedItemCountPattern)?.[1];
+  const quantityMatches = [
+    ...quantityPatterns.flatMap((pattern) => collectPatternMatches(packageSource, pattern)),
+    ...collectPatternMatches(packageSource, packedItemCountPattern),
+  ];
+  if (capacity?.[3]) quantityMatches.push({ token: capacity[0], value: capacity[3] });
+  const distinctQuantities = new Map<number, string>();
+  for (const match of quantityMatches) {
+    const value = parseQuantityValue(match.value);
+    if (value !== undefined) distinctQuantities.set(value, match.token);
+  }
+  const quantity = distinctQuantities.size === 1 ? quantityMatches[0]?.value : undefined;
   const capacityValue = capacity?.[1] ? Number(capacity[1]) : undefined;
   const quantityValue = quantity ? parseQuantityValue(quantity) : undefined;
   const validCapacity = capacityValue !== undefined && Number.isFinite(capacityValue) && capacityValue <= maxCapacityValue;
@@ -455,8 +474,16 @@ function extractPackageData(title: string): {
     suspiciousToken:
       packageSource.match(suspiciousPackagePattern)?.[0] ??
       (!validCapacity && capacity?.[0] ? capacity[0] : undefined) ??
+      (distinctQuantities.size > 1 ? [...distinctQuantities.values()].join(' / ') : undefined) ??
       (!validQuantity && quantity ? quantity : undefined),
   };
+}
+
+function collectPatternMatches(text: string, pattern: RegExp): Array<{ token: string; value: string }> {
+  const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
+  return [...text.matchAll(globalPattern)].flatMap((match) =>
+    match[1] ? [{ token: match[0], value: match[1] }] : [],
+  );
 }
 
 function parseQuantityValue(value: string): number | undefined {

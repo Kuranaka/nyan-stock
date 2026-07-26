@@ -288,7 +288,10 @@ export function runPetCatalogQualityChecks(snapshot: CatalogQualitySnapshot): Qu
     'capacity_in_product_name',
     'error',
     snapshot.products
-      .filter((row) => capacityPattern.test(`${string(row, 'normalized_name', 'normalizedName')} ${string(row, 'base_product_name', 'baseProductName')}`))
+      .filter((row) =>
+        [string(row, 'normalized_name', 'normalizedName'), string(row, 'base_product_name', 'baseProductName')]
+          .some((name) => capacityPattern.test(name)),
+      )
       .map(id),
     'productsの商品名に容量・入数が残っている。',
   );
@@ -465,6 +468,21 @@ export function runPetCatalogQualityChecks(snapshot: CatalogQualitySnapshot): Qu
       })
       .map(id),
     'JANを持つvariantに対応するJAN identity keyがない。',
+  );
+  add(
+    findings,
+    'variant_multiple_jan_identities',
+    'error',
+    snapshot.variants
+      .filter((variant) => {
+        const janIdentities = (identityKeysByVariant.get(id(variant)) ?? [])
+          .filter((key) => string(key, 'key_type', 'keyType') === 'jan')
+          .map((key) => string(key, 'normalized_value', 'normalizedValue'))
+          .filter(Boolean);
+        return new Set(janIdentities).size > 1;
+      })
+      .map(id),
+    '1つのvariantに複数のJAN identity keyが紐づいている。JAN単位でvariantを分割する。',
   );
   return findings;
 }

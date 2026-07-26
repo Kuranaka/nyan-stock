@@ -102,18 +102,15 @@ export async function searchProductMasterPageAsync(
   const pageSize = normalizePageSize(options.limit);
   const normalizedJanCode = getExactJanSearch(keyword);
   const keywordTerms = normalizedJanCode ? [] : splitSearchTerms(keyword);
-  const rows = await callSupabaseRpc<SupabasePetProductMasterRow[]>(
-    'search_pet_product_masters',
-    {
-      p_pet_group: options.petGroup ?? null,
-      p_inventory_category: options.category ?? null,
-      p_brand: options.brand ?? null,
-      p_keyword_terms: keywordTerms.length > 0 ? keywordTerms : null,
-      p_jan_code: normalizedJanCode ?? null,
-      p_after_id: options.cursor ?? null,
-      p_limit: pageSize + 1,
-    },
-  );
+  const rows = await callSupabaseRpc<SupabasePetProductMasterRow[]>('search_pet_product_masters', {
+    p_pet_group: options.petGroup ?? null,
+    p_inventory_category: options.category ?? null,
+    p_brand: options.brand ?? null,
+    p_keyword_terms: keywordTerms.length > 0 ? keywordTerms : null,
+    p_jan_code: normalizedJanCode ?? null,
+    p_after_id: options.cursor ?? null,
+    p_limit: pageSize + 1,
+  });
   const products = rows
     .slice(0, pageSize)
     .map((row) => row.data)
@@ -158,13 +155,25 @@ function isPetProductMaster(product: PetProductMaster | undefined): product is P
 export function petProductToInventoryCategory(product: PetProductMaster): InventoryCategory {
   const category = `${product.categoryId} ${product.subcategoryId}`.toLowerCase();
   if (/therapeutic|medicine/.test(category)) return 'medicine';
+  if (/supplementary_food|milk/.test(category)) return 'wet_food';
+  if (
+    /water_conditioner|dechlorinator|bacteria|algae_control|plant_fertilizer|co2_consumable|aquarium_salt/.test(
+      category,
+    )
+  )
+    return 'supplement';
   if (/supplement|vitamin|calcium|mineral|cuttlebone|grit/.test(category)) return 'supplement';
   if (/treat|jelly|honey/.test(category)) return 'treat';
   if (/wet_food|semi_moist/.test(category)) return 'wet_food';
-  if (/litter|sheet|sand|bedding|substrate|mat|gravel|soil/.test(category)) return 'cat_litter';
+  if (/litter|sheet|sand|bedding|substrate|mat|gravel|soil|leaf_mold/.test(category))
+    return 'cat_litter';
   if (/food|feed|pellet|timothy|alfalfa|seed|formula|flake|granule|tablet/.test(category))
     return 'dry_food';
-  if (/care|shampoo|conditioner|deodorizer|grooming|bath|toilet|waste|diaper/.test(category))
+  if (
+    /care|shampoo|conditioner|deodorizer|grooming|bath|toilet|waste|diaper|wet_tissue|chew_toy|activated_carbon|filter_media|water_test|hydration|humidity|water_replacement|lighting|heat_lamp|kinshi_bottle|spawning_wood/.test(
+      category,
+    )
+  )
     return 'care';
   return 'other';
 }
@@ -235,25 +244,19 @@ function supabaseHeaders(): Record<string, string> {
   };
 }
 
-async function callSupabaseRpc<T>(
-  functionName: string,
-  body: Record<string, unknown>,
-): Promise<T> {
+async function callSupabaseRpc<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Supabase product master search is not configured.');
   }
   const baseUrl = supabaseUrl.replace(/\/+$/, '');
-  const response = await fetch(
-    `${baseUrl}/rest/v1/rpc/${encodeURIComponent(functionName)}`,
-    {
-      method: 'POST',
-      headers: {
-        ...supabaseHeaders(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+  const response = await fetch(`${baseUrl}/rest/v1/rpc/${encodeURIComponent(functionName)}`, {
+    method: 'POST',
+    headers: {
+      ...supabaseHeaders(),
+      'Content-Type': 'application/json',
     },
-  );
+    body: JSON.stringify(body),
+  });
   if (!response.ok) {
     throw new Error(`${functionName} failed (${response.status})`);
   }

@@ -193,7 +193,7 @@ JAN（global namespace）
 - `product_identity_keys`: variantへ紐づくJANまたは型番
 - `product_retailer_listings`: 販売店listingをproductとvariantの両方へ紐づける
 
-JANは数字だけへ正規化し、8〜14桁のみ採用する。型番はNFKC、英小文字化、空白・ハイフン差の正規化を行い、ブランドまたはメーカー名前空間が得られる場合だけ採用する。型番単独をグローバル識別子にしない。JANと型番が既存の異なるvariantを指す場合は、誤統合を避けるため処理を停止する。
+JANは数字だけへ正規化し、8〜14桁のみ採用する。型番はNFKC、英小文字化、空白・ハイフン差の正規化を行い、ブランドまたはメーカー名前空間が得られる場合だけ採用する。ただし有効なJANがある候補では、販売元が容量違いへ同じシリーズ型番を付けるケースによる誤統合を防ぐため、型番をidentity keyへ同時登録しない。型番はJANがない場合のブランドスコープ付きフォールバックであり、グローバル識別子にはしない。
 
 同じ強いidentityを持つ販売候補間で対象種・環境・食性等の抽出結果が異なる場合、SKU統合は維持しつつ`strong_identity_classification_disagreement` warningを出す。販売店説明の関連商品語などで分類がぶれる場合があるため、product側の分類はメーカー公式情報で確認する。JAN・型番のない候補間の分類差異は引き続きquality errorとする。
 
@@ -231,7 +231,7 @@ confidence = min(classification_confidence, merge_confidence)
 
 最終的な`merge_ready`判定では、総合confidenceだけでなくissue disposition、pet_group、target scope、`merge_confidence >= 0.85`を使用する。
 
-例外として、正規化商品名・正規化済みブランド・pet groupが別candidateまたは既存productと完全一致する場合は、`variant_merge_uncertain`を`non_blocking/resolved`へ変更する。この完全一致は表記揺れを許す類似検索ではなく、DB上の文字列完全一致である。pet groupとtarget scopeは引き続き確定必須で、他のblocking/reject issueは自動解除しない。
+例外として、対象種・生息環境・食性・ライフステージ等を含む`canonical_key`が別candidateまたは既存productと完全一致する場合は、`variant_merge_uncertain`を`non_blocking/resolved`へ変更する。正規化商品名・ブランド・pet groupだけの一致は、別用途・別対象商品を過剰統合するため例外として扱わない。pet groupとtarget scopeは引き続き確定必須で、他のblocking/reject issueは自動解除しない。
 
 ## issue検出
 
@@ -289,7 +289,7 @@ candidateを`rejected`にし、同一candidateの全レビュー行を`rejected`
 
 `merge_confidence`の境界は、0.80未満を「人手で個別救済するより検索・辞書・正規化ルールの改善後に再生成すべき候補」、0.80以上0.85未満を「人手確認可能な候補」、0.85以上を「他のblocking条件がなければ統合可能な候補」とする。
 
-正規化商品名・ブランド・pet groupの完全一致候補は上記confidence境界の例外とし、variant merge issueを自動承認する。merge実行時はJAN・型番一致を最優先し、それらがない場合に同じ完全一致条件の既存productを統合先として使用する。完全一致productが複数存在する場合は自動選択せずエラーにする。
+`canonical_key`完全一致候補は上記confidence境界の例外とし、variant merge issueを自動承認する。merge実行時はJAN一致を最優先し、有効なJANがない場合だけブランドスコープ付き型番一致を使用する。どちらもない場合は`canonical_key`でproductを作成または解決し、商品名・ブランドだけを根拠に既存productへ統合しない。
 
 ## candidate status
 
@@ -357,7 +357,7 @@ npm run quality:pet-catalog
 
 - 別名辞書未登録の新語、綴り違い、未知の動物種・ブランド・シリーズは取りこぼす可能性がある。検出漏れは辞書と代表テストへ追加する。
 - JAN・型番が提供されない商品は属性付きvariant keyとcanonical keyへフォールバックするため、メーカー公式IDを持つ場合より統合精度が下がる。
-- 同じJANの誤登録やメーカー内で再利用された型番は自動では訂正できない。識別子矛盾は停止・レビュー対象とする。
+- 同じJAN自体の誤登録は自動では訂正できない。1つのvariantに複数JANが紐づいた場合はquality errorとし、JAN単位の分割が必要になる。
 - 検索queryのcategory/subcategoryはissue policyに使用するため、検索マスタの分類誤りが判定へ影響する。
 - canonical keyフォールバックでは、似た別商品の過剰統合や表記揺れによる分割の可能性が残る。
 - メーカー公式情報との自動照合は行っていない。

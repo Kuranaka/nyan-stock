@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { addDays, compareAsc, isBefore, parseISO, set } from 'date-fns';
 import { Alert, Platform } from 'react-native';
 
-import { calculateEstimatedEndDate } from '@/features/inventory/inventoryLogic';
+import { resolveEstimatedEndDate } from '@/features/inventory/inventoryLogic';
 import { InventoryItem } from '@/features/inventory/inventoryTypes';
 import { AppSettings } from '@/features/settings/settingsTypes';
 
@@ -47,7 +47,11 @@ function sanitizeIdentifierPart(value: string): string {
   return encodeURIComponent(value).replace(/%/g, '_');
 }
 
-function createInventoryNotificationIdentifier(itemId: string, beforeDays: number, triggerDate: Date): string {
+function createInventoryNotificationIdentifier(
+  itemId: string,
+  beforeDays: number,
+  triggerDate: Date,
+): string {
   return `${inventoryNotificationPrefix}${sanitizeIdentifierPart(itemId)}:${beforeDays}:${triggerDate.getTime()}`;
 }
 
@@ -64,7 +68,7 @@ function buildInventoryNotificationPlans(
 ): InventoryNotificationPlan[] {
   return items
     .flatMap((item) => {
-      const estimatedEndDate = item.estimatedEndDate || calculateEstimatedEndDate(item);
+      const estimatedEndDate = resolveEstimatedEndDate(item);
       if (!estimatedEndDate) return [];
 
       return uniqueNotifyBeforeDays(item)
@@ -134,13 +138,21 @@ export async function cancelAllInventoryNotifications(): Promise<void> {
   await Promise.all(
     scheduledNotifications
       .filter((notification) => isInventoryNotificationIdentifier(notification.identifier))
-      .map((notification) => Notifications.cancelScheduledNotificationAsync(notification.identifier)),
+      .map((notification) =>
+        Notifications.cancelScheduledNotificationAsync(notification.identifier),
+      ),
   );
 }
 
-export async function getInventoryNotificationSummary(settings: AppSettings): Promise<InventoryNotificationSummary> {
+export async function getInventoryNotificationSummary(
+  settings: AppSettings,
+): Promise<InventoryNotificationSummary> {
   if (!canUseNativeNotifications) {
-    return { enabled: settings.notificationsEnabled, permissionState: 'unsupported', scheduledCount: 0 };
+    return {
+      enabled: settings.notificationsEnabled,
+      permissionState: 'unsupported',
+      scheduledCount: 0,
+    };
   }
 
   const [permissionState, scheduledNotifications] = await Promise.all([
@@ -193,7 +205,8 @@ export async function scheduleInventoryNotifications(
     plans
       .filter((plan) => !alreadyScheduledIdentifiers.has(plan.identifier))
       .map((plan) => {
-        const remainingText = plan.beforeDays === 0 ? '今日なくなる目安です' : `残り${plan.beforeDays}日くらいです`;
+        const remainingText =
+          plan.beforeDays === 0 ? '今日なくなる目安です' : `残り${plan.beforeDays}日くらいです`;
         return Notifications.scheduleNotificationAsync({
           identifier: plan.identifier,
           content: {
@@ -236,7 +249,7 @@ export async function scheduleTestInventoryNotification(item?: InventoryItem): P
             kind: 'inventory-reminder',
             inventoryItemId: item.id,
             beforeDays: 0,
-            estimatedEndDate: item.estimatedEndDate,
+            estimatedEndDate: resolveEstimatedEndDate(item),
           }
         : { kind: 'notification-test' },
       sound: false,
@@ -254,6 +267,7 @@ export function getInventoryItemIdFromNotificationResponse(
   response: Notifications.NotificationResponse,
 ): string | undefined {
   const { data } = response.notification.request.content;
-  if (data.kind !== 'inventory-reminder' || typeof data.inventoryItemId !== 'string') return undefined;
+  if (data.kind !== 'inventory-reminder' || typeof data.inventoryItemId !== 'string')
+    return undefined;
   return data.inventoryItemId;
 }

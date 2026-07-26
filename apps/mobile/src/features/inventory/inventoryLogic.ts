@@ -1,6 +1,6 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 
-import { InventoryItem, InventoryStatus } from './inventoryTypes';
+import { InventoryItem, InventoryStatus, PurchaseHistory } from './inventoryTypes';
 
 export function getInventoryCatIds(item: InventoryItem): string[] {
   return Array.from(new Set([item.catId, ...(item.sharedCatIds ?? [])].filter(Boolean)));
@@ -8,6 +8,16 @@ export function getInventoryCatIds(item: InventoryItem): string[] {
 
 export function isInventoryItemForCat(item: InventoryItem, catId: string): boolean {
   return getInventoryCatIds(item).includes(catId);
+}
+
+export function isPurchaseHistoryVisible(
+  entry: PurchaseHistory,
+  selectedCatId: string | undefined,
+  visibleItemIds: Set<string>,
+): boolean {
+  if (!selectedCatId) return true;
+  if (entry.catIds?.length) return entry.catIds.includes(selectedCatId);
+  return visibleItemIds.has(entry.inventoryItemId);
 }
 
 function baseDateOf(item: InventoryItem) {
@@ -19,19 +29,31 @@ export function calculateEstimatedEndDate(item: InventoryItem): string | undefin
   if (item.estimationMode === 'lasting_days' && item.lastingDays && item.lastingDays > 0) {
     return format(addDays(parseISO(item.purchaseDate), item.lastingDays), 'yyyy-MM-dd');
   }
+  if (item.estimationMode === 'purchase_frequency') return undefined;
   if (!item.dailyUsage || item.dailyUsage <= 0 || item.amount <= 0) return undefined;
   const totalDays = Math.ceil(item.amount / item.dailyUsage);
   return format(addDays(parseISO(baseDateOf(item)), totalDays), 'yyyy-MM-dd');
+}
+
+export function resolveEstimatedEndDate(item: InventoryItem): string | undefined {
+  if (item.estimationMode === 'no_estimate') return undefined;
+  if (item.estimationMode === 'purchase_frequency') {
+    return item.purchaseFrequencyDays && item.purchaseFrequencyDays > 0
+      ? item.estimatedEndDate
+      : undefined;
+  }
+  return item.estimatedEndDate || calculateEstimatedEndDate(item);
 }
 
 export function calculateRemainingDays(
   item: InventoryItem,
   today: Date = new Date(),
 ): number | undefined {
-  if (item.estimationMode === 'no_estimate') return undefined;
-  const estimatedEndDate = item.estimatedEndDate || calculateEstimatedEndDate(item);
+  const estimatedEndDate = resolveEstimatedEndDate(item);
   if (!estimatedEndDate) return undefined;
-  return differenceInCalendarDays(parseISO(estimatedEndDate), today);
+  const parsedEstimatedEndDate = parseISO(estimatedEndDate);
+  if (!isValid(parsedEstimatedEndDate)) return undefined;
+  return differenceInCalendarDays(parsedEstimatedEndDate, today);
 }
 
 export function calculateRemainingPercent(
@@ -44,7 +66,7 @@ export function calculateRemainingPercent(
     return Math.max(0, Math.round((remainingDays / item.lastingDays) * 100));
   }
 
-  if (item.estimationMode === 'purchase_frequency' && item.estimatedEndDate) {
+  if (item.estimationMode === 'purchase_frequency') {
     const totalDays = calculatePurchaseFrequencyDays(item);
     if (totalDays === undefined) return undefined;
     const remainingDays = calculateRemainingDays(item, today);
@@ -61,9 +83,14 @@ export function calculateRemainingPercent(
 }
 
 export function calculatePurchaseFrequencyDays(item: InventoryItem): number | undefined {
-  if (item.estimationMode !== 'purchase_frequency' || !item.estimatedEndDate) return undefined;
-  const days = differenceInCalendarDays(parseISO(item.estimatedEndDate), parseISO(item.purchaseDate));
-  return days > 0 ? days : undefined;
+  if (
+    item.estimationMode !== 'purchase_frequency' ||
+    !item.purchaseFrequencyDays ||
+    item.purchaseFrequencyDays <= 0
+  ) {
+    return undefined;
+  }
+  return item.purchaseFrequencyDays;
 }
 
 export function calculateInventoryCycleDays(item: InventoryItem): number | undefined {
@@ -95,6 +122,16 @@ export function getInventoryStatus(item: InventoryItem): InventoryStatus {
   if (remainingDays <= 3) return 'warning';
   if (remainingDays <= 7) return 'watch';
   return 'in_stock';
+}
+
+export type InventoryPredictionState = 'ready' | 'learning' | 'disabled' | 'unavailable';
+
+export function getInventoryPredictionState(item: InventoryItem): InventoryPredictionState {
+  if (item.estimationMode === 'no_estimate') return 'disabled';
+
+  const remainingDays = calculateRemainingDays(item);
+  if (remainingDays !== undefined && Number.isFinite(remainingDays)) return 'ready';
+  return item.estimationMode === 'purchase_frequency' ? 'learning' : 'unavailable';
 }
 
 export function sortInventoryItems(items: InventoryItem[]): InventoryItem[] {

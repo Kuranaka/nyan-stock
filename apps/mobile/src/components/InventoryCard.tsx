@@ -5,6 +5,7 @@ import { colors } from '@/constants/colors';
 import {
   calculateRemainingDays,
   calculateRemainingPercent,
+  getInventoryPredictionState,
   getInventoryStatus,
 } from '@/features/inventory/inventoryLogic';
 import { InventoryItem } from '@/features/inventory/inventoryTypes';
@@ -26,26 +27,41 @@ const statusLabels = {
   watch: 'そろそろ',
   warning: 'もうすぐ',
   out: '在庫切れ',
-  unknown: '日数未設定',
+  unknown: '予測なし',
 } as const;
 
 export function InventoryCard({ item, onPurchase, onReplenish, onDetail, petNames }: Props) {
   const remainingDays = calculateRemainingDays(item);
   const percent = calculateRemainingPercent(item);
   const status = getInventoryStatus(item);
+  const predictionState = getInventoryPredictionState(item);
   const progressPercent = Math.max(0, Math.min(100, percent ?? 0));
   const isPurchasePriority = status === 'out' || status === 'warning' || status === 'watch';
   const purchaseTitle =
     status === 'out' ? '購入先を探す' : isPurchasePriority ? '買い足す' : '購入先を見る';
   const remainingText =
-    remainingDays === undefined ? '日数未設定' : `${Math.max(0, remainingDays)}日`;
+    remainingDays !== undefined
+      ? `${Math.max(0, remainingDays)}日`
+      : predictionState === 'learning'
+        ? '学習中'
+        : predictionState === 'disabled'
+          ? '表示なし'
+          : '未計算';
+  const statusLabel =
+    status !== 'unknown'
+      ? statusLabels[status]
+      : predictionState === 'learning'
+        ? '自動予測中'
+        : predictionState === 'disabled'
+          ? '日数表示なし'
+          : '予測なし';
   const petLabel = petNames?.filter(Boolean).join('・');
   const metadata = [categoryLabels[item.category], petLabel].filter(Boolean).join('　');
   const detailLabel = [
     item.name,
     metadata,
     `残り ${remainingText}`,
-    `在庫状況 ${statusLabels[status]}`,
+    `在庫状況 ${statusLabel}`,
     percent === undefined ? undefined : `残量の目安 ${progressPercent}%`,
   ]
     .filter(Boolean)
@@ -108,7 +124,7 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail, petName
               {remainingText}
             </Text>
           </View>
-          <StatusBadge status={status} />
+          <StatusBadge status={status} label={statusLabel} />
         </View>
       </Pressable>
 
@@ -154,9 +170,6 @@ export function InventoryCard({ item, onPurchase, onReplenish, onDetail, petName
           style={styles.action}
         />
       </View>
-      <Text style={styles.affiliate}>
-        購入先リンクにはアフィリエイトリンクが含まれる場合があります
-      </Text>
     </AppCard>
   );
 }

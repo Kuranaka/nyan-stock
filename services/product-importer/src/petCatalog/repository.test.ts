@@ -92,6 +92,28 @@ test('Supabase requests retry rate limits and server errors but not client error
   assert.equal(clientAttempts, 1);
 });
 
+test('Supabase requests retry transient JWT issued-at-future clock skew', async () => {
+  let attempts = 0;
+  const delays: number[] = [];
+  const response = await fetchWithSupabaseRetry('https://example.test/rest/v1/products', {}, {
+    maxRetries: 4,
+    baseDelayMs: 100,
+    fetchImpl: (async () => {
+      attempts += 1;
+      return attempts === 1
+        ? new Response(JSON.stringify({ code: 'PGRST303', message: 'JWT issued at future' }), { status: 401 })
+        : new Response('{}', { status: 200 });
+    }) as typeof fetch,
+    sleep: async (milliseconds) => {
+      delays.push(milliseconds);
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(attempts, 2);
+  assert.deepEqual(delays, [100]);
+});
+
 test('Supabase quality snapshots collect every 1000-row page', async () => {
   const source = Array.from({ length: 2_005 }, (_, index) => ({ id: index + 1 }));
   const requests: Array<{ offset: number; limit: number }> = [];
@@ -132,16 +154,24 @@ test('Supabase relation filters are split into bounded batches', () => {
   assert.throws(() => chunkSupabaseFilterValues(ids, 0), /positive integer/);
 });
 
-test('JAN and brand-scoped model numbers become strong variant identity keys', () => {
+test('a valid JAN takes precedence over a brand-scoped model number', () => {
   const candidate = makeCandidate({ janCode: '4901234567894', modelNumber: 'ML－468', brand: 'テトラ' });
   const listing = makeListing();
   const keys = buildProductIdentityKeys(candidate, listing);
 
   assert.deepEqual(keys, [
     { keyType: 'jan', namespace: '', normalizedValue: '4901234567894', source: 'rakuten_product_navi', confidence: 1 },
-    { keyType: 'model_number', namespace: 'テトラ', normalizedValue: 'ml-468', source: 'rakuten_product_navi', confidence: 0.98 },
   ]);
   assert.equal(buildProductVariantKey('product-1', candidate, listing, keys), 'identity:jan::4901234567894');
+});
+
+test('a brand-scoped model number remains a fallback identity when JAN is unavailable', () => {
+  const candidate = makeCandidate({ modelNumber: 'ML－468', brand: 'テトラ' });
+  const listing = makeListing();
+
+  assert.deepEqual(buildProductIdentityKeys(candidate, listing), [
+    { keyType: 'model_number', namespace: 'テトラ', normalizedValue: 'ml-468', source: 'rakuten_product_navi', confidence: 0.98 },
+  ]);
 });
 
 test('capacity-only variants use different fallback keys without changing product identity', () => {

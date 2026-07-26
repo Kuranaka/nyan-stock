@@ -43,7 +43,8 @@ blockingレビュー機構には `supabase/migrations/20260722000000_pet_catalog
 リリース用の新マスタ生成には `supabase/migrations/20260722000001_create_pet_product_masters.sql` も適用します。既存の `product_masters` は変更せず、分類付きの `pet_product_masters` を別テーブルとして追加します。
 blocking候補の自動除外範囲を広げる `supabase/migrations/20260723000000_tighten_pet_catalog_reject_policy.sql` も適用します。複数pet group、pet group未確定、統合confidence 0.80未満をrejectへ変更し、同一candidateの残りissueもレビュー対象から閉じます。
 life stage不明を自動承認する `supabase/migrations/20260723000001_auto_resolve_life_stage_unknown.sql` も適用します。既存のopen issueを`non_blocking/resolved`へ変更し、他にblockingがなく統合条件を満たすcandidateを`merge_ready`へ戻します。
-正規化商品名とブランドの完全一致を自動承認する `supabase/migrations/20260723000002_auto_approve_exact_name_brand_matches.sql` も適用します。同じpet group内の別candidateまたは既存productと完全一致する候補は`variant_merge_uncertain`を自動解決し、他にblockingがなければ`merge_ready`へ変更します。
+過去の名前・ブランド完全一致承認を安全化する `supabase/migrations/20260726000002_tighten_pet_catalog_exact_match_resolution.sql` も適用します。`variant_merge_uncertain`の自動解決は、対象種・生息環境・ライフステージ等を含む`canonical_key`が別candidateまたは既存productと完全一致する場合だけに限定します。
+大規模テーブルでの全件走査を避ける `supabase/migrations/20260726000003_target_pet_catalog_exact_match_resolution.sql` も適用します。自動解決RPCは当該`process`で更新したcandidate IDだけを最大1,000件ずつ再評価します。
 
 商品ID・分類ID・`canonical_key`は言語非依存の識別子として維持し、将来の表示文言は `product_translations` および各分類の `*_translations` に格納します。APIから取得した原文には `content_locale` と `market_code` を保存します。翻訳テーブルは準備のみで、現在のアプリ表示にはまだ使用しません。
 
@@ -77,7 +78,7 @@ npm run process:pet-catalog -- --offset=50 --concurrency=8
 
 候補とレビューissueの保存は、既定でquery内の8件を上限に並列実行します。`--concurrency=1`から`--concurrency=32`で調整できます。SupabaseからHTTP 429が続く場合は値を下げ、回線とDBに余裕がある場合だけ段階的に上げてください。query単位のraw読み込みは順番に実行するため、大きなテーブル走査を並列には行いません。
 
-全queryの正規化後、正規化商品名・ブランド・pet groupが別candidateまたは既存productと完全一致する候補をDB関数で再評価します。一致候補の`variant_merge_uncertain`は自動承認されます。pet group不明、対象範囲未確定、他のblocking/reject issueがある候補は完全一致だけでは承認しません。
+全queryの正規化後、`canonical_key`が別candidateまたは既存productと完全一致する候補をDB関数で再評価します。一致候補の`variant_merge_uncertain`は自動承認されます。pet group不明、対象範囲未確定、他のblocking/reject issueがある候補は完全一致だけでは承認しません。
 
 各issueには次の`disposition`を付与します。
 
@@ -121,7 +122,7 @@ npm run merge:pet-catalog -- --offset=50 --concurrency=4
 
 `merge:pet-catalog`は保存済みの`merge_ready`候補だけを`products`、`product_variants`、`product_identity_keys`、`product_retailer_listings`へ統合します。API取得や再正規化は行いません。
 
-Supabase REST経由では既定4並列で統合します。同じcanonical key、正規化商品名・ブランド、JAN、ブランドスコープ型番を共有する候補は競合防止のため自動的に直列化されます。`--concurrency=1`から`--concurrency=16`で調整できます。`DATABASE_URL`で単一PostgreSQL接続を使う場合はトランザクション混在を避けるため常に1並列です。
+Supabase REST経由では既定4並列で統合します。同じcanonical key、JAN、またはJANがない場合のブランドスコープ型番を共有する候補は競合防止のため自動的に直列化されます。`--concurrency=1`から`--concurrency=16`で調整できます。`DATABASE_URL`で単一PostgreSQL接続を使う場合はトランザクション混在を避けるため常に1並列です。
 
 ### 4. リリース用の新しいproduct masterを生成
 
@@ -143,23 +144,35 @@ buildは対象productsからvariant、identity、retailer link、必要なraw li
 
 新マスタには、商品名・ブランド・容量・JAN・販売先に加えて、`petGroup`、`targetSpecies`、`targetScope`、`categoryId`、`subcategoryId`を含めます。分類や販売情報は検索APIのrawから直接作らず、レビューとmergeを通過した`products`、`product_variants`、`product_identity_keys`、`product_retailer_listings`から組み立てます。
 
-既存の`product_masters`とはテーブル・共有型ともに独立しているため、現行リリースの読み取り先には影響しません。新マスタの状態は次のように決まります。
+既存の`product_masters`とはテーブル・共有型ともに独立しています。アプリの商品検索は`pet_product_masters`の`published`を参照します。新マスタの状態は次のように決まります。
 
-- 元の`products.status`が`active`または`approved`で、variantも`active`: `published`
+- variantが`active`で、元の`products.status`が`active`、`approved`、または通常build時の`draft`: `published`
 - 元の`products.status`が`rejected`、またはvariantが`inactive`/`rejected`: `retired`
-- それ以外: `draft`
+- `--draft`指定時の元`draft` product: `draft`
 
-anon/authenticatedから参照できるのは`published`だけです。旧listing移行時の暫定`legacy:` variantは誤公開を避けるため既定では除外します。必要な場合のみ`--include-legacy-variants`を指定してください。
+anon/authenticatedから参照できるのは`published`だけです。通常buildでは、rejectされていないdraft productとactive variantを`published`として保存します。公開せず確認用に作る場合だけ`--draft`を指定します。旧listing移行時の暫定`legacy:` variantは誤公開を避けるため既定では除外します。必要な場合のみ`--include-legacy-variants`を指定してください。
 
 ```bash
 npm run build:pet-product-masters -- --pet-group=cat --dry-run
 npm run build:pet-product-masters -- --limit=100 --dry-run
 npm run build:pet-product-masters -- --out=data/generated/cat-product-master.json --pet-group=cat --dry-run
+npm run build:pet-product-masters -- --draft --dry-run
 ```
+
+### 本番へ公開マスタを移行
+
+`.env.development`の公開済み`pet_product_masters`を`.env.production`のSupabaseへ移す場合は、まず書き込みなしで件数と参照整合性を確認し、その後`--apply`を指定します。外部キーに必要な`products`、`product_variants`、identity、商品翻訳も依存順にupsertします。既存の本番行は削除しません。
+
+```bash
+npm run promote:pet-product-masters
+npm run promote:pet-product-masters -- --apply --concurrency=4
+```
+
+対象は開発環境で`published`のマスタだけです。スクリプトはsourceとtargetが別projectであり、targetが`production`であることを検証し、投入後に全マスタIDを読み戻します。
 
 Supabaseからmerge対象を読む際は、raw listingをquery単位でページングし、そのIDを100件ずつ指定してcandidateを取得します。巨大なraw JSONをPostgRESTの埋め込みJOINで取得しないため、件数増加時のHTTP 500とメモリ負荷を抑えます。
 
-同一性はJANを最優先し、次にブランドまたはメーカーでスコープした型番を使用します。JAN・型番がない場合は、商品に容量・単位・入数・包装区分を加えたvariant keyへフォールバックします。これにより、販売店ごの商品名表記が違っても同じJAN/型番を同じvariantへ集約し、容量違いは同じproduct配下の別variantとして保持します。JANと型番が既存の異なるvariantを指す矛盾は自動統合せずエラーにします。
+同一性はJANを最優先し、有効なJANがない場合だけブランドまたはメーカーでスコープした型番を使用します。JAN・型番がない場合は、商品に容量・単位・入数・包装区分を加えたvariant keyへフォールバックします。JANがある候補では型番を同時にidentity keyへ登録しません。販売元によっては容量違いの商品へ同じシリーズ型番を付けるためで、容量違いはJANごとに同じproduct配下の別variantとして保持します。
 
 優先度降順・同一優先度ではID順に並べた検索条件を、0始まりのoffsetから再開できます。`--offset`は`--offset-queries`の短縮形です。`--pet-group`や`--query-id`を併用した場合は、絞り込み後の一覧へoffsetを適用します。
 

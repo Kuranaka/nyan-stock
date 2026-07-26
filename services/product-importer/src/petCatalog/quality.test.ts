@@ -96,7 +96,10 @@ test('quality checks enforce product variant and identity references', () => {
     candidates: [{ id: 'candidate-variant', raw_listing_id: 'raw-variant', confidence: 1 }],
     products: [{ id: 'product-variant', canonical_key: 'variant-product' }],
     variants: [{ id: 'variant-1', product_id: 'product-variant', jan_code: '4901234567894' }],
-    identityKeys: [],
+    identityKeys: [
+      { variant_id: 'variant-1', key_type: 'jan', namespace: '', normalized_value: '4901234567894' },
+      { variant_id: 'variant-1', key_type: 'jan', namespace: '', normalized_value: '4901234567895' },
+    ],
     productListings: [
       { product_id: 'product-variant', raw_listing_id: 'raw-variant', candidate_id: 'candidate-variant' },
     ],
@@ -105,7 +108,8 @@ test('quality checks enforce product variant and identity references', () => {
   const byCheck = new Map(runPetCatalogQualityChecks(snapshot).map((finding) => [finding.check, finding.ids]));
 
   assert.deepEqual(byCheck.get('product_listing_variant_reference_missing'), ['product-variant:raw-variant']);
-  assert.deepEqual(byCheck.get('jan_variant_identity_missing'), ['variant-1']);
+  assert.equal(byCheck.has('jan_variant_identity_missing'), false);
+  assert.deepEqual(byCheck.get('variant_multiple_jan_identities'), ['variant-1']);
 });
 
 test('strong variant identities keep classification disagreements visible without rejecting the merge', () => {
@@ -146,6 +150,28 @@ test('strong variant identities keep classification disagreements visible withou
   assert.equal(byCheck.has('species_specific_products_merged'), false);
   assert.equal(byCheck.get('strong_identity_classification_disagreement')?.severity, 'warning');
   assert.equal(byCheck.get('strong_identity_classification_disagreement')?.ids.length, 1);
+});
+
+test('repeated model numbers at a field boundary are not treated as capacity', () => {
+  const snapshot: CatalogQualitySnapshot = {
+    listings: [],
+    candidates: [],
+    products: [
+      {
+        id: 'product-model-number',
+        canonical_key: 'model-number-product',
+        normalized_name: 'L8020 猫用デンタルケア L8020',
+        base_product_name: 'L8020 猫用デンタルケア L8020',
+      },
+    ],
+    variants: [],
+    identityKeys: [],
+    productListings: [],
+    reviewQueue: [],
+  };
+
+  const checks = runPetCatalogQualityChecks(snapshot).map((finding) => finding.check);
+  assert.equal(checks.includes('capacity_in_product_name'), false);
 });
 
 test('search query quality checks catch shallow, ambiguous, duplicate and unsafe queries', () => {

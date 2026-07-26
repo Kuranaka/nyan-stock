@@ -1,13 +1,13 @@
 import { InventoryCategory, InventoryUnit } from '@/features/inventory/inventoryTypes';
 
 export const categoryLabels: Record<InventoryCategory, string> = {
-  dry_food: 'ドライフード',
-  wet_food: 'ウェットフード',
+  dry_food: 'フード・主食',
+  wet_food: '副食・補助食',
   treat: 'おやつ',
   cat_litter: 'トイレ・床材',
-  supplement: 'サプリ',
-  medicine: '療養食',
-  care: 'ケア用品',
+  supplement: 'サプリ・添加剤',
+  medicine: '特別食',
+  care: '飼育・ケア用品',
   other: 'その他',
 };
 

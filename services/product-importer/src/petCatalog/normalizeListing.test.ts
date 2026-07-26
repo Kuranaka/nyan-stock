@@ -103,6 +103,21 @@ test('package counts are removed without leaving 入り fragments', () => {
     makeListing('うさぎ用 牧草おやつ 2個 * 3袋', 'うさぎ用です。', query, { sourceItemId: 'two-by-three-asterisk' }),
     query,
   );
+  const slashFortySheets = normalizeRetailerListing(
+    makeListing('猫用 システムトイレ 消臭シート /40枚入 ペットシーツ', '猫用です。', makeQuery('cat', 'cat', '猫 シーツ'), {
+      sourceItemId: 'slash-forty-sheets',
+    }),
+    makeQuery('cat', 'cat', '猫 シーツ'),
+  );
+  const multipleSlashSheetCounts = normalizeRetailerListing(
+    makeListing(
+      'ファインキャット 炭の消臭シート 猫用 20枚入/40枚入 ペットシーツ',
+      '猫用です。',
+      makeQuery('cat', 'cat', '猫 シーツ'),
+      { sourceItemId: 'multiple-slash-sheet-counts' },
+    ),
+    makeQuery('cat', 'cat', '猫 シーツ'),
+  );
 
   assert.equal(twoPack.quantity, 2);
   assert.doesNotMatch(twoPack.baseProductName, /二個|入り|\(\s*り\s*\)/);
@@ -130,6 +145,12 @@ test('package counts are removed without leaving 入り fragments', () => {
     assert.equal(candidate.baseProductName, 'うさぎ用 牧草おやつ');
     assert.doesNotMatch(candidate.baseProductName, /[×x＊*]/);
   }
+  assert.equal(slashFortySheets.quantity, 40);
+  assert.equal(slashFortySheets.baseProductName, '猫用 システムトイレ 消臭シート ペットシーツ');
+  assert.doesNotMatch(multipleSlashSheetCounts.baseProductName, /20枚|40枚|枚入|[/／]/);
+  assert.equal(multipleSlashSheetCounts.baseProductName, 'ファインキャット 炭の消臭シート 猫用 ペットシーツ');
+  assert.equal(multipleSlashSheetCounts.quantity, undefined);
+  assert.ok(multipleSlashSheetCounts.issues.some((issue) => issue.issueType === 'package_data_suspicious'));
 });
 
 test('standalone uppercase X in a product name is preserved', () => {
@@ -355,6 +376,36 @@ test('multiple explicitly named species remain one multi-species product', () =>
   assert.deepEqual(candidate.targetSpecies, ['gerbil', 'hamster']);
   assert.equal(candidate.targetScope, 'multi_species');
   assert.match(candidate.canonicalKey, /gerbil\|hamster/);
+});
+
+test('an explicit title species overrides unrelated species mentioned in the description', () => {
+  const query = makeQuery('small_animal', 'ferret', 'フェレット おやつ');
+  const candidate = normalizeRetailerListing(
+    makeListing(
+      'フェレットのパパイアスティック 50g',
+      '関連商品としてチンチラ用、モルモット用のおやつも販売しています。',
+      query,
+    ),
+    query,
+  );
+
+  assert.deepEqual(candidate.targetSpecies, ['ferret']);
+  assert.equal(candidate.petGroup, 'small_animal');
+  assert.equal(candidate.targetScope, 'species_specific');
+});
+
+test('title habitat takes precedence over conflicting retailer description copy', () => {
+  const query = makeQuery('aquarium', 'freshwater_fish', '淡水魚 水質調整剤');
+  const candidate = normalizeRetailerListing(
+    makeListing(
+      '淡水用 コケ抑制剤 100ml',
+      '関連商品には海水魚用、海水専用タイプもあります。',
+      query,
+    ),
+    query,
+  );
+
+  assert.equal(candidate.habitatType, 'freshwater');
 });
 
 test('search target is recorded but is not used as classification evidence', () => {

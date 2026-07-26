@@ -115,3 +115,28 @@ test('inactive variants are retired even when their product is published', () =>
 
   assert.equal(buildPetProductMasters(snapshot).masters[0].status, 'retired');
 });
+
+test('draft products are published by default and stay draft only when explicitly requested', () => {
+  const snapshot: CatalogQualitySnapshot = {
+    products: [{
+      id: 'product-draft', normalized_name: '公開待ち商品', base_product_name: '公開待ち商品',
+      pet_group: 'cat', target_species: ['cat'], target_scope: 'species_specific',
+      category_id: 'cat_food', subcategory_id: 'cat_dry_food', confidence: 1, status: 'draft',
+    }],
+    variants: [{
+      id: 'variant-draft', product_id: 'product-draft',
+      variant_key: 'fallback:product-draft:-:-:1:-', status: 'active',
+    }],
+    identityKeys: [],
+    listings: [],
+    productListings: [],
+    candidates: [],
+    reviewQueue: [],
+  };
+
+  assert.equal(buildPetProductMasters(snapshot).masters[0].status, 'published');
+  assert.equal(
+    buildPetProductMasters(snapshot, { keepDraftProducts: true }).masters[0].status,
+    'draft',
+  );
+});

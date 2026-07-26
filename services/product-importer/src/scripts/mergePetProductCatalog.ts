@@ -64,9 +64,6 @@ function parseOptions(args: string[]): {
 
 function mergeConflictKeys(candidate: ProductCandidate, listing: StoredRetailerListing): string[] {
   const keys = [`canonical:${candidate.canonicalKey}`];
-  if (candidate.brand && candidate.petGroup) {
-    keys.push(`exact-name-brand:${candidate.petGroup}:${candidate.brand}:${candidate.normalizedName}`);
-  }
   for (const identity of buildProductIdentityKeys(candidate, listing)) {
     keys.push(`identity:${identity.keyType}:${identity.namespace}:${identity.normalizedValue}`);
   }

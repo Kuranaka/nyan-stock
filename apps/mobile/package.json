@@ -12,6 +12,7 @@
     "build:ios:testflight": "npx eas-cli build --platform ios --profile testflight",
     "submit:ios:testflight": "npx eas-cli submit --platform ios --profile testflight --latest",
     "lint": "eslint . --ext .ts,.tsx",
+    "validate:purchase-frequency": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/validate-purchase-frequency.mjs",
     "security:validate": "node scripts/validate-security-hardening.mjs",
     "smoke:sync": "node scripts/smoke-household-sync.mjs",
     "format": "prettier --write ."

@@ -9,13 +9,7 @@ import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
 import { DatePickerField } from '@/components/DatePickerField';
-import {
-  categories,
-  categoryLabels,
-  defaultUnitByCategory,
-  unitLabels,
-  units,
-} from '@/constants/categories';
+import { categories, defaultUnitByCategory, unitLabels, units } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
 import { Cat, PetType } from '@/features/cats/catTypes';
@@ -70,7 +64,6 @@ type FormErrors = Partial<
 >;
 type FormErrorKey = keyof FormErrors;
 type AddMethod = 'master' | 'manual' | undefined;
-type ProductCategoryFilter = InventoryCategory | 'all';
 type PetProductGroupFilter = PetProductGroup | 'all';
 type FormSnapshot = {
   targetCatIds: string[];
@@ -96,18 +89,6 @@ type FormSnapshot = {
 const masterPageSize = 10;
 const visibleBrandLimit = 8;
 const defaultNotifyBeforeDays = [7, 3, 1];
-const productSearchCategoryLabels: Record<InventoryCategory, string> = {
-  ...categoryLabels,
-  dry_food: 'ドライフード・主食',
-  cat_litter: 'トイレ・床材',
-};
-const productCategoryOptions: { value: ProductCategoryFilter; label: string }[] = [
-  { value: 'all', label: 'すべて' },
-  ...Object.entries(productSearchCategoryLabels).map(([value, label]) => ({
-    value: value as InventoryCategory,
-    label,
-  })),
-];
 const petProductGroupOptions: { value: PetProductGroupFilter; label: string }[] = [
   { value: 'all', label: 'すべて' },
   ...Object.entries(petProductGroupLabels).map(([value, label]) => ({
@@ -125,7 +106,9 @@ export default function InventoryFormScreen() {
   const scrollOffsetYRef = useRef(0);
   const pendingMasterSearchScrollYRef = useRef<number | undefined>(undefined);
   const masterSearchGenerationRef = useRef(0);
-  const initialFormSnapshotRef = useRef<FormSnapshot | undefined>(undefined);
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState<FormSnapshot | undefined>(
+    undefined,
+  );
   const pendingScrollToNameRef = useRef(false);
   const [draftItemId] = useState(() => createId('item'));
   const [cats, setCats] = useState<Cat[]>([]);
@@ -138,9 +121,9 @@ export default function InventoryFormScreen() {
   const [imageUploading, setImageUploading] = useState(false);
   const [price, setPrice] = useState('');
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<InventoryCategory>('dry_food');
+  const [category, setCategory] = useState<InventoryCategory>('other');
   const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState<InventoryUnit>('g');
+  const [unit, setUnit] = useState<InventoryUnit>('piece');
   const [purchaseDate, setPurchaseDate] = useState(todayIso());
   const [dailyUsage, setDailyUsage] = useState('');
   const [lastingDays, setLastingDays] = useState('');
@@ -156,8 +139,6 @@ export default function InventoryFormScreen() {
   const [masterSearchKeyword, setMasterSearchKeyword] = useState('');
   const [masterPetGroupFilter, setMasterPetGroupFilter] = useState<PetProductGroupFilter>('cat');
   const [showMasterPetGroupOptions, setShowMasterPetGroupOptions] = useState(false);
-  const [masterCategoryFilter, setMasterCategoryFilter] = useState<ProductCategoryFilter>('all');
-  const [showMasterCategoryOptions, setShowMasterCategoryOptions] = useState(false);
   const [masterBrandFilter, setMasterBrandFilter] = useState<string>('all');
   const [showMasterBrandOptions, setShowMasterBrandOptions] = useState(false);
   const [masterBrandOptions, setMasterBrandOptions] = useState<string[]>([]);
@@ -277,10 +258,9 @@ export default function InventoryFormScreen() {
   );
 
   const hasUnsavedChanges = useMemo(() => {
-    const initialSnapshot = initialFormSnapshotRef.current;
-    if (!formInitialized || !initialSnapshot) return false;
-    return JSON.stringify(initialSnapshot) !== JSON.stringify(formSnapshot);
-  }, [formInitialized, formSnapshot]);
+    if (!formInitialized || !initialFormSnapshot) return false;
+    return JSON.stringify(initialFormSnapshot) !== JSON.stringify(formSnapshot);
+  }, [formInitialized, formSnapshot, initialFormSnapshot]);
 
   const hasPurchaseLinks = useMemo(
     () => [amazon, rakuten, yahoo, other].some((value) => Boolean(value.trim())),
@@ -321,14 +301,14 @@ export default function InventoryFormScreen() {
   const allowRemoval = usePreventUnsavedChanges(hasUnsavedChanges, confirmDiscardChanges);
 
   useEffect(() => {
-    if (!formInitialized || initialFormSnapshotRef.current) return;
-    initialFormSnapshotRef.current = formSnapshot;
-  }, [formInitialized, formSnapshot]);
+    if (!formInitialized || initialFormSnapshot) return;
+    setInitialFormSnapshot(formSnapshot);
+  }, [formInitialized, formSnapshot, initialFormSnapshot]);
 
   useFocusEffect(
     useCallback(() => {
       async function load() {
-        initialFormSnapshotRef.current = undefined;
+        setInitialFormSnapshot(undefined);
         setFormInitialized(false);
         setSearchFiltersExpanded(false);
         setPurchaseLinksExpanded(false);
@@ -352,8 +332,9 @@ export default function InventoryFormScreen() {
           setAddMethod('master');
           setMasterSearchKeyword('');
           setMasterPetGroupFilter(initialPetGroup);
-          setMasterCategoryFilter('all');
           setMasterBrandFilter('all');
+          setCategory('other');
+          setUnit(defaultUnitByCategory.other);
           setMasterSearchResults([]);
           setMasterNextCursor(undefined);
           setMasterHasMoreResults(false);
@@ -415,7 +396,6 @@ export default function InventoryFormScreen() {
         try {
           const page = await searchProductMasterPageAsync(keyword, {
             brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
-            category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
             petGroup: masterPetGroupFilter === 'all' ? undefined : masterPetGroupFilter,
             limit: masterPageSize,
           });
@@ -454,7 +434,6 @@ export default function InventoryFormScreen() {
     addMethod,
     formInitialized,
     masterBrandFilter,
-    masterCategoryFilter,
     masterPetGroupFilter,
     masterSearchRevision,
     masterSearchKeyword,
@@ -464,7 +443,6 @@ export default function InventoryFormScreen() {
     if (!formInitialized || addMethod !== 'master') return;
     let isActive = true;
     void getProductMasterBrands({
-      category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
       petGroup: masterPetGroupFilter === 'all' ? undefined : masterPetGroupFilter,
     })
       .then((brands) => {
@@ -476,7 +454,7 @@ export default function InventoryFormScreen() {
     return () => {
       isActive = false;
     };
-  }, [addMethod, formInitialized, masterCategoryFilter, masterPetGroupFilter]);
+  }, [addMethod, formInitialized, masterPetGroupFilter]);
 
   const visibleBrandOptions = useMemo(() => {
     const normalizedKeyword = masterBrandKeyword.trim().normalize('NFKC').toLowerCase();
@@ -494,7 +472,6 @@ export default function InventoryFormScreen() {
 
   const selectCategory = (next: InventoryCategory) => {
     setCategory(next);
-    setUnit(defaultUnitByCategory[next]);
   };
 
   const toggleNotify = (day: number) => {
@@ -588,21 +565,6 @@ export default function InventoryFormScreen() {
     setShowMasterBrandOptions(false);
   };
 
-  const changeMasterCategoryFilter = (nextCategory: ProductCategoryFilter) => {
-    setMasterCategoryFilter(nextCategory);
-    setShowMasterCategoryOptions(false);
-    setMasterBrandFilter('all');
-    setMasterBrandKeyword('');
-    setMasterBrandExpanded(false);
-    setShowMasterBrandOptions(false);
-    if (addMethod !== 'master') {
-      setMasterSearchResults([]);
-      setMasterNextCursor(undefined);
-      setMasterHasMoreResults(false);
-      setMasterSearchMessage('');
-    }
-  };
-
   const changeMasterBrandFilter = (nextBrand: string) => {
     setMasterBrandFilter(nextBrand);
     setMasterBrandKeyword('');
@@ -618,7 +580,6 @@ export default function InventoryFormScreen() {
       const page = await searchProductMasterPageAsync(masterSearchKeyword.trim(), {
         petGroup: masterPetGroupFilter === 'all' ? undefined : masterPetGroupFilter,
         brand: masterBrandFilter === 'all' ? undefined : masterBrandFilter,
-        category: masterCategoryFilter === 'all' ? undefined : masterCategoryFilter,
         cursor: masterNextCursor,
         limit: masterPageSize,
       });
@@ -670,7 +631,6 @@ export default function InventoryFormScreen() {
     setMasterHasMoreResults(false);
     setMasterSearchMessage('');
     setShowMasterPetGroupOptions(false);
-    setShowMasterCategoryOptions(false);
     setShowMasterBrandOptions(false);
     setSearchFiltersExpanded(false);
     setPurchaseLinksExpanded(false);
@@ -738,10 +698,20 @@ export default function InventoryFormScreen() {
     const dailyUsageNumber =
       estimationMode === 'usage' ? parseOptionalNumber(dailyUsage) : undefined;
     const lastingDaysNumber = parseOptionalNumber(lastingDays);
+    const purchaseFrequencyDays =
+      estimationMode === 'purchase_frequency' &&
+      current?.estimationMode === 'purchase_frequency' &&
+      current.estimatedEndDate &&
+      current.purchaseFrequencyDays &&
+      current.purchaseFrequencyDays > 0
+        ? current.purchaseFrequencyDays
+        : undefined;
     const estimatedEndDate =
       estimationMode === 'lasting_days' && lastingDaysNumber
         ? format(addDays(parseISO(purchaseDate), lastingDaysNumber), 'yyyy-MM-dd')
-        : undefined;
+        : purchaseFrequencyDays
+          ? current?.estimatedEndDate
+          : undefined;
     const purchaseLinks = {
       amazon: amazon.trim() || undefined,
       rakuten: rakuten.trim() || undefined,
@@ -767,6 +737,7 @@ export default function InventoryFormScreen() {
         purchaseDate,
         openedDate: current?.openedDate,
         estimatedEndDate,
+        purchaseFrequencyDays,
         estimationMode,
         notifyBeforeDays: estimationMode === 'no_estimate' ? [] : notifyBeforeDays,
         purchaseLinks,
@@ -876,7 +847,7 @@ export default function InventoryFormScreen() {
               ) : null}
               <View style={styles.selectedProductCopy}>
                 <Text style={styles.selectedProductName}>{name}</Text>
-                <Text style={styles.selectedProductMeta}>{categoryLabels[category]}</Text>
+                <Text style={styles.selectedProductMeta}>商品情報を自動入力しました</Text>
               </View>
             </View>
             <AppButton
@@ -898,9 +869,12 @@ export default function InventoryFormScreen() {
                 title="手入力"
                 variant={addMethod === 'manual' ? 'primary' : 'secondary'}
                 onPress={() => {
+                  if (addMethod === 'manual') return;
                   setAddMethod('manual');
                   setProductMasterId(undefined);
                   setImageUrl(undefined);
+                  setCategory('other');
+                  setUnit(defaultUnitByCategory.other);
                   setShowMasterPetGroupOptions(false);
                   setSearchFiltersExpanded(false);
                   setPurchaseLinksExpanded(false);
@@ -918,7 +892,7 @@ export default function InventoryFormScreen() {
                 />
                 <DisclosureSection
                   title="検索条件を絞り込む"
-                  hint="ペットの種類・カテゴリ・ブランド"
+                  hint="ペットの種類・ブランド"
                   expanded={searchFiltersExpanded}
                   onToggle={() => setSearchFiltersExpanded((expanded) => !expanded)}
                 >
@@ -927,11 +901,6 @@ export default function InventoryFormScreen() {
                       title={`ペットの種類：${getPetProductGroupFilterLabel(masterPetGroupFilter)}`}
                       variant={showMasterPetGroupOptions ? 'primary' : 'secondary'}
                       onPress={() => setShowMasterPetGroupOptions((current) => !current)}
-                    />
-                    <AppButton
-                      title={`カテゴリ：${getProductCategoryFilterLabel(masterCategoryFilter)}`}
-                      variant={showMasterCategoryOptions ? 'primary' : 'secondary'}
-                      onPress={() => setShowMasterCategoryOptions((current) => !current)}
                     />
                     {masterBrandOptions.length > 0 ? (
                       <AppButton
@@ -949,18 +918,6 @@ export default function InventoryFormScreen() {
                           title={option.label}
                           variant={masterPetGroupFilter === option.value ? 'primary' : 'secondary'}
                           onPress={() => changeMasterPetGroupFilter(option.value)}
-                        />
-                      ))}
-                    </View>
-                  ) : null}
-                  {showMasterCategoryOptions ? (
-                    <View style={styles.wrapRow}>
-                      {productCategoryOptions.map((option) => (
-                        <AppButton
-                          key={option.value}
-                          title={option.label}
-                          variant={masterCategoryFilter === option.value ? 'primary' : 'secondary'}
-                          onPress={() => changeMasterCategoryFilter(option.value)}
                         />
                       ))}
                     </View>
@@ -1032,11 +989,7 @@ export default function InventoryFormScreen() {
                           <View style={styles.productResultText}>
                             <Text style={styles.resultName}>{product.name}</Text>
                             <Text style={styles.resultMeta}>
-                              {[
-                                product.brand,
-                                petProductGroupLabels[product.petGroup],
-                                productSearchCategoryLabels[petProductToInventoryCategory(product)],
-                              ]
+                              {[product.brand, petProductGroupLabels[product.petGroup]]
                                 .filter(Boolean)
                                 .join(' ・ ')}
                             </Text>
@@ -1082,18 +1035,6 @@ export default function InventoryFormScreen() {
               error={errors.name}
               requirement="required"
             />
-          </View>
-
-          <FieldLabel label="カテゴリ" requirement="required" />
-          <View style={styles.wrapRow}>
-            {categories.map((option) => (
-              <AppButton
-                key={option.value}
-                title={option.label}
-                variant={category === option.value ? 'primary' : 'secondary'}
-                onPress={() => selectCategory(option.value)}
-              />
-            ))}
           </View>
 
           <View onLayout={setFormFieldY('estimation')}>
@@ -1171,7 +1112,7 @@ export default function InventoryFormScreen() {
 
               {estimationMode === 'purchase_frequency' ? (
                 <Text style={styles.hint}>
-                  補充を記録すると、購入間隔から次回の買い足し時期を推定します。
+                  補充を2回記録すると、補充日の間隔から次回の買い足し時期を推定します。
                 </Text>
               ) : null}
               {estimationMode === 'no_estimate' ? (
@@ -1245,10 +1186,23 @@ export default function InventoryFormScreen() {
           >
             <DisclosureSection
               title="詳細設定"
-              hint="商品画像・購入日・通知・価格・メモ"
+              hint="カテゴリ・画像・購入日・通知など"
               expanded={detailsExpanded}
               onToggle={() => setDetailsExpanded((expanded) => !expanded)}
             >
+              <Text style={styles.sectionLead}>自動設定。必要なときだけ変更できます。</Text>
+              <FieldLabel label="カテゴリ" requirement="optional" />
+              <View style={styles.wrapRow}>
+                {categories.map((option) => (
+                  <AppButton
+                    key={option.value}
+                    title={option.label}
+                    variant={category === option.value ? 'primary' : 'secondary'}
+                    onPress={() => selectCategory(option.value)}
+                  />
+                ))}
+              </View>
+
               <AppTextInput
                 label="画像URL"
                 value={imageUrl ?? ''}
@@ -1420,10 +1374,6 @@ function getProductSourceLabels(product: PetProductMaster): string[] {
   };
   const providers = product.retailers.map((retailer) => labels[retailer.source] ?? retailer.source);
   return Array.from(new Set(providers)).slice(0, 3);
-}
-
-function getProductCategoryFilterLabel(category: ProductCategoryFilter): string {
-  return category === 'all' ? 'すべて' : productSearchCategoryLabels[category];
 }
 
 function getPetProductGroupFilterLabel(petGroup: PetProductGroupFilter): string {

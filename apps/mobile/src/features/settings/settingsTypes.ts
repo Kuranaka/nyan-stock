@@ -1,5 +1,7 @@
 export type SubscriptionPlan = 'free' | 'plus';
 
+export const allPetsSelectionKey = '__all_pets__';
+
 export type AppSettings = {
   onboardingCompleted: boolean;
   notificationsEnabled: boolean;

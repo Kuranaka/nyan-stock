@@ -52,7 +52,9 @@ export default function CatProfileScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const initialProfileSnapshotRef = useRef<CatProfileSnapshot | undefined>(undefined);
+  const [initialProfileSnapshot, setInitialProfileSnapshot] = useState<
+    CatProfileSnapshot | undefined
+  >(undefined);
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldYRefs = useRef<Partial<Record<'name' | 'birthday', number>>>({});
   const [cats, setCats] = useState<Cat[]>([]);
@@ -87,10 +89,9 @@ export default function CatProfileScreen() {
   );
 
   const hasUnsavedChanges = useMemo(() => {
-    const initialSnapshot = initialProfileSnapshotRef.current;
-    if (!formInitialized || !initialSnapshot) return false;
-    return JSON.stringify(initialSnapshot) !== JSON.stringify(profileSnapshot);
-  }, [formInitialized, profileSnapshot]);
+    if (!formInitialized || !initialProfileSnapshot) return false;
+    return JSON.stringify(initialProfileSnapshot) !== JSON.stringify(profileSnapshot);
+  }, [formInitialized, initialProfileSnapshot, profileSnapshot]);
 
   const scrollToField = useCallback((field: 'name' | 'birthday') => {
     setTimeout(() => {
@@ -132,9 +133,9 @@ export default function CatProfileScreen() {
   const allowRemoval = usePreventUnsavedChanges(hasUnsavedChanges, confirmDiscardChanges);
 
   useEffect(() => {
-    if (!formInitialized || initialProfileSnapshotRef.current) return;
-    initialProfileSnapshotRef.current = profileSnapshot;
-  }, [formInitialized, profileSnapshot]);
+    if (!formInitialized || initialProfileSnapshot) return;
+    setInitialProfileSnapshot(profileSnapshot);
+  }, [formInitialized, initialProfileSnapshot, profileSnapshot]);
 
   const resetForm = useCallback(() => {
     const nextDraftCatId = createId('cat');
@@ -148,7 +149,7 @@ export default function CatProfileScreen() {
     setDetailsExpanded(false);
     setIconUrl(undefined);
     setMemo('');
-    initialProfileSnapshotRef.current = {
+    setInitialProfileSnapshot({
       profileId: undefined,
       name: '',
       petType: 'cat',
@@ -157,7 +158,7 @@ export default function CatProfileScreen() {
       gender: 'unknown',
       iconUrl: undefined,
       memo: '',
-    };
+    });
     setFormInitialized(true);
   }, []);
 
@@ -172,7 +173,7 @@ export default function CatProfileScreen() {
     setDetailsExpanded(false);
     setIconUrl(cat.iconUrl);
     setMemo(cat.memo ?? '');
-    initialProfileSnapshotRef.current = {
+    setInitialProfileSnapshot({
       profileId: cat.id,
       name: cat.name,
       petType: cat.petType ?? 'cat',
@@ -181,7 +182,7 @@ export default function CatProfileScreen() {
       gender: cat.gender ?? 'unknown',
       iconUrl: cat.iconUrl,
       memo: cat.memo ?? '',
-    };
+    });
     setFormInitialized(true);
   }, []);
 

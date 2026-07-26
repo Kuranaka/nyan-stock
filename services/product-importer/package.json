@@ -24,6 +24,7 @@
     "seed:pet-catalog": "tsx src/scripts/seedPetCatalog.ts",
     "quality:pet-catalog": "tsx src/scripts/checkPetCatalogQuality.ts",
     "build:pet-product-masters": "tsx src/scripts/buildPetProductMasters.ts",
+    "promote:pet-product-masters": "tsx src/scripts/promotePetProductMasters.ts",
     "review:pet-catalog": "tsx src/scripts/reviewPetCatalog.ts",
     "test:pet-catalog": "tsx --test src/petCatalog/*.test.ts",
     "review:products": "tsx src/scripts/exportReviewPage.ts",

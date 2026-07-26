@@ -38,7 +38,7 @@ export interface PetCatalogRepository {
     candidateIds?: string[];
   }): Promise<CatalogQualitySnapshot>;
   upsertPetProductMasters(rows: PetProductMaster[], concurrency?: number): Promise<void>;
-  resolveExactNameBrandMatches(): Promise<number>;
+  resolveCanonicalKeyMatches(candidateIds: string[]): Promise<number>;
   reviewBlockingCandidate(input: BlockingReviewDecisionInput): Promise<void>;
   close(): Promise<void>;
 }
@@ -80,6 +80,7 @@ export const SUPABASE_CONFLICT_TARGETS = {
 const SUPABASE_RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504, 520, 522, 524]);
 const SUPABASE_SELECT_PAGE_SIZE = 1000;
 const SUPABASE_FILTER_BATCH_SIZE = 100;
+const SUPABASE_RPC_BATCH_SIZE = 1000;
 const RETAILER_LISTING_COLUMNS =
   'id,source,source_item_id,search_query_id,search_pet_group,search_target_species,content_locale,market_code,' +
   'raw_title,raw_description,shop_name,brand_name,maker_name,price,currency,item_url,affiliate_url,image_url,' +
@@ -87,15 +88,17 @@ const RETAILER_LISTING_COLUMNS =
 const RETAILER_LISTING_MERGE_COLUMNS =
   'id,source,source_item_id,search_query_id,search_pet_group,content_locale,market_code,raw_title,shop_name,' +
   'brand_name,maker_name,price,currency,item_url,affiliate_url,image_url,jan_code,model_number,availability,fetched_at';
-const SUPABASE_TABLE_ORDERS: Readonly<Record<string, string>> = {
-  retailer_listings_raw: 'id.asc',
-  product_candidates: 'id.asc',
-  products: 'id.asc',
-  product_variants: 'id.asc',
-  product_identity_keys: 'id.asc',
-  product_retailer_listings: 'product_id.asc,raw_listing_id.asc',
-  product_review_queue: 'id.asc',
-};
+const QUALITY_LISTING_COLUMNS = 'id,raw_title,raw_description';
+const QUALITY_CANDIDATE_COLUMNS =
+  'id,raw_listing_id,pet_group,target_species,target_species_group,target_scope,target_size,target_age,life_stage,' +
+  'habitat_type,feeding_type,flavor,purpose,product_function,classification_evidence,confidence,status';
+const QUALITY_PRODUCT_COLUMNS =
+  'id,canonical_key,normalized_name,brand,base_product_name,pet_group,target_species,target_species_group,target_scope,' +
+  'target_size,target_age,life_stage,habitat_type,feeding_type,flavor,purpose,product_function';
+const QUALITY_VARIANT_COLUMNS = 'id,product_id,jan_code';
+const QUALITY_IDENTITY_COLUMNS = 'id,variant_id,key_type,normalized_value';
+const QUALITY_PRODUCT_LISTING_COLUMNS = 'product_id,raw_listing_id,candidate_id,variant_id';
+const QUALITY_REVIEW_COLUMNS = 'id,candidate_id,issue_type,disposition,status';
 const SUPABASE_RETRYABLE_ERROR_CODES = new Set([
   'ECONNRESET',
   'ECONNREFUSED',
@@ -130,13 +133,14 @@ export async function fetchWithSupabaseRetry(
   for (let attempt = 0; ; attempt += 1) {
     try {
       const response = await fetchImpl(url, init);
-      if (!SUPABASE_RETRYABLE_STATUS_CODES.has(response.status) || attempt >= maxRetries) return response;
+      const retryReason = await retryableSupabaseResponseReason(response);
+      if (!retryReason || attempt >= maxRetries) return response;
       const delayMs = retryDelayMs(response.headers.get('retry-after'), baseDelayMs, attempt);
       options.onRetry?.({
         attempt: attempt + 1,
         maxRetries,
         delayMs,
-        reason: `HTTP ${response.status}`,
+        reason: retryReason,
       });
       await sleep(delayMs);
     } catch (error) {
@@ -496,6 +500,23 @@ class PostgresPetCatalogRepository implements PetCatalogRepository {
          status=excluded.status, updated_at=now()`,
       candidateValues(candidate),
     );
+    if (candidate.status !== 'merge_ready') {
+      const previousProducts = await this.client.query<{ product_id: string }>(
+        'select product_id from public.product_retailer_listings where candidate_id=$1',
+        [candidate.id],
+      );
+      await this.client.query('delete from public.product_retailer_listings where candidate_id=$1', [candidate.id]);
+      for (const previous of previousProducts.rows) {
+        await this.client.query(
+          `delete from public.products product
+           where product.id=$1 and product.status='draft'
+             and not exists (
+               select 1 from public.product_retailer_listings listing where listing.product_id=product.id
+             )`,
+          [previous.product_id],
+        );
+      }
+    }
   }
 
   async replaceReviewIssues(
@@ -553,21 +574,6 @@ class PostgresPetCatalogRepository implements PetCatalogRepository {
         }
       }
       let actualProductId = existingVariant?.product_id;
-      if (!actualProductId && candidate.brand) {
-        const exactProducts = await this.client.query<{ id: string }>(
-          `select id from public.products
-           where normalized_name=$1 and brand=$2 and pet_group=$3 and status <> 'rejected'
-           order by id limit 2`,
-          [candidate.normalizedName, candidate.brand, candidate.petGroup],
-        );
-        if (exactProducts.rows.length > 1) {
-          throw new Error(
-            `Candidate ${candidate.id} has multiple exact name/brand product matches: ` +
-              exactProducts.rows.map((row) => row.id).join(', '),
-          );
-        }
-        actualProductId = exactProducts.rows[0]?.id;
-      }
       if (!actualProductId) {
         await this.client.query(
           `insert into public.products (
@@ -586,6 +592,13 @@ class PostgresPetCatalogRepository implements PetCatalogRepository {
         );
         actualProductId = resolvedProduct.rows[0].id;
       }
+      await this.client.query(
+        `update public.products
+         set normalized_name=$2, base_product_name=$3,
+             confidence=greatest(confidence, $4), updated_at=now()
+         where id=$1`,
+        [actualProductId, candidate.normalizedName, candidate.baseProductName, candidate.confidence],
+      );
       const variantKey = existingVariant?.variant_key ?? buildProductVariantKey(actualProductId, candidate, listing, identityKeys);
       const variantId = existingVariant?.variant_id ?? productVariantId(variantKey);
       await this.client.query(
@@ -784,11 +797,16 @@ class PostgresPetCatalogRepository implements PetCatalogRepository {
     );
   }
 
-  async resolveExactNameBrandMatches(): Promise<number> {
-    const result = await this.client.query<{ resolved_count: number }>(
-      'select public.resolve_pet_catalog_exact_name_brand_matches() as resolved_count',
-    );
-    return Number(result.rows[0]?.resolved_count ?? 0);
+  async resolveCanonicalKeyMatches(candidateIds: string[]): Promise<number> {
+    let resolvedCount = 0;
+    for (let offset = 0; offset < candidateIds.length; offset += SUPABASE_RPC_BATCH_SIZE) {
+      const result = await this.client.query<{ resolved_count: number }>(
+        'select public.resolve_pet_catalog_exact_name_brand_matches($1::text[]) as resolved_count',
+        [candidateIds.slice(offset, offset + SUPABASE_RPC_BATCH_SIZE)],
+      );
+      resolvedCount += Number(result.rows[0]?.resolved_count ?? 0);
+    }
+    return resolvedCount;
   }
 
   async upsertPetProductMasters(rows: PetProductMaster[], _concurrency = 1): Promise<void> {
@@ -1038,6 +1056,24 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
       [candidateRow(candidate)],
       SUPABASE_CONFLICT_TARGETS.productCandidates,
     );
+    if (candidate.status !== 'merge_ready') {
+      const previousLinks = await this.select(
+        'product_retailer_listings',
+        `select=product_id&candidate_id=eq.${encodeURIComponent(candidate.id)}`,
+      );
+      await this.delete('product_retailer_listings', `candidate_id=eq.${encodeURIComponent(candidate.id)}`);
+      for (const previousLink of previousLinks) {
+        const previousProductId = String(previousLink.product_id ?? '');
+        if (!previousProductId) continue;
+        const remainingLinks = await this.select(
+          'product_retailer_listings',
+          `select=product_id&product_id=eq.${encodeURIComponent(previousProductId)}&limit=1`,
+        );
+        if (remainingLinks.length === 0) {
+          await this.delete('products', `id=eq.${encodeURIComponent(previousProductId)}&status=eq.draft`);
+        }
+      }
+    }
   }
 
   async replaceReviewIssues(
@@ -1088,22 +1124,6 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
       }
     }
     let productId = existingVariant?.product_id;
-    if (!productId && candidate.brand) {
-      const exactProducts = await this.select(
-        'products',
-        `select=id&normalized_name=eq.${encodeURIComponent(candidate.normalizedName)}` +
-          `&brand=eq.${encodeURIComponent(candidate.brand)}` +
-          `&pet_group=eq.${encodeURIComponent(candidate.petGroup)}` +
-          '&status=neq.rejected&order=id.asc&limit=2',
-      );
-      if (exactProducts.length > 1) {
-        throw new Error(
-          `Candidate ${candidate.id} has multiple exact name/brand product matches: ` +
-            exactProducts.map((row) => String(row.id)).join(', '),
-        );
-      }
-      productId = exactProducts[0]?.id ? String(exactProducts[0].id) : undefined;
-    }
     if (!productId) {
       const proposedId = productIdFromCanonicalKey(candidate.canonicalKey);
       const products = await this.upsert(
@@ -1114,6 +1134,10 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
       );
       productId = String(products[0].id);
     }
+    await this.patch('products', `id=eq.${encodeURIComponent(productId)}`, {
+      normalized_name: candidate.normalizedName,
+      base_product_name: candidate.baseProductName,
+    });
     const variantKey = existingVariant?.variant_key ?? buildProductVariantKey(productId, candidate, listing, identityKeys);
     const proposedVariantId = existingVariant?.variant_id ?? productVariantId(variantKey);
     const variants = await this.upsert(
@@ -1182,15 +1206,20 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
   }
 
   async loadQualitySnapshot(): Promise<CatalogQualitySnapshot> {
-    const [listings, candidates, products, variants, identityKeys, productListings, reviewQueue] = await Promise.all([
-      this.selectAll('retailer_listings_raw'),
-      this.selectAll('product_candidates'),
-      this.selectAll('products'),
-      this.selectAll('product_variants'),
-      this.selectAll('product_identity_keys'),
-      this.selectAll('product_retailer_listings'),
-      this.selectAll('product_review_queue'),
-    ]);
+    // This command intentionally performs a full consistency scan. Keep the
+    // scans sequential and narrow so large importer tables do not compete for
+    // statement memory, and use a unique keyset cursor instead of deep offsets.
+    const listings = await this.selectAllByKeyset('retailer_listings_raw', 'id', QUALITY_LISTING_COLUMNS);
+    const candidates = await this.selectAllByKeyset('product_candidates', 'id', QUALITY_CANDIDATE_COLUMNS);
+    const products = await this.selectAllByKeyset('products', 'id', QUALITY_PRODUCT_COLUMNS);
+    const variants = await this.selectAllByKeyset('product_variants', 'id', QUALITY_VARIANT_COLUMNS);
+    const identityKeys = await this.selectAllByKeyset('product_identity_keys', 'id', QUALITY_IDENTITY_COLUMNS);
+    const productListings = await this.selectAllByKeyset(
+      'product_retailer_listings',
+      'candidate_id',
+      QUALITY_PRODUCT_LISTING_COLUMNS,
+    );
+    const reviewQueue = await this.selectAllByKeyset('product_review_queue', 'id', QUALITY_REVIEW_COLUMNS);
     return { listings, candidates, products, variants, identityKeys, productListings, reviewQueue };
   }
 
@@ -1312,12 +1341,16 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
     });
   }
 
-  async resolveExactNameBrandMatches(): Promise<number> {
-    const response = await this.request('rpc/resolve_pet_catalog_exact_name_brand_matches', {
-      method: 'POST',
-      body: '{}',
-    });
-    return Number(await response.json());
+  async resolveCanonicalKeyMatches(candidateIds: string[]): Promise<number> {
+    let resolvedCount = 0;
+    for (let offset = 0; offset < candidateIds.length; offset += SUPABASE_RPC_BATCH_SIZE) {
+      const response = await this.request('rpc/resolve_pet_catalog_exact_name_brand_matches', {
+        method: 'POST',
+        body: JSON.stringify({ p_candidate_ids: candidateIds.slice(offset, offset + SUPABASE_RPC_BATCH_SIZE) }),
+      });
+      resolvedCount += Number(await response.json());
+    }
+    return resolvedCount;
   }
 
   async upsertPetProductMasters(rows: PetProductMaster[], concurrency = 4): Promise<void> {
@@ -1357,12 +1390,28 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
     await this.request(`${table}?${filter}`, { method: 'PATCH', body: JSON.stringify(body) });
   }
 
-  private async selectAll(table: string): Promise<Record<string, unknown>[]> {
-    const order = SUPABASE_TABLE_ORDERS[table];
-    if (!order) throw new Error(`[pet-catalog:repository] Missing stable pagination order for ${table}.`);
-    return collectSupabasePages((offset, limit) =>
-      this.select(table, `select=*&order=${order}&offset=${offset}&limit=${limit}`),
-    );
+  private async selectAllByKeyset(
+    table: string,
+    cursorColumn: string,
+    columns: string,
+  ): Promise<Record<string, unknown>[]> {
+    const rows: Record<string, unknown>[] = [];
+    let lastCursor: string | undefined;
+    for (;;) {
+      const page = await this.select(
+        table,
+        `select=${columns}` +
+          (lastCursor ? `&${cursorColumn}=gt.${encodeURIComponent(lastCursor)}` : '') +
+          `&order=${cursorColumn}.asc&limit=${SUPABASE_SELECT_PAGE_SIZE}`,
+      );
+      rows.push(...page);
+      if (page.length < SUPABASE_SELECT_PAGE_SIZE) return rows;
+      const nextCursor = String(page.at(-1)?.[cursorColumn] ?? '');
+      if (!nextCursor || nextCursor === lastCursor) {
+        throw new Error(`[pet-catalog:repository] Invalid ${table}.${cursorColumn} keyset cursor.`);
+      }
+      lastCursor = nextCursor;
+    }
   }
 
   private async selectRowsByIds(
@@ -1445,6 +1494,18 @@ function retryDelayMs(retryAfter: string | null | undefined, baseDelayMs: number
     if (Number.isFinite(retryAt)) return Math.min(Math.max(0, retryAt - Date.now()), 60_000);
   }
   return Math.min(baseDelayMs * 2 ** attempt, 10_000);
+}
+
+async function retryableSupabaseResponseReason(response: Response): Promise<string | undefined> {
+  if (SUPABASE_RETRYABLE_STATUS_CODES.has(response.status)) return `HTTP ${response.status}`;
+  if (response.status !== 401) return undefined;
+  try {
+    const body = await response.clone().text();
+    if (/JWT issued at future/i.test(body)) return 'HTTP 401 JWT issued at future';
+  } catch {
+    // Preserve the original response when its body cannot be cloned/read.
+  }
+  return undefined;
 }
 
 function isRetryableFetchError(error: unknown): boolean {
@@ -2003,12 +2064,16 @@ export function buildProductIdentityKeys(
 ): ProductIdentityKeyInput[] {
   const keys: ProductIdentityKeyInput[] = [];
   const jan = (candidate.janCode ?? listing.janCode)?.replace(/\D/g, '');
-  if (jan && /^\d{8,14}$/.test(jan)) {
-    keys.push({ keyType: 'jan', namespace: '', normalizedValue: jan, source: listing.source, confidence: 1 });
+  const validJan = jan && /^\d{8,14}$/.test(jan) ? jan : undefined;
+  if (validJan) {
+    keys.push({ keyType: 'jan', namespace: '', normalizedValue: validJan, source: listing.source, confidence: 1 });
   }
   const model = normalizeModelNumber(candidate.modelNumber ?? listing.modelNumber);
   const namespace = normalizeIdentityNamespace(candidate.brand ?? listing.brandName ?? listing.makerName);
-  if (model && namespace) {
+  // Retailer feeds sometimes expose a series-level model number shared by
+  // multiple capacity variants. A valid JAN is SKU-specific, so do not also
+  // register the model number as a competing strong identity in that case.
+  if (!validJan && model && namespace) {
     keys.push({
       keyType: 'model_number',
       namespace,

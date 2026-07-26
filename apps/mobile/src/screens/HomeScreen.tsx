@@ -17,14 +17,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/AppButton';
 import { EmptyState } from '@/components/EmptyState';
 import { InventoryCard } from '@/components/InventoryCard';
+import { PetScopeSelector } from '@/components/PetScopeSelector';
 import { colors } from '@/constants/colors';
 import { getCurrentAuthSession, signInAsGuest } from '@/features/auth/supabaseAuth';
 import { getCats } from '@/features/cats/catStorage';
-import { getDefaultPetTypeIcon } from '@/features/cats/petTypeIcons';
+import { resolveSelectedCatId, toStoredCatId } from '@/features/cats/petSelection';
 import { Cat } from '@/features/cats/catTypes';
 import {
   calculateRemainingDays,
   getInventoryCatIds,
+  getInventoryPredictionState,
   getInventoryStatus,
   isInventoryItemForCat,
   sortInventoryItems,
@@ -52,10 +54,9 @@ import appIcon from '../../assets/icon.png';
 
 import OnboardingScreen from './OnboardingScreen';
 
-type InventoryFilter = 'all' | 'attention' | 'watch' | 'unknown';
+type InventoryFilter = 'all' | 'attention' | 'watch' | 'learning' | 'disabled';
 type BriefAction = Exclude<InventoryFilter, 'all'> | 'profile' | 'add';
 
-const allPetsSelectionKey = '__all_pets__';
 const defaultVisibleInStockItemCount = 3;
 
 async function confirmInitialNotificationSetting(
@@ -115,14 +116,7 @@ export default function HomeScreen() {
         storedSettings,
         settingsAlreadySaved,
       );
-      const selectedId =
-        nextSettings.selectedCatId === allPetsSelectionKey
-          ? undefined
-          : nextCats.some((cat) => cat.id === nextSettings.selectedCatId)
-            ? nextSettings.selectedCatId
-            : nextCats.length === 1
-              ? nextCats[0]?.id
-              : undefined;
+      const selectedId = resolveSelectedCatId(nextCats, nextSettings.selectedCatId);
 
       setCats(nextCats);
       setSelectedCatId(selectedId);
@@ -206,7 +200,13 @@ export default function HomeScreen() {
     return status === 'out' || status === 'warning';
   });
   const watchItems = catItems.filter((item) => getInventoryStatus(item) === 'watch');
-  const unknownItems = catItems.filter((item) => getInventoryStatus(item) === 'unknown');
+  const learningItems = catItems.filter((item) => getInventoryPredictionState(item) === 'learning');
+  const predictionDisabledItems = catItems.filter(
+    (item) => getInventoryPredictionState(item) === 'disabled',
+  );
+  const predictionUnavailableItems = catItems.filter(
+    (item) => getInventoryPredictionState(item) === 'unavailable',
+  );
   const inStockItems = catItems.filter((item) => getInventoryStatus(item) === 'in_stock');
   const visibleInStockItems = showAllInStockItems
     ? inStockItems
@@ -217,16 +217,18 @@ export default function HomeScreen() {
       ? attentionItems
       : inventoryFilter === 'watch'
         ? watchItems
-        : inventoryFilter === 'unknown'
-          ? unknownItems
-          : catItems;
+        : inventoryFilter === 'learning'
+          ? learningItems
+          : inventoryFilter === 'disabled'
+            ? predictionDisabledItems
+            : catItems;
   const catNameById = new Map(cats.map((cat) => [cat.id, cat.name]));
 
   const selectCat = async (catId: string | undefined) => {
     setSelectedCatId(catId);
     setInventoryFilter('all');
     setShowAllInStockItems(false);
-    await updateSettings({ selectedCatId: catId ?? allPetsSelectionKey });
+    await updateSettings({ selectedCatId: toStoredCatId(catId) });
   };
 
   const openInventoryForm = async () => {
@@ -328,31 +330,11 @@ export default function HomeScreen() {
       </View>
 
       {cats.length > 0 ? (
-        <View style={styles.petScope}>
-          <Text style={styles.overline}>表示するペット</Text>
-          <ScrollView
-            horizontal
-            contentContainerStyle={styles.catTabs}
-            showsHorizontalScrollIndicator={false}
-          >
-            {cats.length > 1 ? (
-              <ScopeChip
-                label="みんな"
-                selected={selectedCatId === undefined}
-                onPress={() => void selectCat(undefined)}
-              />
-            ) : null}
-            {cats.map((cat) => (
-              <ScopeChip
-                key={cat.id}
-                cat={cat}
-                label={cat.name}
-                selected={cats.length === 1 || cat.id === selectedCatId}
-                onPress={() => void selectCat(cat.id)}
-              />
-            ))}
-          </ScrollView>
-        </View>
+        <PetScopeSelector
+          cats={cats}
+          selectedCatId={selectedCatId}
+          onSelect={(catId) => void selectCat(catId)}
+        />
       ) : null}
 
       <DailyBrief
@@ -360,7 +342,6 @@ export default function HomeScreen() {
         hasPets={cats.length > 0}
         itemCount={catItems.length}
         nextItem={catItems[0]}
-        unknownCount={unknownItems.length}
         watchCount={watchItems.length}
         onAction={(action) => {
           if (action === 'profile') {
@@ -446,10 +427,16 @@ export default function HomeScreen() {
               onPress={() => setInventoryFilter('watch')}
             />
             <FilterChip
-              count={unknownItems.length}
-              label="日数未設定"
-              selected={inventoryFilter === 'unknown'}
-              onPress={() => setInventoryFilter('unknown')}
+              count={learningItems.length}
+              label="学習中"
+              selected={inventoryFilter === 'learning'}
+              onPress={() => setInventoryFilter('learning')}
+            />
+            <FilterChip
+              count={predictionDisabledItems.length}
+              label="日数表示なし"
+              selected={inventoryFilter === 'disabled'}
+              onPress={() => setInventoryFilter('disabled')}
             />
           </ScrollView>
         ) : null}
@@ -478,7 +465,11 @@ export default function HomeScreen() {
         <View style={styles.inventoryGroups}>
           <InventoryGroup title="いま確認" items={attentionItems} renderItem={inventoryCardFor} />
           <InventoryGroup title="そろそろ" items={watchItems} renderItem={inventoryCardFor} />
-          <InventoryGroup title="日数を設定" items={unknownItems} renderItem={inventoryCardFor} />
+          <InventoryGroup
+            title="購入頻度を学習中"
+            items={learningItems}
+            renderItem={inventoryCardFor}
+          />
           {inStockItems.length > 0 ? (
             <View style={styles.group}>
               <View style={styles.groupHeader}>
@@ -503,6 +494,16 @@ export default function HomeScreen() {
               ) : null}
             </View>
           ) : null}
+          <InventoryGroup
+            title="日数表示なし"
+            items={predictionDisabledItems}
+            renderItem={inventoryCardFor}
+          />
+          <InventoryGroup
+            title="予測情報なし"
+            items={predictionUnavailableItems}
+            renderItem={inventoryCardFor}
+          />
         </View>
       )}
     </ScrollView>
@@ -534,44 +535,6 @@ function HomeLoadFailure({ message, onRetry }: { message: string; onRetry: () =>
       <Text style={styles.loadErrorText}>{message}</Text>
       <AppButton title="もう一度試す" onPress={onRetry} style={styles.retryButton} />
     </View>
-  );
-}
-
-function ScopeChip({
-  cat,
-  label,
-  selected,
-  onPress,
-}: {
-  cat?: Cat;
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={`${label}の用品を表示`}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.catTab,
-        selected && styles.catTabSelected,
-        pressed && styles.catTabPressed,
-      ]}
-    >
-      {cat ? (
-        <Image
-          accessibilityIgnoresInvertColors
-          resizeMode="cover"
-          source={cat.iconUrl ? { uri: cat.iconUrl } : getDefaultPetTypeIcon(cat.petType)}
-          style={styles.catTabIcon}
-        />
-      ) : null}
-      <Text style={[styles.catTabText, selected && styles.catTabTextSelected]} numberOfLines={1}>
-        {selected ? `✓ ${label}` : label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -631,7 +594,6 @@ function DailyBrief({
   itemCount,
   attentionCount,
   watchCount,
-  unknownCount,
   nextItem,
   onAction,
 }: {
@@ -639,7 +601,6 @@ function DailyBrief({
   itemCount: number;
   attentionCount: number;
   watchCount: number;
-  unknownCount: number;
   nextItem?: InventoryItem;
   onAction: (action: BriefAction) => void;
 }) {
@@ -683,14 +644,6 @@ function DailyBrief({
     tone = 'warning';
     action = 'watch';
     actionTitle = 'そろそろの用品を見る';
-  } else if (unknownCount > 0) {
-    eyebrow = '予測を整える';
-    title = `残り日数が未設定の用品が${unknownCount}件`;
-    message = '使い切る目安を入れると、買い時をホームと通知で確認できます。';
-    mark = '−';
-    tone = 'neutral';
-    action = 'unknown';
-    actionTitle = '日数未設定を見る';
   } else if (nextItem) {
     const nextDays = calculateRemainingDays(nextItem);
     message =
@@ -803,54 +756,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 24,
     marginLeft: 4,
-  },
-  petScope: {
-    gap: 8,
-  },
-  overline: {
-    color: colors.subText,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  catTabs: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingRight: 20,
-  },
-  catTab: {
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    minHeight: 48,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  catTabSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  catTabPressed: {
-    opacity: 0.78,
-  },
-  catTabIcon: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    height: 32,
-    width: 32,
-  },
-  catTabText: {
-    color: colors.text,
-    flexShrink: 1,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  catTabTextSelected: {
-    color: colors.card,
   },
   brief: {
     backgroundColor: colors.successLight,

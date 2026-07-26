@@ -5,6 +5,7 @@ import { CatalogQualitySnapshot, PET_GROUPS, QualityRow } from './types.js';
 export type BuildPetProductMastersOptions = {
   petGroup?: string;
   includeLegacyVariants?: boolean;
+  keepDraftProducts?: boolean;
   limit?: number;
 };
 
@@ -131,7 +132,10 @@ export function buildPetProductMasters(
       status:
         productStatus === 'rejected' || variantStatus === 'inactive' || variantStatus === 'rejected'
           ? 'retired'
-          : (productStatus === 'active' || productStatus === 'approved') && variantStatus === 'active'
+          : (productStatus === 'active' ||
+                productStatus === 'approved' ||
+                (!options.keepDraftProducts && productStatus === 'draft')) &&
+              variantStatus === 'active'
             ? 'published'
             : 'draft',
       createdAt,

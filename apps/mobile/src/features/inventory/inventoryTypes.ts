@@ -1,12 +1,5 @@
 export type InventoryCategory =
-  | 'dry_food'
-  | 'wet_food'
-  | 'treat'
-  | 'cat_litter'
-  | 'supplement'
-  | 'medicine'
-  | 'care'
-  | 'other';
+  'dry_food' | 'wet_food' | 'treat' | 'cat_litter' | 'supplement' | 'medicine' | 'care' | 'other';
 
 export type InventoryUnit = 'g' | 'kg' | 'ml' | 'L' | 'piece' | 'bag';
 
@@ -17,8 +10,10 @@ export type PurchaseLinks = {
   other?: string;
 };
 
-export type InventoryEstimationMode = 'usage' | 'lasting_days' | 'purchase_frequency' | 'no_estimate';
+export type InventoryEstimationMode =
+  'usage' | 'lasting_days' | 'purchase_frequency' | 'no_estimate';
 export type LastingDaysReplenishMode = 'add_remaining' | 'reset_cycle';
+export type PurchaseHistoryRecordType = 'replenishment' | 'manual';
 
 export type InventoryItem = {
   id: string;
@@ -36,6 +31,7 @@ export type InventoryItem = {
   purchaseDate: string;
   openedDate?: string;
   estimatedEndDate?: string;
+  purchaseFrequencyDays?: number;
   estimationMode?: InventoryEstimationMode;
   notifyBeforeDays: number[];
   purchaseLinks: PurchaseLinks;
@@ -49,6 +45,12 @@ export type PurchaseHistory = {
   inventoryItemId: string;
   /** Product name at the time of purchase, retained after the inventory item is deleted. */
   itemName?: string;
+  /** Product category at the time of purchase. Legacy entries may not have this field. */
+  itemCategory?: InventoryCategory;
+  /** Target pet IDs at the time of purchase. Legacy entries may not have this field. */
+  catIds?: string[];
+  /** How this history entry was created. Legacy entries may not have this field. */
+  recordType?: PurchaseHistoryRecordType;
   purchasedAt: string;
   amount: number;
   unit: InventoryUnit;
