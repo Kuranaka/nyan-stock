@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, format, parseISO } from 'date-fns';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -94,6 +94,8 @@ export default function InventoryDetailScreen() {
   const hasScrolledToActionRef = useRef(false);
   const shouldScrollToReplenishRef = useRef(false);
   const shouldScrollToHistoryRef = useRef(false);
+  const pendingReplenishAfterPurchaseRef = useRef(false);
+  const purchaseAppWasInactiveRef = useRef(false);
   const [item, setItem] = useState<InventoryItem | undefined>(() => initialItem);
   const [loading, setLoading] = useState(true);
   const [showMissingMessage, setShowMissingMessage] = useState(false);
@@ -284,6 +286,27 @@ export default function InventoryDetailScreen() {
   useEffect(() => {
     scrollToActionTarget();
   }, [scrollToActionTarget]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (!pendingReplenishAfterPurchaseRef.current) return;
+      if (nextState === 'inactive' || nextState === 'background') {
+        purchaseAppWasInactiveRef.current = true;
+        return;
+      }
+      if (nextState !== 'active' || !purchaseAppWasInactiveRef.current) return;
+
+      pendingReplenishAfterPurchaseRef.current = false;
+      purchaseAppWasInactiveRef.current = false;
+      setReplenishDate(todayIso());
+      setPrice(item?.price?.toString() ?? '');
+      setMemo('');
+      shouldScrollToReplenishRef.current = true;
+      setShowReplenish(true);
+    });
+
+    return () => subscription.remove();
+  }, [item?.price]);
 
   useEffect(() => {
     if (loading || item) {
@@ -989,10 +1012,12 @@ export default function InventoryDetailScreen() {
   };
 
   const buy = async (shop: ShopType) => {
+    pendingReplenishAfterPurchaseRef.current = true;
+    purchaseAppWasInactiveRef.current = false;
     const opened = await openPurchaseUrl(item, shop);
-    if (!opened) Alert.alert('URLが未登録です', '編集画面から購入URLを登録できます。');
-    if (opened) {
-      openReplenish();
+    if (!opened) {
+      pendingReplenishAfterPurchaseRef.current = false;
+      Alert.alert('URLが未登録です', '編集画面から購入URLを登録できます。');
     }
   };
 
@@ -1377,9 +1402,6 @@ export default function InventoryDetailScreen() {
               style={styles.editButton}
             />
           </View>
-          <Text style={styles.affiliate}>
-            Amazonのアソシエイトとして、にゃんストック運営は適格販売により収入を得ています。商品リンクにはアフィリエイトリンクが含まれる場合がありますが、リンクの利用を理由に購入価格が上乗せされることはありません。
-          </Text>
           {showPurchaseLinkEdit ? (
             <>
               <AppTextInput
@@ -1472,6 +1494,9 @@ export default function InventoryDetailScreen() {
               />
             </View>
           )}
+          <Text style={styles.affiliate}>
+            Amazonのアソシエイトとして、にゃんストック運営は適格販売により収入を得ています。商品リンクにはアフィリエイトリンクが含まれる場合がありますが、リンクの利用を理由に購入価格が上乗せされることはありません。
+          </Text>
         </AppCard>
       </View>
 

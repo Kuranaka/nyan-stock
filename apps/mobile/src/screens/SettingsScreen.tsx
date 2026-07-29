@@ -234,7 +234,7 @@ export default function SettingsScreen() {
 
     Alert.alert(
       'データを初期化しますか？',
-      'ペットプロフィール、在庫、購入履歴、通知設定をこの端末から削除します。ログイン中のアカウントとPlusの状態は保持されます。',
+      'ペットプロフィール、在庫、購入履歴、通知設定を削除します。ログイン中のアカウントとPlusの状態は保持されます。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -1000,8 +1000,8 @@ export default function SettingsScreen() {
 
       <AppCard>
         <Text style={styles.title}>アプリ情報</Text>
-        <Text style={styles.note}>にゃんストック {appVersion}</Text>
-        <Text style={styles.note}>共有スペース参加後の在庫データはクラウド側に保存します。</Text>
+        <Text style={styles.note}>にゃんストック</Text>
+        <Text style={styles.note}>バージョン {appVersion}</Text>
       </AppCard>
     </ScrollView>
   );

@@ -142,7 +142,7 @@ npm run build:pet-product-masters -- --concurrency=4
 
 buildは対象productsからvariant、identity、retailer link、必要なraw listing列だけを段階取得します。`retailer_listings_raw.raw_json`、candidate、review queueは取得しません。保存は100件単位のバッチを既定4並列でupsertし、`--concurrency=1`から`--concurrency=16`で調整できます。
 
-新マスタには、商品名・ブランド・容量・JAN・販売先に加えて、`petGroup`、`targetSpecies`、`targetScope`、`categoryId`、`subcategoryId`を含めます。分類や販売情報は検索APIのrawから直接作らず、レビューとmergeを通過した`products`、`product_variants`、`product_identity_keys`、`product_retailer_listings`から組み立てます。
+新マスタには、商品名・ブランド・容量・JAN・販売先に加えて、`petGroup`、`targetSpecies`、`targetScope`、`categoryId`、`subcategoryId`を含めます。商品名・ブランド・シリーズの日本語表記はbuild時に読み仮名も生成し、`searchReadings`へ保存します。`20260729000000_search_pet_product_masters_by_reading.sql`適用後は、漢字の商品名をひらがなで検索できます。分類や販売情報は検索APIのrawから直接作らず、レビューとmergeを通過した`products`、`product_variants`、`product_identity_keys`、`product_retailer_listings`から組み立てます。
 
 既存の`product_masters`とはテーブル・共有型ともに独立しています。アプリの商品検索は`pet_product_masters`の`published`を参照します。新マスタの状態は次のように決まります。
 

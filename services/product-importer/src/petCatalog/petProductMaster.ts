@@ -8,6 +8,7 @@ export type BuildPetProductMastersOptions = {
   includeLegacyVariants?: boolean;
   keepDraftProducts?: boolean;
   limit?: number;
+  getSearchReadings?: (values: readonly string[]) => string[];
 };
 
 export type BuildPetProductMastersResult = {
@@ -79,6 +80,13 @@ export function buildPetProductMasters(
     // the display name would undo product-name normalization and expose sales
     // listing text such as "2個入" in the app.
     const name = baseName.trim();
+    const brand = optionalString(product, 'brand');
+    const series = optionalString(product, 'series');
+    const baseProductName =
+      normalizeBaseProductName(string(product, 'base_product_name', 'baseProductName')) || baseName;
+    const searchReadings = options.getSearchReadings?.(
+      [name, baseProductName, brand, series].filter((value): value is string => Boolean(value)),
+    );
     const imageUrls = unique(retailers.map((row) => row.imageUrl).filter((value): value is string => Boolean(value)));
     const marketCodes = unique(
       links
@@ -105,9 +113,9 @@ export function buildPetProductMasters(
       variantId,
       name,
       normalizedName: normalizeName(name),
-      baseProductName: normalizeBaseProductName(string(product, 'base_product_name', 'baseProductName')) || baseName,
-      brand: optionalString(product, 'brand'),
-      series: optionalString(product, 'series'),
+      baseProductName,
+      brand,
+      series,
       petGroup: petGroup as PetProductMaster['petGroup'],
       targetSpecies: stringArray(product, 'target_species', 'targetSpecies'),
       targetSpeciesGroup: optionalString(product, 'target_species_group', 'targetSpeciesGroup'),
@@ -131,6 +139,7 @@ export function buildPetProductMasters(
       modelNumber,
       imageUrl: imageUrls[0],
       imageUrls,
+      searchReadings: searchReadings && searchReadings.length > 0 ? searchReadings : undefined,
       retailers,
       sourceLocale: optionalString(product, 'source_locale', 'sourceLocale') ?? 'ja-JP',
       marketCodes: marketCodes.length > 0 ? marketCodes : ['JP'],

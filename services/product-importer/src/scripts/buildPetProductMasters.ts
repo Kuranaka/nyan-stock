@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { config } from '../config.js';
+import { createJapaneseReadingGenerator } from '../petCatalog/japaneseReading.js';
 import { buildPetProductMasters } from '../petCatalog/petProductMaster.js';
 import { openPetCatalogRepository } from '../petCatalog/repository.js';
 import { PET_GROUPS, PetGroup } from '../petCatalog/types.js';
@@ -27,7 +28,8 @@ async function main(): Promise<void> {
 
   try {
     const snapshot = await repository.loadPetProductMasterSnapshot({ petGroup: options.petGroup });
-    const result = buildPetProductMasters(snapshot, options);
+    const getSearchReadings = await createJapaneseReadingGenerator();
+    const result = buildPetProductMasters(snapshot, { ...options, getSearchReadings });
     assertUnique(result.masters.map((row) => row.id), 'pet product master id');
     assertUnique(result.masters.map((row) => row.variantId), 'variant id');
     if (result.invalidVariantIds.length > 0) {

@@ -34,6 +34,7 @@ import {
 } from '@/features/media/iconUpload';
 import {
   getProductMasterImageUrl,
+  getProductMasterPrice,
   getProductVariantLabel,
   getProductMasterBrands,
   petProductAmountAndUnit,
@@ -604,6 +605,7 @@ export default function InventoryFormScreen() {
   const applyProductMaster = useCallback((product: PetProductMaster) => {
     const nextCategory = petProductToInventoryCategory(product);
     const nextImageUrl = getProductMasterImageUrl(product);
+    const nextPrice = getProductMasterPrice(product);
     const productAmount = petProductAmountAndUnit(product);
     const purchaseLinks = productPurchaseLinksToInventoryLinks(product);
     const shouldCopyAmount = Boolean(
@@ -611,6 +613,7 @@ export default function InventoryFormScreen() {
     );
     setProductMasterId(product.id);
     setImageUrl(nextImageUrl);
+    setPrice(nextPrice === undefined ? '' : String(nextPrice));
     setName(getProductNameWithBrand(product));
     setCategory(nextCategory);
     setAmount(shouldCopyAmount ? String(productAmount.amount) : '');
@@ -639,6 +642,7 @@ export default function InventoryFormScreen() {
       ...currentErrors,
       name: undefined,
       amount: undefined,
+      price: undefined,
       url: undefined,
     }));
     pendingScrollToNameRef.current = true;
@@ -957,6 +961,7 @@ export default function InventoryFormScreen() {
                   <View key={product.id} style={styles.searchResult}>
                     {(() => {
                       const productImageUrl = getProductMasterImageUrl(product);
+                      const productPrice = getProductMasterPrice(product);
                       const variantLabel = getProductVariantLabel(product);
                       const needsJan = masterSearchResults.some(
                         (other) =>
@@ -988,6 +993,11 @@ export default function InventoryFormScreen() {
                                 .filter(Boolean)
                                 .join(' ・ ')}
                             </Text>
+                            {productPrice !== undefined ? (
+                              <Text style={styles.resultPrice}>
+                                取得時価格 ¥{productPrice.toLocaleString('ja-JP')}
+                              </Text>
+                            ) : null}
                             <View style={styles.badgeRow}>
                               {getProductSourceLabels(product).map((label) => (
                                 <Text key={label} style={styles.sourceBadge}>
@@ -1001,18 +1011,22 @@ export default function InventoryFormScreen() {
                     })()}
                     <AppButton
                       title="この商品を登録する"
-                      variant="secondary"
+                      variant="primary"
                       onPress={() => applyProductMaster(product)}
                     />
                   </View>
                 ))}
                 {masterHasMoreResults ? (
-                  <AppButton
-                    title={masterLoadMoreLoading ? '読み込み中...' : 'さらに候補を読み込む'}
-                    variant="secondary"
-                    disabled={masterLoadMoreLoading || masterSearchLoading}
-                    onPress={() => void loadMoreProductMasters()}
-                  />
+                  <View style={styles.loadMoreSection}>
+                    <Text style={styles.loadMoreHint}>お探しの商品が見つからない場合</Text>
+                    <AppButton
+                      title={`↓ 次の候補を最大${masterPageSize}件表示`}
+                      variant="ghost"
+                      loading={masterLoadMoreLoading}
+                      disabled={masterSearchLoading}
+                      onPress={() => void loadMoreProductMasters()}
+                    />
+                  </View>
                 ) : null}
               </>
             ) : null}
@@ -1130,7 +1144,7 @@ export default function InventoryFormScreen() {
               onToggle={() => setPurchaseLinksExpanded((expanded) => !expanded)}
             >
               <Text style={styles.sectionLead}>
-                未入力でも、商品名から各ショップを検索できます。
+                未入力でも商品名から各ショップを検索できます
               </Text>
               <AppTextInput
                 label="Amazon URL"
@@ -1527,6 +1541,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
+  },
+  resultPrice: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  loadMoreSection: {
+    alignItems: 'center',
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: 2,
+    paddingTop: 12,
+  },
+  loadMoreHint: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
   },
   searchResult: {
     borderTopColor: colors.border,

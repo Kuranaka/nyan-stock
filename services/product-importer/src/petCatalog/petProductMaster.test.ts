@@ -63,7 +63,10 @@ test('pet product masters flatten product, variant, identity and retailer data',
     reviewQueue: [],
   };
 
-  const result = buildPetProductMasters(snapshot);
+  const result = buildPetProductMasters(snapshot, {
+    getSearchReadings: (values) =>
+      values.includes('テストフード') ? ['てすとふーど'] : [],
+  });
 
   assert.equal(result.masters.length, 1);
   assert.equal(result.masters[0].id, 'pet-master-variant-1');
@@ -76,6 +79,7 @@ test('pet product masters flatten product, variant, identity and retailer data',
   assert.equal(result.masters[0].categoryId, 'cat_food');
   assert.equal(result.masters[0].janCode, '4901234567894');
   assert.equal(result.masters[0].status, 'published');
+  assert.deepEqual(result.masters[0].searchReadings, ['てすとふーど']);
   assert.equal(result.masters[0].imageUrl, 'https://example.test/image.jpg');
   assert.equal(result.masters[0].retailers[0].price, 1280);
 });

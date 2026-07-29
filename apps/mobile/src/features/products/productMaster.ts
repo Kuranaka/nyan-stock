@@ -200,6 +200,19 @@ export function productPurchaseLinksToInventoryLinks(product: PetProductMaster):
   };
 }
 
+export function getProductMasterPrice(product: PetProductMaster): number | undefined {
+  const pricedRetailers = product.retailers.filter(
+    (retailer) =>
+      retailer.currency === 'JPY' &&
+      retailer.price !== undefined &&
+      Number.isFinite(retailer.price) &&
+      retailer.price >= 0,
+  );
+  const retailer =
+    pricedRetailers.find((candidate) => candidate.availability !== false) ?? pricedRetailers[0];
+  return retailer?.price;
+}
+
 export function getProductMasterImageUrl(product: PetProductMaster): string | undefined {
   const candidates = [
     product.imageUrl,

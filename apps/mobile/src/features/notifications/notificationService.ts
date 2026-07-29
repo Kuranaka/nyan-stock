@@ -124,12 +124,20 @@ export async function requestNotificationPermission(): Promise<boolean> {
   if (current.granted) return true;
   if (!current.canAskAgain) return false;
 
-  Alert.alert(
-    '通知を使います',
-    '在庫切れの前にお知らせするため、通知を使います。通知はいつでも設定からオフにできます。',
-  );
+  await showNotificationPermissionExplanation();
   const result = await Notifications.requestPermissionsAsync();
   return result.granted;
+}
+
+function showNotificationPermissionExplanation(): Promise<void> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      '通知を使います',
+      '在庫切れの前にお知らせするため、通知を使います。通知はいつでも設定からオフにできます。',
+      [{ text: '続ける', onPress: () => resolve() }],
+      { cancelable: false },
+    );
+  });
 }
 
 export async function cancelAllInventoryNotifications(): Promise<void> {

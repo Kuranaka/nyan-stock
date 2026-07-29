@@ -57,6 +57,7 @@ export type PetProductMaster = {
 
   imageUrl?: string;
   imageUrls: string[];
+  searchReadings?: string[];
   retailers: PetProductMasterRetailer[];
   sourceLocale: string;
   marketCodes: string[];
