@@ -12,17 +12,15 @@ import { getCats } from '@/features/cats/catStorage';
 import { resolveSelectedCatId, toStoredCatId } from '@/features/cats/petSelection';
 import { Cat } from '@/features/cats/catTypes';
 import {
-  calculateInventoryCycleDays,
-  calculateMonthlyCost,
   calculateRemainingDays,
   getInventoryCatIds,
-  getInventoryPredictionState,
   isInventoryItemForCat,
   isPurchaseHistoryVisible,
   resolveEstimatedEndDate,
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inventoryStorage';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import { buildMonthlyCostAnalysis } from '@/features/inventory/monthlyCostAnalysis';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 
@@ -33,7 +31,6 @@ export default function CostDashboardScreen() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [history, setHistory] = useState<PurchaseHistory[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
-  const [showAllExcludedItems, setShowAllExcludedItems] = useState(false);
 
   const load = useCallback(async () => {
     const [nextCats, nextItems, nextHistory, settings] = await Promise.all([
@@ -57,7 +54,6 @@ export default function CostDashboardScreen() {
     void load();
   });
 
-  const catNames = useMemo(() => new Map(cats.map((cat) => [cat.id, cat.name])), [cats]);
   const visibleItems = useMemo(
     () =>
       selectedCatId ? items.filter((item) => isInventoryItemForCat(item, selectedCatId)) : items,
@@ -68,24 +64,13 @@ export default function CostDashboardScreen() {
     [visibleItems],
   );
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
-  const costRows = useMemo(
-    () =>
-      visibleItems
-        .map((item) => ({
-          item,
-          cycleDays: calculateInventoryCycleDays(item),
-          monthlyCost: calculateMonthlyCost(item),
-        }))
-        .sort((a, b) => (b.monthlyCost ?? -1) - (a.monthlyCost ?? -1)),
+  const { estimatedRows, excludedRows, monthlyEstimate } = useMemo(
+    () => buildMonthlyCostAnalysis(visibleItems),
     [visibleItems],
   );
-  const estimatedRows = costRows.filter((row) => row.monthlyCost !== undefined);
-  const excludedRows = costRows.filter((row) => row.monthlyCost === undefined);
-  const visibleExcludedRows = showAllExcludedItems ? excludedRows : excludedRows.slice(0, 2);
-  const monthlyEstimate = estimatedRows.reduce((sum, row) => sum + (row.monthlyCost ?? 0), 0);
   const yearlyEstimate = monthlyEstimate * 12;
   const today = new Date();
-  const currentPeriodLabel = format(today, 'M月d日');
+  const currentMonthLabel = format(today, 'M月');
 
   const currentMonthHistory = useMemo(
     () =>
@@ -118,7 +103,6 @@ export default function CostDashboardScreen() {
 
   async function selectCat(catId: string | undefined) {
     setSelectedCatId(catId);
-    setShowAllExcludedItems(false);
     await updateSettings({ selectedCatId: toStoredCatId(catId) });
   }
 
@@ -130,6 +114,13 @@ export default function CostDashboardScreen() {
         month: format(today, 'yyyy-MM'),
         ...(filter ? { filter } : {}),
       },
+    });
+  }
+
+  function openMonthlyCostBreakdown() {
+    router.push({
+      pathname: '/monthly-cost-breakdown',
+      params: { catId: toStoredCatId(selectedCatId) },
     });
   }
 
@@ -161,7 +152,7 @@ export default function CostDashboardScreen() {
       ) : null}
 
       <AppCard style={styles.heroCard}>
-        <Text style={styles.heroLabel}>{currentPeriodLabel}までに使った金額</Text>
+        <Text style={styles.heroLabel}>{currentMonthLabel}中に使った金額</Text>
         {monthlyActualMissingPriceCount > 0 ? (
           <Text style={styles.actualQualifier}>価格入力済み分</Text>
         ) : null}
@@ -186,19 +177,34 @@ export default function CostDashboardScreen() {
 
         <View style={styles.estimatePanel}>
           <View style={styles.estimateHeader}>
-            <Text style={styles.estimateLabel}>いつもの月額予測</Text>
+            <Text style={styles.estimateLabel}>月額予測</Text>
             <Text style={styles.estimateValue}>
               {estimatedRows.length > 0 ? formatCurrency(monthlyEstimate) : '—'}
             </Text>
           </View>
-          <Text style={styles.estimateDescription}>現在の価格と周期から30日分を算出</Text>
-          <Text style={styles.coverageText}>
-            {visibleItems.length > 0
-              ? `${visibleItems.length}用品中${estimatedRows.length}用品から算出`
-              : '月額予測の対象用品はありません'}
-          </Text>
           {hasCompleteMonthlyEstimate ? (
             <Text style={styles.yearlyText}>年換算 約{formatCurrency(yearlyEstimate)}</Text>
+          ) : null}
+          <Text style={styles.forecastScopeNote}>
+            ※期間や価格の設定されていない用品は月額予測に含まれません。
+          </Text>
+          {estimatedRows.length > 0 || excludedRows.length > 0 ? (
+            <Pressable
+              accessibilityHint="月額予測の詳細画面を開きます"
+              accessibilityLabel="月額予測の内訳を見る"
+              accessibilityRole="button"
+              onPress={openMonthlyCostBreakdown}
+              style={({ pressed }) => [styles.estimateDetailsLink, pressed && styles.pressedRow]}
+            >
+              <Text style={styles.estimateDetailsLinkText}>内訳を見る</Text>
+              <Text
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+                style={styles.estimateDetailsChevron}
+              >
+                ›
+              </Text>
+            </Pressable>
           ) : null}
         </View>
 
@@ -271,107 +277,6 @@ export default function CostDashboardScreen() {
           </Text>
         )}
       </AppCard>
-
-      {estimatedRows.length > 0 ? (
-        <AppCard style={styles.card}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            月額予測の内訳
-          </Text>
-          <View style={styles.itemList}>
-            {estimatedRows.map(({ item, cycleDays, monthlyCost }, index) => (
-              <Pressable
-                key={item.id}
-                accessibilityHint="商品詳細を開きます"
-                accessibilityLabel={`${item.name}、${formatCurrency(monthlyCost ?? 0)}/月、${[
-                  getCatLabel(item, catNames),
-                  cycleDays ? `${cycleDays}日周期` : undefined,
-                ]
-                  .filter(Boolean)
-                  .join('、')}`}
-                accessibilityRole="button"
-                onPress={() => openItem(item.id)}
-                style={({ pressed }) => [
-                  styles.itemRow,
-                  index > 0 && styles.itemRowDivider,
-                  pressed && styles.pressedRow,
-                ]}
-              >
-                <View style={styles.itemBody}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemMeta}>
-                    {[getCatLabel(item, catNames), cycleDays ? `${cycleDays}日周期` : undefined]
-                      .filter(Boolean)
-                      .join(' ・ ')}
-                  </Text>
-                </View>
-                <Text style={styles.itemCost}>{formatCurrency(monthlyCost ?? 0)}/月</Text>
-                <Text
-                  accessibilityElementsHidden
-                  importantForAccessibility="no"
-                  style={styles.chevron}
-                >
-                  ›
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </AppCard>
-      ) : null}
-
-      {excludedRows.length > 0 ? (
-        <AppCard style={styles.card}>
-          <View style={styles.sectionHeadingRow}>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>
-              月額予測に含まれない用品
-            </Text>
-            <Text style={styles.sectionCount}>{excludedRows.length}件</Text>
-          </View>
-          <View style={styles.itemList}>
-            {visibleExcludedRows.map(({ item, cycleDays }, index) => {
-              const reason = getExclusionReason(item, cycleDays);
-              return (
-                <Pressable
-                  key={item.id}
-                  accessibilityHint="商品詳細を開きます"
-                  accessibilityLabel={`${item.name}、${reason.label}、${reason.detail}`}
-                  accessibilityRole="button"
-                  onPress={() => openItem(item.id)}
-                  style={({ pressed }) => [
-                    styles.excludedRow,
-                    index > 0 && styles.itemRowDivider,
-                    pressed && styles.pressedRow,
-                  ]}
-                >
-                  <View style={styles.itemBody}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.reasonLabel}>{reason.label}</Text>
-                    <Text style={styles.reasonDetail}>{reason.detail}</Text>
-                  </View>
-                  <Text
-                    accessibilityElementsHidden
-                    importantForAccessibility="no"
-                    style={styles.chevron}
-                  >
-                    ›
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {excludedRows.length > 2 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showAllExcludedItems }}
-              onPress={() => setShowAllExcludedItems((current) => !current)}
-              style={({ pressed }) => [styles.expandExcludedButton, pressed && styles.pressedRow]}
-            >
-              <Text style={styles.expandExcludedText}>
-                {showAllExcludedItems ? '閉じる' : `ほか${excludedRows.length - 2}件を見る`}
-              </Text>
-            </Pressable>
-          ) : null}
-        </AppCard>
-      ) : null}
 
       {visibleItems.length === 0 ? (
         <AppCard style={styles.emptyCard}>
@@ -496,54 +401,8 @@ function isCurrentMonthToDate(value: string): boolean {
   return isValid(date) && isSameMonth(date, today) && !isAfter(date, endOfDay(today));
 }
 
-function getExclusionReason(
-  item: InventoryItem,
-  cycleDays: number | undefined,
-): { label: string; detail: string } {
-  const predictionState = getInventoryPredictionState(item);
-
-  if (predictionState === 'learning') {
-    return {
-      label: '購入頻度を学習中',
-      detail:
-        item.price === undefined
-          ? '補充記録が2件たまると自動で反映します。価格はあとから追加できます。'
-          : '補充記録が2件たまると自動で反映します。',
-    };
-  }
-  if (predictionState === 'disabled') {
-    return {
-      label: '月額予測の対象外',
-      detail: '「日数表示なし」にしている用品です。',
-    };
-  }
-  if (item.price === undefined) {
-    return {
-      label: '価格未入力',
-      detail: '商品詳細から価格を追加できます。',
-    };
-  }
-  if (cycleDays === undefined) {
-    return {
-      label: '周期を計算できません',
-      detail: '現在の情報では月額予測を出せません。',
-    };
-  }
-  return {
-    label: '月額予測の対象外',
-    detail: '現在の情報では月額予測を出せません。',
-  };
-}
-
 function formatCurrency(value: number): string {
   return `${Math.round(value).toLocaleString()}円`;
-}
-
-function getCatLabel(item: InventoryItem, catNames: Map<string, string>): string {
-  return getInventoryCatIds(item)
-    .map((catId) => catNames.get(catId))
-    .filter(Boolean)
-    .join('・');
 }
 
 const styles = StyleSheet.create({
@@ -595,7 +454,7 @@ const styles = StyleSheet.create({
   },
   estimateLabel: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: '700',
   },
   estimateValue: {
@@ -615,7 +474,32 @@ const styles = StyleSheet.create({
   },
   yearlyText: {
     color: colors.subText,
-    fontSize: 12,
+    fontSize: 15,
+  },
+  forecastScopeNote: {
+    color: colors.subText,
+    fontSize: 11,
+    lineHeight: 17,
+  },
+  estimateDetailsLink: {
+    alignItems: 'center',
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    minHeight: 48,
+    paddingTop: 8,
+  },
+  estimateDetailsLinkText: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  estimateDetailsChevron: {
+    color: colors.primaryDark,
+    fontSize: 24,
+    lineHeight: 28,
   },
   card: {
     gap: 14,
@@ -667,22 +551,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'right',
   },
-  sectionHeadingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
   sectionTitle: {
     color: colors.text,
     flex: 1,
     fontSize: 17,
     fontWeight: '800',
-  },
-  sectionCount: {
-    color: colors.subText,
-    fontSize: 13,
-    fontWeight: '700',
   },
   note: {
     color: colors.subText,
@@ -756,37 +629,6 @@ const styles = StyleSheet.create({
   itemList: {
     marginBottom: -4,
   },
-  itemRow: {
-    alignItems: 'center',
-    borderRadius: 10,
-    flexDirection: 'row',
-    gap: 10,
-    marginHorizontal: -6,
-    minHeight: 64,
-    paddingHorizontal: 6,
-    paddingVertical: 12,
-  },
-  excludedRow: {
-    alignItems: 'center',
-    borderRadius: 10,
-    flexDirection: 'row',
-    gap: 10,
-    marginHorizontal: -6,
-    minHeight: 76,
-    paddingHorizontal: 6,
-    paddingVertical: 12,
-  },
-  expandExcludedButton: {
-    alignSelf: 'center',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  expandExcludedText: {
-    color: colors.primaryDark,
-    fontSize: 13,
-    fontWeight: '800',
-  },
   itemRowDivider: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
@@ -794,41 +636,10 @@ const styles = StyleSheet.create({
   pressedRow: {
     backgroundColor: colors.muted,
   },
-  itemBody: {
-    flex: 1,
-    gap: 3,
-  },
-  itemName: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  itemMeta: {
-    color: colors.subText,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  itemCost: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: '900',
-    textAlign: 'right',
-  },
   chevron: {
     color: colors.subText,
     fontSize: 26,
     lineHeight: 28,
-  },
-  reasonLabel: {
-    color: colors.neutral,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 19,
-  },
-  reasonDetail: {
-    color: colors.subText,
-    fontSize: 12,
-    lineHeight: 18,
   },
   emptyCard: {
     gap: 6,

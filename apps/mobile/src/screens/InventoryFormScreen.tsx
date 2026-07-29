@@ -961,7 +961,6 @@ export default function InventoryFormScreen() {
                   <View key={product.id} style={styles.searchResult}>
                     {(() => {
                       const productImageUrl = getProductMasterImageUrl(product);
-                      const productPrice = getProductMasterPrice(product);
                       const variantLabel = getProductVariantLabel(product);
                       const needsJan = masterSearchResults.some(
                         (other) =>
@@ -993,11 +992,6 @@ export default function InventoryFormScreen() {
                                 .filter(Boolean)
                                 .join(' ・ ')}
                             </Text>
-                            {productPrice !== undefined ? (
-                              <Text style={styles.resultPrice}>
-                                取得時価格 ¥{productPrice.toLocaleString('ja-JP')}
-                              </Text>
-                            ) : null}
                             <View style={styles.badgeRow}>
                               {getProductSourceLabels(product).map((label) => (
                                 <Text key={label} style={styles.sourceBadge}>
@@ -1143,9 +1137,7 @@ export default function InventoryFormScreen() {
               expanded={purchaseLinksExpanded}
               onToggle={() => setPurchaseLinksExpanded((expanded) => !expanded)}
             >
-              <Text style={styles.sectionLead}>
-                未入力でも商品名から各ショップを検索できます
-              </Text>
+              <Text style={styles.sectionLead}>未入力でも商品名から各ショップを検索できます</Text>
               <AppTextInput
                 label="Amazon URL"
                 value={amazon}
@@ -1538,12 +1530,6 @@ const styles = StyleSheet.create({
   },
   resultSummary: {
     color: colors.primaryDark,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-  resultPrice: {
-    color: colors.text,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,

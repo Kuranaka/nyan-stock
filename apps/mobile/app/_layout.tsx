@@ -215,6 +215,7 @@ export default function RootLayout() {
             name="cost-dashboard"
             options={{ headerShown: false, gestureEnabled: false }}
           />
+          <Stack.Screen name="monthly-cost-breakdown" options={{ title: '月額予測の内訳' }} />
           <Stack.Screen name="purchase-history" options={{ title: '購入履歴' }} />
           <Stack.Screen name="settings" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="help" options={{ title: 'ヘルプ' }} />
