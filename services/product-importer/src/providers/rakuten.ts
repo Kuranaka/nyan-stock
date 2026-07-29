@@ -7,6 +7,7 @@ type RakutenItem = {
   itemName?: string;
   itemPrice?: number;
   itemUrl?: string;
+  affiliateUrl?: string;
   mediumImageUrls?: Array<string | { imageUrl?: string }>;
   smallImageUrls?: Array<string | { imageUrl?: string }>;
   shopName?: string;
@@ -51,8 +52,10 @@ export async function searchRakutenItemsByKeyword(
     formatVersion: '2',
     hits: '30',
     sort: 'standard',
-    elements: 'itemCode,itemName,itemPrice,itemUrl,mediumImageUrls,smallImageUrls,shopName,genreId',
+    elements:
+      'itemCode,itemName,itemPrice,itemUrl,affiliateUrl,mediumImageUrls,smallImageUrls,shopName,genreId',
   });
+  if (config.rakutenAffiliateId) params.set('affiliateId', config.rakutenAffiliateId);
   const headers = buildRakutenAuthHeaders();
   const url = `${RAKUTEN_ITEM_SEARCH_ENDPOINT}?${params.toString()}`;
 
@@ -85,7 +88,7 @@ export async function searchRakutenItemsByKeyword(
         categoryText: item.genreId,
         price: item.itemPrice,
         imageUrl: pickRakutenImage(item),
-        url: item.itemUrl,
+        url: item.affiliateUrl ?? item.itemUrl,
         shopName: item.shopName,
         fetchedAt,
         raw: item,

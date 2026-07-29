@@ -416,7 +416,7 @@ supabase secrets set YAHOO_VALUECOMMERCE_PID=...
 supabase secrets set AMAZON_ASSOCIATE_TAG=...
 ```
 
-`RAKUTEN_AFFILIATE_ID`、`YAHOO_VALUECOMMERCE_SID`、`YAHOO_VALUECOMMERCE_PID`、`AMAZON_ASSOCIATE_TAG` は購入URLのクリック直前変換用です。未設定でも検索や購入導線は動き、元URLへフォールバックします。
+`RAKUTEN_AFFILIATE_ID` は楽天APIに渡し、APIが返す公式 `affiliateUrl` を取得するために使用します。`YAHOO_VALUECOMMERCE_SID`、`YAHOO_VALUECOMMERCE_PID`、`AMAZON_ASSOCIATE_TAG` は購入URLのクリック直前変換用です。未設定でも検索や購入導線は動き、元URLへフォールバックします。
 
 デプロイ:
 
@@ -439,9 +439,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 通常は `EXPO_PUBLIC_SUPABASE_URL/functions/v1/purchase-link-search` を自動で呼びます。別URLを使う場合だけ、`EXPO_PUBLIC_PURCHASE_LINK_SEARCH_FUNCTION_URL` を設定してください。
 
-購入ボタンからURLを開く時も、アプリは同じEdge Functionへ問い合わせ、登録済みURLをクリック直前にアフィリエイトURLへ変換します。
+購入ボタンからURLを開く時、AmazonとYahooは同じEdge Functionへ問い合わせます。楽天はクリック直前の手動変換を行わず、商品マスターまたは楽天APIから取得済みの公式アフィリエイトURLをアプリからそのまま開きます。
 
-- 楽天: 登録済みURLを再検索せず、Edge Function内で楽天アフィリエイトURL形式へ変換して開きます。`RAKUTEN_AFFILIATE_ID` がある場合はそれを優先し、未設定の場合は `RAKUTEN_ACCESS_KEY` を使います。
+- 楽天: `RAKUTEN_AFFILIATE_ID` をAPIリクエストに渡し、APIが返した `affiliateUrl` を優先して保存・利用します。ユーザーが登録した通常URLや商品名から作った検索URLは変換せず、そのまま開きます。`RAKUTEN_ACCESS_KEY` をアフィリエイトIDの代わりには使用しません。
 - Yahoo: `YAHOO_VALUECOMMERCE_SID` と `YAHOO_VALUECOMMERCE_PID` がある場合、登録済みYahooショッピングURLをValueCommerceのリダイレクトURLでラップします。
 - Amazon: `AMAZON_ASSOCIATE_TAG` がある場合、登録済みAmazon URLに `tag` パラメータを付与します。
 - その他: 初期版では元URLをそのまま開きます。正式な提携ID・規約に合わせて、Edge Function側に変換処理を追加してください。

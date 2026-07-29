@@ -8,7 +8,7 @@ export default function AffiliateDisclosureScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <AppCard>
         <Text style={styles.text}>
-          商品リンクにはアフィリエイトリンクが含まれる場合があります。リンク経由で購入された場合、運営者が紹介料を受け取ることがあります。ユーザーの購入価格が変わることはありません。
+          Amazonのアソシエイトとして、にゃんストック運営は適格販売により収入を得ています。Amazonを含む商品リンクにはアフィリエイトリンクが含まれる場合があり、リンク経由で購入された場合、運営者が紹介料を受け取ることがあります。アフィリエイトリンクを経由することを理由に、ユーザーの購入価格が上乗せされることはありません。
         </Text>
       </AppCard>
     </ScrollView>

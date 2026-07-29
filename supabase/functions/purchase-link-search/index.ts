@@ -167,6 +167,9 @@ Deno.serve(async (request) => {
     if (!purchaseUrl) {
       return json({ error: 'missing_url', message: 'url is required.' }, 400);
     }
+    if (provider === 'rakuten' || (provider === 'all' && purchaseUrl.includes('rakuten.co.jp'))) {
+      return json({ url: purchaseUrl, converted: false, provider: 'rakuten' });
+    }
     const affiliateUrl = await withCache(
       cacheKey('affiliate', provider, purchaseUrl),
       affiliateCacheTtlSeconds,
@@ -348,10 +351,12 @@ function cacheKey(...parts: string[]): string {
 
 async function buildAffiliateUrl(purchaseUrl: string, provider: string): Promise<AffiliateUrlResult> {
   if (provider === 'rakuten' || (provider === 'all' && purchaseUrl.includes('rakuten.co.jp'))) {
-    const affiliateUrl = buildRakutenAffiliateUrl(purchaseUrl);
     return {
-      url: affiliateUrl ?? purchaseUrl,
-      converted: Boolean(affiliateUrl && affiliateUrl !== purchaseUrl),
+      // Rakuten affiliate links must come from Rakuten's link tools or API.
+      // Keep official affiliate URLs unchanged and do not convert arbitrary
+      // saved/search URLs at click time.
+      url: purchaseUrl,
+      converted: false,
       provider: 'rakuten',
     };
   }
@@ -581,20 +586,6 @@ function dedupePurchaseLinkResults(results: PurchaseLinkSearchResult[]): Purchas
   });
 }
 
-function buildRakutenAffiliateUrl(purchaseUrl: string): string | undefined {
-  const affiliateId = getRakutenAffiliateId();
-  if (!affiliateId || isRakutenAffiliateUrl(purchaseUrl)) return undefined;
-
-  try {
-    const url = new URL(purchaseUrl);
-    if (!url.hostname.includes('rakuten.co.jp')) return undefined;
-    const encodedUrl = encodeURIComponent(url.toString());
-    return `https://hb.afl.rakuten.co.jp/hgc/${encodeURIComponent(affiliateId)}/?pc=${encodedUrl}&m=${encodedUrl}`;
-  } catch {
-    return undefined;
-  }
-}
-
 function buildYahooAffiliateUrl(purchaseUrl: string): string | undefined {
   const sid = Deno.env.get('YAHOO_VALUECOMMERCE_SID') ?? Deno.env.get('VALUECOMMERCE_SID');
   const pid = Deno.env.get('YAHOO_VALUECOMMERCE_PID') ?? Deno.env.get('VALUECOMMERCE_PID');
@@ -678,16 +669,7 @@ function parseRakutenUrl(value: string): { shopCode: string; itemPath: string } 
 }
 
 function getRakutenAffiliateId(): string | undefined {
-  return Deno.env.get('RAKUTEN_AFFILIATE_ID') ?? Deno.env.get('RAKUTEN_ACCESS_KEY');
-}
-
-function isRakutenAffiliateUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.hostname === 'hb.afl.rakuten.co.jp' || url.searchParams.has('rafcid');
-  } catch {
-    return false;
-  }
+  return Deno.env.get('RAKUTEN_AFFILIATE_ID');
 }
 
 function isYahooAffiliateUrl(value: string): boolean {

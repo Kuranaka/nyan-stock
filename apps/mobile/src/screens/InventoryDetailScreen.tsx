@@ -1377,7 +1377,9 @@ export default function InventoryDetailScreen() {
               style={styles.editButton}
             />
           </View>
-          <Text style={styles.affiliate}>リンクにはアフィリエイトが含まれる場合があります</Text>
+          <Text style={styles.affiliate}>
+            Amazonのアソシエイトとして、にゃんストック運営は適格販売により収入を得ています。商品リンクにはアフィリエイトリンクが含まれる場合がありますが、リンクの利用を理由に購入価格が上乗せされることはありません。
+          </Text>
           {showPurchaseLinkEdit ? (
             <>
               <AppTextInput

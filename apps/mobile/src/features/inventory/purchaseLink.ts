@@ -1,4 +1,4 @@
-import * as WebBrowser from 'expo-web-browser';
+import { Linking } from 'react-native';
 
 import { getSupabaseSession } from '@/features/auth/supabaseAuth';
 
@@ -66,6 +66,10 @@ export function buildPurchaseSearchUrl(productName: string, shopType: ShopType):
 }
 
 export async function buildAffiliateUrl(originalUrl: string, shopType: ShopType): Promise<string> {
+  // Rakuten links are used exactly as returned by Rakuten's API/link tools.
+  // Arbitrary saved URLs and generated search URLs must remain ordinary links.
+  if (shopType === 'rakuten') return originalUrl;
+
   const endpoint = getPurchaseLinkSearchEndpoint();
   if (!endpoint || !supabaseAnonKey) return originalUrl;
 
@@ -92,7 +96,7 @@ export async function buildAffiliateUrl(originalUrl: string, shopType: ShopType)
 export async function openPurchaseUrl(item: InventoryItem, shopType: ShopType) {
   const url = getPurchaseUrl(item, shopType);
   if (!url) return false;
-  await WebBrowser.openBrowserAsync(await buildAffiliateUrl(url, shopType));
+  await Linking.openURL(await buildAffiliateUrl(url, shopType));
   return true;
 }
 

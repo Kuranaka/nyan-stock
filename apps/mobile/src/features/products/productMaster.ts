@@ -188,10 +188,14 @@ export function petProductAmountAndUnit(product: PetProductMaster): {
 }
 
 export function productPurchaseLinksToInventoryLinks(product: PetProductMaster): PurchaseLinks {
-  const rakuten = product.retailers.find((retailer) => retailer.source.startsWith('rakuten_'));
+  const rakutenRetailers = product.retailers.filter((retailer) =>
+    retailer.source.startsWith('rakuten_'),
+  );
   const yahoo = product.retailers.find((retailer) => retailer.source === 'yahoo_shopping');
   return {
-    rakuten: rakuten?.itemUrl ?? rakuten?.affiliateUrl,
+    rakuten:
+      rakutenRetailers.find((retailer) => retailer.affiliateUrl)?.affiliateUrl ??
+      rakutenRetailers.find((retailer) => retailer.itemUrl)?.itemUrl,
     yahoo: yahoo?.itemUrl ?? yahoo?.affiliateUrl,
   };
 }
