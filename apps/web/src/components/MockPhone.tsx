@@ -10,7 +10,7 @@ type MockPhoneProps = {
 };
 
 const items: StockItem[] = [
-  { name: '猫砂', days: '残り2日', tone: 'danger' },
+  { name: 'トイレ用品', days: '残り2日', tone: 'danger' },
   { name: 'ドライフード', days: '残り6日', tone: 'warning' },
   { name: 'おやつ', days: '残り18日', tone: 'success' }
 ];
@@ -32,10 +32,10 @@ export function MockPhone({ title = 'ミルクの在庫', variant = 'home' }: Mo
           {variant === 'history' ? (
             <div className="mt-5 space-y-3">
               <div className="rounded-2xl bg-honey p-4">
-                <p className="text-sm text-muted">今月の猫用品</p>
+                <p className="text-sm text-muted">今月のペット用品</p>
                 <p className="mt-1 text-2xl font-bold text-ink">8,420円</p>
               </div>
-              {['猫砂 1,980円', 'ドライフード 4,280円', 'おやつ 980円'].map((row) => (
+              {['トイレ用品 1,980円', 'ドライフード 4,280円', 'おやつ 980円'].map((row) => (
                 <div key={row} className="flex justify-between rounded-2xl border border-line px-4 py-3 text-sm">
                   <span>{row.split(' ')[0]}</span>
                   <span className="font-bold">{row.split(' ')[1]}</span>

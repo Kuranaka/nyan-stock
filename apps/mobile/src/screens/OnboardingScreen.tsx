@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [startingAsGuest, setStartingAsGuest] = useState(false);
 
@@ -130,7 +132,7 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
           <View style={styles.dataNoteItem}>
             <Text style={styles.dataNoteLabel}>ゲストで始める場合</Text>
             <Text style={styles.dataNoteText}>
-              在庫データはこの端末に保存されます。アプリ削除や機種変更ではデータを引き継げません。
+              開始時に匿名IDを作成します。在庫データはこの端末に保存され、アプリ削除や機種変更では引き継げません。
             </Text>
           </View>
           <View style={styles.dataNoteDivider} />
@@ -140,6 +142,28 @@ export default function OnboardingScreen({ onStart, onSignedIn }: Props) {
               あとからGoogleまたはAppleでログインしてください。
             </Text>
           </View>
+        </View>
+
+        <View accessibilityRole="summary" style={styles.legalLinks}>
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            onPress={() => router.push('/privacy')}
+            style={({ pressed }) => pressed && styles.legalLinkPressed}
+          >
+            <Text style={styles.legalLinkText}>プライバシーポリシー</Text>
+          </Pressable>
+          <Text accessible={false} style={styles.legalLinkSeparator}>
+            ・
+          </Text>
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            onPress={() => router.push('/terms')}
+            style={({ pressed }) => pressed && styles.legalLinkPressed}
+          >
+            <Text style={styles.legalLinkText}>利用規約</Text>
+          </Pressable>
         </View>
       </View>
     </ScrollView>
@@ -317,6 +341,29 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 13,
     lineHeight: 20,
+  },
+  legalLinks: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  legalLinkPressed: {
+    opacity: 0.65,
+  },
+  legalLinkText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20,
+    textDecorationLine: 'underline',
+  },
+  legalLinkSeparator: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingHorizontal: 6,
   },
   dataNoteDivider: {
     backgroundColor: colors.background,

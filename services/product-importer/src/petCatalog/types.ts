@@ -142,6 +142,7 @@ export type ProductCandidate = {
 };
 
 export type ReviewIssueType =
+  | 'base_product_name_missing'
   | 'target_species_unknown'
   | 'small_animal_scope_unclear'
   | 'multiple_pet_groups_detected'

@@ -14,7 +14,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-lg font-black text-ink">にゃんストック</p>
-          <p className="mt-1 text-sm text-muted">猫用品の買い忘れを防ぐアプリ</p>
+          <p className="mt-1 text-sm text-muted">ペット用品の買い忘れを防ぐアプリ</p>
           {supportEmail ? <p className="mt-2 text-sm text-muted">お問い合わせ: {supportEmail}</p> : null}
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-muted">

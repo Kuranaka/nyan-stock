@@ -40,6 +40,8 @@ function dispositionFor(
 ): { disposition: ReviewIssueDisposition; reason: string } {
   const classification = `${candidate.categoryId ?? ''}|${candidate.subcategoryId ?? ''}`;
   switch (issue.issueType) {
+    case 'base_product_name_missing':
+      return rule('reject', '販売訴求等を除いた後の商品名が空であり、商品を安全に識別できないため自動除外対象。');
     case 'possible_wrong_search_result':
       return rule('reject', '除外語または検索対象と異なるpet_groupを検出したため、自動除外対象。');
     case 'multiple_pet_groups_detected':

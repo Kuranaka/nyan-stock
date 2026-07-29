@@ -50,6 +50,7 @@ async function main(): Promise<void> {
         draft: result.masters.filter((row) => row.status === 'draft').length,
         published: result.masters.filter((row) => row.status === 'published').length,
         retired: result.masters.filter((row) => row.status === 'retired').length,
+        retiredDuplicates: result.deduplicatedVariantIds.length,
         skippedLegacyVariants: result.skippedLegacyVariantIds.length,
       },
       items: result.masters,
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
     console.log(
       `[pet-product-master] masters=${payload.totals.masters} draft=${payload.totals.draft} ` +
         `published=${payload.totals.published} retired=${payload.totals.retired} ` +
+        `retiredDuplicates=${payload.totals.retiredDuplicates} ` +
         `skippedLegacy=${payload.totals.skippedLegacyVariants} dryRun=${options.dryRun} ` +
         `writeConcurrency=${options.dryRun ? 0 : writeConcurrency} preview=${options.outputPath}`,
     );

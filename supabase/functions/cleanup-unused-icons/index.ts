@@ -1,8 +1,12 @@
-type StorageObject = {
-  name: string;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
+import {
+  buildManagedIconPath,
+  isManagedIconPath,
+  isOlderThanCutoff,
+  isStorageFile,
+  isStorageFolder,
+  managedIconRoots,
+  StorageObject,
+} from '../_shared/icon-storage.ts';
 
 type IconReference = {
   storage_path: string;
@@ -51,14 +55,13 @@ Deno.serve(async (request) => {
     const dryRun = body?.dryRun === true;
     const cutoff = new Date(Date.now() - graceDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const [objects, references] = await Promise.all([
-      loadOldIconObjects(supabaseUrl, serviceRoleKey, cutoff),
-      loadIconReferences(supabaseUrl, serviceRoleKey),
-    ]);
+    const objects = await loadManagedIconObjects(supabaseUrl, serviceRoleKey);
+    const references = await loadIconReferences(supabaseUrl, serviceRoleKey);
     const activePaths = new Set(references.map((reference) => reference.storage_path));
     const unusedPaths = objects
+      .filter((object) => isOlderThanCutoff(object, cutoff))
       .map((object) => object.name)
-      .filter((name) => isManagedIconPath(name) && !activePaths.has(name));
+      .filter((name) => !activePaths.has(name));
 
     if (!dryRun) {
       for (let index = 0; index < unusedPaths.length; index += deleteBatchSize) {
@@ -82,27 +85,25 @@ Deno.serve(async (request) => {
   }
 });
 
-async function loadOldIconObjects(
-  supabaseUrl: string,
-  serviceRoleKey: string,
-  cutoff: string,
-): Promise<StorageObject[]> {
+async function loadManagedIconObjects(supabaseUrl: string, serviceRoleKey: string): Promise<StorageObject[]> {
   const managedObjects: StorageObject[] = [];
-  for (const root of ['cats', 'products']) {
-    const ownerFolders = (await listStorageFolder(supabaseUrl, serviceRoleKey, root)).filter(
-      (entry) => !entry.name.includes('.'),
-    );
-    for (const folder of ownerFolders) {
-      const files = await listStorageFolder(supabaseUrl, serviceRoleKey, `${root}/${folder.name}`);
-      files.forEach((file) => {
-        const createdAt = file.created_at ?? file.updated_at;
-        if (createdAt && createdAt < cutoff) {
-          managedObjects.push({
-            ...file,
-            name: `${root}/${folder.name}/${file.name}`,
-          });
-        }
-      });
+  for (const root of managedIconRoots) {
+    const userFolders = (await listStorageFolder(supabaseUrl, serviceRoleKey, root)).filter(isStorageFolder);
+    for (const userFolder of userFolders) {
+      const ownerFolders = (
+        await listStorageFolder(supabaseUrl, serviceRoleKey, `${root}/${userFolder.name}`)
+      ).filter(isStorageFolder);
+      for (const ownerFolder of ownerFolders) {
+        const files = await listStorageFolder(
+          supabaseUrl,
+          serviceRoleKey,
+          `${root}/${userFolder.name}/${ownerFolder.name}`,
+        );
+        files.filter(isStorageFile).forEach((file) => {
+          const path = buildManagedIconPath(root, userFolder.name, ownerFolder.name, file.name);
+          if (path) managedObjects.push({ ...file, name: path });
+        });
+      }
     }
   }
   return managedObjects;
@@ -138,16 +139,21 @@ async function listStorageFolder(
 }
 
 async function loadIconReferences(supabaseUrl: string, serviceRoleKey: string): Promise<IconReference[]> {
-  const endpoint = `${supabaseUrl}/rest/v1/${encodeURIComponent(
-    referenceTable,
-  )}?bucket_id=eq.${encodeURIComponent(iconBucket)}&select=storage_path`;
-  const response = await fetch(endpoint, {
-    headers: supabaseHeaders(serviceRoleKey),
-  });
-  if (!response.ok) {
-    throw new Error(`icon reference read failed ${response.status}: ${await response.text()}`);
+  const all: IconReference[] = [];
+  for (let offset = 0; ; offset += listBatchSize) {
+    const endpoint = `${supabaseUrl}/rest/v1/${encodeURIComponent(
+      referenceTable,
+    )}?bucket_id=eq.${encodeURIComponent(iconBucket)}&select=storage_path&order=storage_path.asc&limit=${listBatchSize}&offset=${offset}`;
+    const response = await fetch(endpoint, {
+      headers: supabaseHeaders(serviceRoleKey),
+    });
+    if (!response.ok) {
+      throw new Error(`icon reference read failed ${response.status}: ${await response.text()}`);
+    }
+    const rows = (await response.json()) as IconReference[];
+    all.push(...rows);
+    if (rows.length < listBatchSize) return all;
   }
-  return (await response.json()) as IconReference[];
 }
 
 async function deleteStorageObjects(
@@ -156,6 +162,9 @@ async function deleteStorageObjects(
   paths: string[],
 ): Promise<void> {
   if (paths.length === 0) return;
+  if (paths.length > deleteBatchSize || paths.some((path) => !isManagedIconPath(path))) {
+    throw new Error('refusing to delete unmanaged icon paths');
+  }
   const response = await fetch(`${supabaseUrl}/storage/v1/object/${iconBucket}`, {
     method: 'DELETE',
     headers: {
@@ -187,10 +196,6 @@ async function readJsonBody(request: Request): Promise<{ graceDays?: unknown; dr
 function normalizeGraceDays(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 1) return defaultGraceDays;
   return Math.min(Math.floor(value), 365);
-}
-
-function isManagedIconPath(path: string): boolean {
-  return path.startsWith('cats/') || path.startsWith('products/');
 }
 
 function json(body: unknown, status = 200): Response {

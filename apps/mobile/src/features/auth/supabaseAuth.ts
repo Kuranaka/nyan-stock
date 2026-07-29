@@ -6,7 +6,11 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { clearAuthSession, getAuthSession, saveAuthSession } from './authStorage';
 import { AuthProvider, AuthSession } from './authTypes';
-import { isSupabaseConfigured, requireSupabaseClient } from '@/features/supabase/supabaseClient';
+import {
+  clearSupabasePersistedAuthSession,
+  isSupabaseConfigured,
+  requireSupabaseClient,
+} from '@/features/supabase/supabaseClient';
 
 type OAuthProvider = Exclude<AuthProvider, 'guest'>;
 
@@ -31,7 +35,10 @@ export async function getCurrentAuthSession(): Promise<AuthSession | undefined> 
   }
 
   const cachedSession = await getAuthSession();
-  if (cachedSession?.supabaseUserId === session.user.id) {
+  const cachedProviderMatchesSupabase = isAnonymousSupabaseSession(session)
+    ? cachedSession?.provider === 'guest'
+    : cachedSession?.provider !== 'guest';
+  if (cachedSession?.supabaseUserId === session.user.id && cachedProviderMatchesSupabase) {
     return cachedSession;
   }
 
@@ -65,7 +72,10 @@ export async function signInAsGuest(displayName?: string): Promise<Session> {
 
 function buildGuestSignInErrorMessage(error: unknown): string {
   const details =
-    typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
       ? error.message
       : undefined;
   const baseMessage =
@@ -76,17 +86,28 @@ function buildGuestSignInErrorMessage(error: unknown): string {
 
 export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<AuthSession> {
   const client = requireSupabaseClient();
+  const currentSession = await getSupabaseSession();
+  const linkFromGuest =
+    currentSession && isAnonymousSupabaseSession(currentSession) ? currentSession : undefined;
   const redirectTo = getOAuthRedirectUrl();
   console.log('[auth] Supabase OAuth redirect URL:', redirectTo);
-  const { data, error } = await client.auth.signInWithOAuth({
+  const credentials = {
     provider: supabaseOAuthProviders[provider],
     options: {
       redirectTo,
       skipBrowserRedirect: true,
     },
-  });
+  } as const;
+  const { data, error } = linkFromGuest
+    ? await client.auth.linkIdentity(credentials)
+    : await client.auth.signInWithOAuth(credentials);
   if (error || !data.url) {
-    throw new Error(`${authProviderLabels[provider]}ログインを開始できませんでした。SupabaseのProvider設定を確認してください。`);
+    if (linkFromGuest) {
+      throw new Error(buildIdentityLinkErrorMessage(provider, error));
+    }
+    throw new Error(
+      `${authProviderLabels[provider]}ログインを開始できませんでした。SupabaseのProvider設定を確認してください。`,
+    );
   }
   logOAuthStartUrl(data.url);
 
@@ -95,11 +116,14 @@ export async function signInWithSupabaseOAuth(provider: OAuthProvider): Promise<
     throw new Error(`${authProviderLabels[provider]}ログインがキャンセルされました。`);
   }
 
-  return completeSupabaseOAuthCallback(result.url, provider);
+  return completeSupabaseOAuthCallback(result.url, provider, linkFromGuest?.user.id);
 }
 
 export async function signInWithSupabaseAppleNative(): Promise<AuthSession> {
   const client = requireSupabaseClient();
+  const currentSession = await getSupabaseSession();
+  const linkFromGuest =
+    currentSession && isAnonymousSupabaseSession(currentSession) ? currentSession : undefined;
   const nonce = createNonce();
   const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, nonce);
   const credential = await AppleAuthentication.signInAsync({
@@ -115,13 +139,23 @@ export async function signInWithSupabaseAppleNative(): Promise<AuthSession> {
   console.log('[auth] Apple id token aud:', appleTokenClaims?.aud);
   console.log('[auth] Apple id token iss:', appleTokenClaims?.iss);
 
-  const { data, error } = await client.auth.signInWithIdToken({
+  const appleCredentials = {
     provider: 'apple',
     token: credential.identityToken,
     nonce,
-  });
+  } as const;
+  const { data, error } = linkFromGuest
+    ? await client.auth.linkIdentity({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce,
+      })
+    : await client.auth.signInWithIdToken(appleCredentials);
 
   if (error || !data.session) {
+    if (linkFromGuest) {
+      throw new Error(buildIdentityLinkErrorMessage('apple', error));
+    }
     const message = getAuthErrorMessage(error);
     console.warn('[auth] Apple id token sign-in failed', {
       aud: appleTokenClaims?.aud,
@@ -131,6 +165,8 @@ export async function signInWithSupabaseAppleNative(): Promise<AuthSession> {
     throw new Error(`Supabaseログインセッションを作成できませんでした。\n\n詳細: ${message}`);
   }
 
+  assertLinkedUserWasPreserved(linkFromGuest?.user.id, data.session.user.id);
+
   const session = createAuthSessionFromSupabaseSession(data.session, 'apple');
   await saveAuthSession(session);
   return session;
@@ -139,21 +175,44 @@ export async function signInWithSupabaseAppleNative(): Promise<AuthSession> {
 export async function completeSupabaseOAuthCallback(
   callbackUrl: string,
   fallbackProvider?: OAuthProvider,
+  expectedLinkedUserId?: string,
 ): Promise<AuthSession> {
-  const supabaseSession = await completeOAuthCallback(callbackUrl);
+  const supabaseSession = await completeOAuthCallback(
+    callbackUrl,
+    expectedLinkedUserId ? fallbackProvider : undefined,
+  );
+  assertLinkedUserWasPreserved(expectedLinkedUserId, supabaseSession.user.id);
   const session = createAuthSessionFromSupabaseSession(supabaseSession, fallbackProvider);
   await saveAuthSession(session);
   return session;
 }
 
-async function completeOAuthCallback(callbackUrl: string): Promise<Session> {
+async function completeOAuthCallback(
+  callbackUrl: string,
+  linkingProvider?: OAuthProvider,
+): Promise<Session> {
   const client = requireSupabaseClient();
   assertTrustedOAuthCallbackUrl(callbackUrl);
   const params = getCallbackParams(callbackUrl);
+  const callbackError = params.get('error_description') ?? params.get('error');
+  if (callbackError) {
+    if (linkingProvider) {
+      throw new Error(
+        buildIdentityLinkErrorMessage(linkingProvider, {
+          code: params.get('error_code') ?? params.get('error'),
+          message: callbackError,
+        }),
+      );
+    }
+    throw new Error('Supabaseログインを完了できませんでした。');
+  }
   const code = params.get('code');
   if (code) {
     const { data, error } = await client.auth.exchangeCodeForSession(code);
     if (error || !data.session) {
+      if (linkingProvider) {
+        throw new Error(buildIdentityLinkErrorMessage(linkingProvider, error));
+      }
       throw new Error('Supabaseログインセッションを作成できませんでした。');
     }
     return data.session;
@@ -164,8 +223,15 @@ async function completeOAuthCallback(callbackUrl: string): Promise<Session> {
 
 export async function signOutSupabaseAuth(): Promise<void> {
   const client = requireSupabaseClient();
-  await client.auth.signOut();
-  await clearAuthSession();
+  try {
+    const { error } = await client.auth.signOut({ scope: 'local' });
+    if (error) {
+      console.warn('[auth] local sign-out failed', error);
+    }
+  } catch (error) {
+    console.warn('[auth] local sign-out failed', error);
+  }
+  await clearLocalAuthStateBestEffort('sign-out');
 }
 
 /**
@@ -178,9 +244,72 @@ export async function deleteSupabaseAccount(): Promise<void> {
     method: 'POST',
   });
   if (error) {
-    throw new Error('アカウントを削除できませんでした。通信状況を確認して、しばらくしてからお試しください。');
+    throw new Error(
+      'アカウントを削除できませんでした。通信状況を確認して、しばらくしてからお試しください。',
+    );
   }
-  await clearAuthSession();
+
+  try {
+    const { error: signOutError } = await client.auth.signOut({ scope: 'local' });
+    if (signOutError) {
+      console.warn('[auth] local sign-out after account deletion failed', signOutError);
+    }
+  } catch (signOutError) {
+    // The account may already be gone or the logout request may be offline.
+    // The persisted Supabase and app sessions are still removed below.
+    console.warn('[auth] local sign-out after account deletion failed', signOutError);
+  }
+
+  await clearLocalAuthStateBestEffort('account deletion');
+}
+
+async function clearLocalAuthStateBestEffort(context: string): Promise<void> {
+  let pendingCleanups = [
+    { label: 'Supabase persisted session', run: clearSupabasePersistedAuthSession },
+    { label: 'app auth session', run: clearAuthSession },
+  ];
+
+  for (let attempt = 1; attempt <= 2 && pendingCleanups.length > 0; attempt += 1) {
+    const results = await Promise.allSettled(pendingCleanups.map((cleanup) => cleanup.run()));
+    pendingCleanups = pendingCleanups.filter((_, index) => results[index]?.status === 'rejected');
+  }
+
+  if (pendingCleanups.length > 0) {
+    console.warn(
+      `[auth] local cleanup after ${context} did not complete`,
+      pendingCleanups.map((cleanup) => cleanup.label),
+    );
+  }
+}
+
+function assertLinkedUserWasPreserved(
+  expectedSupabaseUserId: string | undefined,
+  actualSupabaseUserId: string,
+): void {
+  if (expectedSupabaseUserId && actualSupabaseUserId !== expectedSupabaseUserId) {
+    throw new Error(
+      '安全のためアカウントの引き継ぎを中止しました。ゲストのまま利用を続けてください。',
+    );
+  }
+}
+
+function buildIdentityLinkErrorMessage(provider: OAuthProvider, error: unknown): string {
+  const details = getAuthErrorMessage(error).toLowerCase();
+  const providerLabel = authProviderLabels[provider];
+
+  if (
+    details.includes('identity_already_exists') ||
+    details.includes('identity is already linked') ||
+    details.includes('already been registered')
+  ) {
+    return `この${providerLabel}アカウントは、別のにゃんストックアカウントで使用されています。ゲストデータは変更していません。`;
+  }
+
+  if (details.includes('manual') && details.includes('link')) {
+    return `${providerLabel}への引き継ぎ設定が完了していません。ゲストデータは変更していません。`;
+  }
+
+  return `${providerLabel}アカウントへ引き継げませんでした。ゲストデータは変更していません。`;
 }
 
 function getStringMetadata(value: unknown): string | undefined {
@@ -192,7 +321,15 @@ function createAuthSessionFromSupabaseSession(
   fallbackProvider?: AuthProvider,
   fallbackName?: string,
 ): AuthSession {
-  const provider = getAuthProvider(session.user.app_metadata?.provider) ?? fallbackProvider ?? 'guest';
+  const linkedIdentityProvider = session.user.identities
+    ?.map((identity) => getAuthProvider(identity.provider))
+    .find((provider) => provider && provider !== 'guest');
+  const provider = isAnonymousSupabaseSession(session)
+    ? 'guest'
+    : (fallbackProvider ??
+      getAuthProvider(session.user.app_metadata?.provider) ??
+      linkedIdentityProvider ??
+      'guest');
   return {
     provider,
     providerUserId:
@@ -218,6 +355,13 @@ function getAuthProvider(value: unknown): AuthProvider | undefined {
   if (value === 'twitter') return 'x';
   if (value === 'anonymous') return 'guest';
   return undefined;
+}
+
+function isAnonymousSupabaseSession(session: Session): boolean {
+  return (
+    session.user.is_anonymous === true ||
+    getAuthProvider(session.user.app_metadata?.provider) === 'guest'
+  );
 }
 
 function getCallbackParams(callbackUrl: string): URLSearchParams {
@@ -303,11 +447,18 @@ function getAuthErrorMessage(error: unknown): string {
   if (!error) return 'セッションが空でした。';
 
   if (typeof error === 'object' && error !== null) {
-    const details = error as { message?: unknown; code?: unknown; status?: unknown; name?: unknown };
+    const details = error as {
+      message?: unknown;
+      code?: unknown;
+      status?: unknown;
+      name?: unknown;
+    };
     const parts = [
       typeof details.message === 'string' ? details.message : undefined,
       typeof details.code === 'string' ? `code=${details.code}` : undefined,
-      typeof details.status === 'number' || typeof details.status === 'string' ? `status=${details.status}` : undefined,
+      typeof details.status === 'number' || typeof details.status === 'string'
+        ? `status=${details.status}`
+        : undefined,
       typeof details.name === 'string' ? `name=${details.name}` : undefined,
     ].filter(Boolean);
     if (parts.length) return parts.join(' / ');

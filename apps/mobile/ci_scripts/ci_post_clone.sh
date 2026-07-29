@@ -11,6 +11,7 @@ fi
 
 cd "$mobile_root"
 npm ci
+npm run verify:release
 
 cd ios
 pod install

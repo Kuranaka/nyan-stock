@@ -1,14 +1,6 @@
 import { usePathname, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  DeviceEventEmitter,
-  Image,
-  ImageSourcePropType,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/colors';
@@ -16,11 +8,6 @@ import homeShortcutIcon from '@/assets/shortcut-icons/home.png';
 import costShortcutIcon from '@/assets/shortcut-icons/cost.png';
 import settingsShortcutIcon from '@/assets/shortcut-icons/settings.png';
 import { getGoogleMobileAdsPackage } from '@/features/ads/adMob';
-import {
-  getSubscriptionEntitlement,
-  SubscriptionEntitlement,
-  subscriptionChangedEventName,
-} from '@/features/subscription/subscriptionService';
 
 const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID;
 const shortcutVisiblePathnames = new Set(['/', '/cost-dashboard', '/settings']);
@@ -37,7 +24,6 @@ export function AdBanner({
 }) {
   const pathname = usePathname();
   const [adFailed, setAdFailed] = useState(false);
-  const [entitlement, setEntitlement] = useState<SubscriptionEntitlement | undefined>();
   const googleMobileAds = getGoogleMobileAdsPackage();
   const bannerUnitId =
     adRequestsReady && googleMobileAds
@@ -45,36 +31,25 @@ export function AdBanner({
         ? googleMobileAds.TestIds.ADAPTIVE_BANNER
         : productionBannerUnitId
       : undefined;
-  useEffect(() => {
-    void getSubscriptionEntitlement().then(setEntitlement);
-    const listener = DeviceEventEmitter.addListener(
-      subscriptionChangedEventName,
-      (next: SubscriptionEntitlement) => setEntitlement(next),
-    );
-    return () => listener.remove();
-  }, []);
-
-  if (!show || !adVisiblePathnames.has(pathname) || (entitlement && !entitlement.shouldShowAds)) {
+  if (!show || !adVisiblePathnames.has(pathname) || !bannerUnitId || !googleMobileAds || adFailed) {
     return null;
   }
 
   return (
     <View style={styles.adContainer}>
-      {bannerUnitId && googleMobileAds && !adFailed ? (
-        <View style={styles.banner}>
-          <googleMobileAds.BannerAd
-            unitId={bannerUnitId}
-            size={googleMobileAds.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-            // UMP still limits the request in regions where the user has not
-            // consented. On iOS, ATT denial additionally forces a non-personalized request.
-            requestOptions={{ requestNonPersonalizedAdsOnly: !personalizedAdsAllowed }}
-            onAdFailedToLoad={(error) => {
-              console.warn('[AdMob] banner failed to load', error);
-              setAdFailed(true);
-            }}
-          />
-        </View>
-      ) : null}
+      <View style={styles.banner}>
+        <googleMobileAds.BannerAd
+          unitId={bannerUnitId}
+          size={googleMobileAds.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          // UMP still limits the request in regions where the user has not
+          // consented. On iOS, ATT denial additionally forces a non-personalized request.
+          requestOptions={{ requestNonPersonalizedAdsOnly: !personalizedAdsAllowed }}
+          onAdFailedToLoad={(error) => {
+            console.warn('[AdMob] banner failed to load', error);
+            setAdFailed(true);
+          }}
+        />
+      </View>
     </View>
   );
 }

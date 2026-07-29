@@ -61,6 +61,48 @@ test('quality checks catch unsafe taxonomy, merge and review states', () => {
   assert.ok((byCheck.get('freshwater_marine_merged') ?? []).includes('product-1'));
 });
 
+test('retained rejected products are ignored by active food classification checks', () => {
+  const findings = runPetCatalogQualityChecks({
+    listings: [],
+    candidates: [],
+    products: [{
+      id: 'product-rejected-cross-species',
+      pet_group: 'small_animal',
+      target_species: ['ferret', 'guinea_pig', 'hamster'],
+      target_scope: 'multi_species',
+      category_id: 'small_animal_food',
+      subcategory_id: 'small_animal_pellet',
+      base_product_name: '小動物フード',
+      status: 'rejected',
+    }],
+    variants: [],
+    identityKeys: [],
+    productListings: [],
+    reviewQueue: [],
+  });
+
+  assert.equal(findings.some((finding) =>
+    ['ferret_food_merged_with_herbivore', 'guinea_pig_food_merged_with_hamster'].includes(finding.check) &&
+    finding.ids.includes('product-rejected-cross-species')),
+  false);
+});
+
+test('model labels such as 7in1 LM-3 are not treated as capacity', () => {
+  const findings = runPetCatalogQualityChecks({
+    listings: [], candidates: [], variants: [], identityKeys: [], productListings: [], reviewQueue: [],
+    products: [{
+      id: 'product-model-label',
+      normalized_name: 'ペットバリカン 吸引式 7in1 LM-3',
+      base_product_name: 'ペットバリカン 吸引式 7in1 LM-3',
+      pet_group: 'cat', target_species: ['cat'], target_scope: 'species_specific', status: 'draft',
+    }],
+  });
+
+  assert.equal(findings.some((finding) =>
+    finding.check === 'capacity_in_product_name' && finding.ids.includes('product-model-label')),
+  false);
+});
+
 test('quality checks enforce issue disposition and candidate status consistency', () => {
   const snapshot: CatalogQualitySnapshot = {
     listings: [

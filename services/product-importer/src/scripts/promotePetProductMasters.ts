@@ -40,6 +40,17 @@ async function main(): Promise<void> {
   const variants = await selectRowsByIds(source, 'product_variants', 'id', variantIds);
   const identities = await selectRowsByIds(source, 'product_identity_keys', 'variant_id', variantIds);
   const translations = await selectRowsByIds(source, 'product_translations', 'product_id', productIds);
+  const targetPublishedBefore = await selectAllByKeyset(
+    target,
+    'pet_product_masters',
+    'id',
+    'status=eq.published',
+    'id',
+  );
+  const sourceMasterIds = new Set(masters.map((row) => String(row.id ?? '')));
+  const staleTargetMasterIds = targetPublishedBefore
+    .map((row) => String(row.id ?? ''))
+    .filter((id) => id && !sourceMasterIds.has(id));
 
   assertComplete('products', productIds, products.map((row) => String(row.id ?? '')));
   assertComplete('product_variants', variantIds, variants.map((row) => String(row.id ?? '')));
@@ -47,7 +58,8 @@ async function main(): Promise<void> {
   console.log(
     `[pet-product-master:promote] source=${sourceProject} target=${targetProject} ` +
       `masters=${masters.length} products=${products.length} variants=${variants.length} ` +
-      `identities=${identities.length} translations=${translations.length} apply=${options.apply}`,
+      `identities=${identities.length} translations=${translations.length} ` +
+      `staleTargetMasters=${staleTargetMasterIds.length} apply=${options.apply}`,
   );
   if (!options.apply) return;
 
@@ -62,17 +74,49 @@ async function main(): Promise<void> {
     options.concurrency,
   );
   await upsertRows(target, 'pet_product_masters', masters, 'id', options.concurrency);
+  await retirePetProductMasters(target, staleTargetMasterIds, options.concurrency);
 
   const targetMasters = await selectAllByKeyset(target, 'pet_product_masters', 'id', 'status=eq.published', 'id');
-  const sourceMasterIds = new Set(masters.map((row) => String(row.id ?? '')));
   const copiedCount = targetMasters.filter((row) => sourceMasterIds.has(String(row.id ?? ''))).length;
   if (copiedCount !== masters.length) {
     throw new Error(`Production verification failed: expected ${masters.length} copied masters, found ${copiedCount}.`);
+  }
+  if (targetMasters.length !== masters.length) {
+    throw new Error(
+      `Production verification failed: expected exactly ${masters.length} published masters, found ${targetMasters.length}.`,
+    );
   }
   console.log(
     `[pet-product-master:promote] completed copied=${copiedCount} ` +
       `productionPublished=${targetMasters.length}`,
   );
+}
+
+async function retirePetProductMasters(
+  environment: EnvironmentConfig,
+  ids: string[],
+  concurrency: number,
+): Promise<void> {
+  const batches: string[][] = [];
+  for (let offset = 0; offset < ids.length; offset += relationBatchSize) {
+    batches.push(ids.slice(offset, offset + relationBatchSize));
+  }
+  let nextBatch = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, batches.length) }, async () => {
+    for (;;) {
+      const index = nextBatch;
+      nextBatch += 1;
+      const batch = batches[index];
+      if (!batch) return;
+      const values = batch.map(encodeURIComponent).join(',');
+      await request(environment, `pet_product_masters?id=in.(${values})&status=eq.published`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'retired', updated_at: new Date().toISOString() }),
+      });
+    }
+  }));
+  console.log(`[pet-product-master:promote] retired stale masters=${ids.length}`);
 }
 
 function parseOptions(args: string[]): Options {

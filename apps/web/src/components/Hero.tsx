@@ -10,13 +10,13 @@ export function Hero() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
           <p className="mb-4 inline-flex rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-caramel">
-            猫用品の在庫管理アプリ
+            ペット用品の在庫管理アプリ
           </p>
           <h1 className="max-w-3xl text-4xl font-black leading-tight text-ink sm:text-5xl lg:text-6xl">
-            猫用品の買い忘れを、もうなくす。
+            ペット用品の買い忘れを、もうなくす。
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-            フード・猫砂・おやつの残り日数を管理して、なくなる前にお知らせ。いつもの商品もすぐ再購入できます。
+            フード・トイレ用品・おやつの残り日数をペットごとに管理して、なくなる前にお知らせ。いつもの商品もすぐ再購入できます。
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
@@ -26,7 +26,7 @@ export function Hero() {
               onClick={() => trackEvent('external_link_click', { source: 'hero_app_store' })}
               className="rounded-full bg-ink px-7 py-4 text-center font-bold text-white shadow-soft transition hover:bg-caramel"
             >
-              App Storeでダウンロード
+              App Storeで確認
             </a>
             <a
               href="#how-to-use"

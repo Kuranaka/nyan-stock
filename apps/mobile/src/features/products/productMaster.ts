@@ -205,6 +205,29 @@ export function getProductMasterImageUrl(product: PetProductMaster): string | un
   return candidates.find((url) => url && /^https?:\/\//i.test(url));
 }
 
+export function getProductVariantLabel(
+  product: PetProductMaster,
+  options: { includeJan?: boolean } = {},
+): string | undefined {
+  const labels: string[] = [];
+  if (
+    product.capacityValue !== undefined &&
+    product.capacityValue > 0 &&
+    product.capacityUnit
+  ) {
+    labels.push(`${formatProductNumber(product.capacityValue)}${product.capacityUnit}`);
+  }
+  if (product.quantity !== undefined && product.quantity > 1) {
+    labels.push(`${formatProductNumber(product.quantity)}個入`);
+  }
+  if (options.includeJan && product.janCode) labels.push(`JAN ${product.janCode}`);
+  return labels.length > 0 ? labels.join(' ・ ') : undefined;
+}
+
+function formatProductNumber(value: number): string {
+  return value.toLocaleString('ja-JP', { maximumFractionDigits: 3 });
+}
+
 function normalizeInventoryUnit(value?: string): InventoryUnit | undefined {
   const normalized = value?.normalize('NFKC').trim().toLowerCase();
   if (!normalized) return undefined;

@@ -33,10 +33,8 @@ import {
 } from '@/features/inventory/inventoryLogic';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import { InventoryItem } from '@/features/inventory/inventoryTypes';
-import {
-  requestNotificationPermission,
-  scheduleInventoryNotifications,
-} from '@/features/notifications/notificationService';
+import { confirmInitialNotificationSetting } from '@/features/notifications/initialNotificationSetting';
+import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import {
   getSettings,
   hasSavedSettings,
@@ -58,21 +56,6 @@ type InventoryFilter = 'all' | 'attention' | 'watch' | 'learning' | 'disabled';
 type BriefAction = Exclude<InventoryFilter, 'all'> | 'profile' | 'add';
 
 const defaultVisibleInStockItemCount = 3;
-
-async function confirmInitialNotificationSetting(
-  currentSettings: AppSettings,
-  settingsAlreadySaved: boolean,
-): Promise<AppSettings> {
-  if (currentSettings.notificationPermissionPrompted || settingsAlreadySaved) {
-    return currentSettings;
-  }
-
-  const notificationsEnabled = await requestNotificationPermission();
-  return updateSettings({
-    notificationPermissionPrompted: true,
-    notificationsEnabled,
-  });
-}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -112,10 +95,9 @@ export default function HomeScreen() {
         getInventoryItems(),
         hasSavedSettings(),
       ]);
-      const nextSettings = await confirmInitialNotificationSetting(
-        storedSettings,
+      const nextSettings = await confirmInitialNotificationSetting(storedSettings, {
         settingsAlreadySaved,
-      );
+      });
       const selectedId = resolveSelectedCatId(nextCats, nextSettings.selectedCatId);
 
       setCats(nextCats);
@@ -153,7 +135,11 @@ export default function HomeScreen() {
   }, [hasAuthSession, settings]);
 
   const completeOnboarding = async (toProfile: boolean) => {
-    await updateSettings({ onboardingCompleted: true });
+    const completedSettings = await updateSettings({ onboardingCompleted: true });
+    await confirmInitialNotificationSetting(completedSettings, {
+      onboardingJustCompleted: true,
+      settingsAlreadySaved: true,
+    });
     DeviceEventEmitter.emit(onboardingVisibilityEventName, true);
     setLoading(true);
     await load();

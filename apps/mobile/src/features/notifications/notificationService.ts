@@ -122,6 +122,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
+  if (!current.canAskAgain) return false;
 
   Alert.alert(
     '通知を使います',

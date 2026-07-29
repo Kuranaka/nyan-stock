@@ -24,13 +24,13 @@ const features = [
   },
   {
     icon: '円',
-    title: '月の猫用品コストを見える化',
-    body: 'フード・猫砂・おやつなどの支出をざっくり把握。'
+    title: '月のペット用品コストを見える化',
+    body: 'フード・トイレ用品・おやつなどの支出をざっくり把握。'
   },
   {
-    icon: '猫',
-    title: '猫プロフィールも管理',
-    body: '名前・年齢・体重などを登録して、生活メモとして使いやすくします。'
+    icon: '🐾',
+    title: 'ペットごとに管理',
+    body: '猫、犬、うさぎ、小動物、鳥、観賞魚、爬虫類・両生類、昆虫の8区分に対応し、用品をペットごとに整理できます。'
   }
 ];
 
@@ -38,7 +38,7 @@ export function SolutionSection() {
   return (
     <section id="features" className="px-4 py-16 sm:px-6">
       <div className="mx-auto max-w-6xl">
-        <SectionTitle title="にゃんストックで、いつもの猫用品をかんたん管理" />
+        <SectionTitle title="にゃんストックで、いつものペット用品をかんたん管理" />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
             <FeatureCard key={feature.title} {...feature} />

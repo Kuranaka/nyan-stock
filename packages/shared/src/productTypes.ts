@@ -84,15 +84,3 @@ export type RawProduct = {
   fetchedAt: string;
   raw: unknown;
 };
-
-export type UserProductSuggestion = {
-  id: string;
-  name: string;
-  category?: ProductCategory;
-  janCode?: string;
-  purchaseUrl?: string;
-  imageUrl?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  updatedAt: string;
-};

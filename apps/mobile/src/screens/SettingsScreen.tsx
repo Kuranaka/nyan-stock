@@ -3,6 +3,7 @@ import {
   Alert,
   DeviceEventEmitter,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
+import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,6 +35,7 @@ import {
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
 import {
   cancelAllInventoryNotifications,
+  getNotificationPermissionState,
   scheduleInventoryNotifications,
   scheduleTestInventoryNotification,
 } from '@/features/notifications/notificationService';
@@ -43,7 +46,7 @@ import {
   onboardingVisibilityEventName,
   saveSettings,
 } from '@/features/settings/settingsStorage';
-import { AppSettings } from '@/features/settings/settingsTypes';
+import { AppSettings, defaultSettings } from '@/features/settings/settingsTypes';
 import { storageKeys } from '@/features/storageKeys';
 import { createSubscriptionEntitlement } from '@/features/subscription/subscriptionService';
 import {
@@ -67,6 +70,14 @@ import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
 import googleLogo from '@/assets/google-g-logo.png';
 
+const appVersion = Constants.expoConfig?.version ?? '2.0.0';
+const resettableLocalDataKeys = [
+  storageKeys.cats,
+  storageKeys.inventoryItems,
+  storageKeys.purchaseHistory,
+  storageKeys.legacyUserProductSuggestions,
+] as const;
+
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -85,6 +96,7 @@ export default function SettingsScreen() {
   const [accountDeleting, setAccountDeleting] = useState(false);
   const [adPrivacyOptionsBusy, setAdPrivacyOptionsBusy] = useState(false);
   const [showAdPrivacyOptions, setShowAdPrivacyOptions] = useState(false);
+  const [dataResetBusy, setDataResetBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [next, nextAuthSession, nextSyncState, items] = await Promise.all([
@@ -97,7 +109,17 @@ export default function SettingsScreen() {
       ? await listHouseholdMembers().catch(() => [])
       : [];
     await scheduleInventoryNotifications(items, next);
-    setSettings(next);
+    const notificationPermissionState = next.notificationsEnabled
+      ? await getNotificationPermissionState()
+      : undefined;
+    const resolvedSettings =
+      next.notificationsEnabled && notificationPermissionState !== 'granted'
+        ? { ...next, notificationsEnabled: false }
+        : next;
+    if (resolvedSettings !== next) {
+      await saveSettings(resolvedSettings);
+    }
+    setSettings(resolvedSettings);
     setAuthSession(nextAuthSession);
     setSyncState(nextSyncState);
     setSharedMembers(nextSharedMembers);
@@ -124,6 +146,41 @@ export default function SettingsScreen() {
       await saveSettings(next);
       const items = await getInventoryItems();
       await scheduleInventoryNotifications(items, next);
+      const notificationPermissionState = next.notificationsEnabled
+        ? await getNotificationPermissionState()
+        : undefined;
+      if (next.notificationsEnabled && notificationPermissionState !== 'granted') {
+        const resolvedSettings = { ...next, notificationsEnabled: false };
+        setSettings(resolvedSettings);
+        await saveSettings(resolvedSettings);
+        if (patch.notificationsEnabled === true) {
+          if (notificationPermissionState === 'denied') {
+            Alert.alert(
+              '通知はオフのままです',
+              '端末の設定で通知を許可すると、在庫通知をオンにできます。',
+              [
+                { text: 'キャンセル', style: 'cancel' },
+                {
+                  text: '設定を開く',
+                  onPress: () => {
+                    void Linking.openSettings().catch(() => {
+                      Alert.alert(
+                        '端末の設定を開けませんでした',
+                        '設定アプリから「にゃんストック」の通知を許可してください。',
+                      );
+                    });
+                  },
+                },
+              ],
+            );
+          } else {
+            Alert.alert(
+              '通知をオンにできませんでした',
+              'この端末では通知を利用できないか、通知が許可されていません。',
+            );
+          }
+        }
+      }
     } catch (error) {
       Alert.alert(
         '通知設定を保存できませんでした',
@@ -164,23 +221,55 @@ export default function SettingsScreen() {
     }
   };
 
-  const resetData = () => {
+  const resetData = async () => {
+    if (dataResetBusy) return;
+    const currentSyncState = syncState ?? (await getHouseholdSyncState());
+    if (currentSyncState) {
+      Alert.alert(
+        '共有中は初期化できません',
+        '端末だけを初期化すると共有データとの接続を失うため、先に共有設定から「この端末だけ共有を解除」してください。共有スペースの作成者は、必要に応じてアカウント削除をご利用ください。',
+      );
+      return;
+    }
+
     Alert.alert(
       'データを初期化しますか？',
-      'ペットプロフィール、在庫、購入履歴、設定を削除します。',
+      'ペットプロフィール、在庫、購入履歴、通知設定をこの端末から削除します。ログイン中のアカウントとPlusの状態は保持されます。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
           text: '初期化する',
           style: 'destructive',
           onPress: async () => {
-            await cancelAllInventoryNotifications();
-            await Promise.all(
-              Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)),
-            );
-            DeviceEventEmitter.emit(onboardingVisibilityEventName, false);
-            await load();
-            router.replace('/');
+            setDataResetBusy(true);
+            try {
+              const currentSettings = settings ?? (await getSettings());
+              const resetSettings: AppSettings = {
+                ...defaultSettings,
+                onboardingCompleted: true,
+                notificationPermissionPrompted:
+                  currentSettings.notificationPermissionPrompted,
+                subscriptionPlan: currentSettings.subscriptionPlan,
+              };
+
+              await cancelAllInventoryNotifications();
+              await Promise.all(
+                resettableLocalDataKeys.map((key) => AsyncStorage.removeItem(key)),
+              );
+              await saveSettings(resetSettings);
+              setSettings(resetSettings);
+              DeviceEventEmitter.emit(onboardingVisibilityEventName, true);
+              await load();
+              router.replace('/');
+              Alert.alert('初期化しました', 'ログイン状態を保ったまま、端末内のデータを削除しました。');
+            } catch (error) {
+              Alert.alert(
+                'データを初期化できませんでした',
+                error instanceof Error ? error.message : '時間をおいてもう一度お試しください。',
+              );
+            } finally {
+              setDataResetBusy(false);
+            }
           },
         },
       ],
@@ -249,9 +338,13 @@ export default function SettingsScreen() {
   };
 
   const deleteAccount = () => {
+    const appleAccountNotice =
+      authSession?.provider === 'apple'
+        ? '\n\nAppleログインの使用停止は、削除後にiPhoneの「設定 > [自分の名前] > Appleでサインイン > にゃんストック」で「削除」「使用を停止」の順に操作してください。'
+        : '';
     Alert.alert(
       'アカウントを削除しますか？',
-      'Google・Apple・ゲストのログイン情報、個人用のクラウドデータ、アップロードしたアイコンを削除します。共有スペースに他の参加者がいる場合、その共有データは他の参加者のために残ります。この操作は取り消せません。',
+      `Google・Apple・ゲストのログイン情報、個人用のクラウドデータ、アップロードしたアイコンを削除します。共有スペースに他の参加者がいる場合、その共有データは他の参加者のために残ります。Plusを契約している場合、アカウントを削除しても解約されません。App Storeで解約してください。この操作は取り消せません。${appleAccountNotice}`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -265,7 +358,12 @@ export default function SettingsScreen() {
               setAuthSession(undefined);
               setSyncState(undefined);
               DeviceEventEmitter.emit(householdRealtimeResubscribeEventName);
-              Alert.alert('アカウントを削除しました', 'この端末内のデータも削除しました。');
+              Alert.alert(
+                'アカウントを削除しました',
+                authSession?.provider === 'apple'
+                  ? 'この端末内のデータも削除しました。Appleログインの使用停止は、iPhoneの「設定 > [自分の名前] > Appleでサインイン > にゃんストック」で「削除」「使用を停止」の順に操作してください。'
+                  : 'この端末内のデータも削除しました。',
+              );
               router.replace('/');
             } catch (error) {
               Alert.alert(
@@ -815,11 +913,18 @@ export default function SettingsScreen() {
         title="データ管理"
         description="端末内のデータとログインアカウントを扱う操作です。"
       >
-        <AppButton title="データ初期化" variant="danger" onPress={resetData} />
+        <AppButton
+          title={dataResetBusy ? '初期化中...' : 'データ初期化'}
+          variant="danger"
+          loading={dataResetBusy}
+          disabled={dataResetBusy}
+          onPress={resetData}
+        />
         {authSession?.supabaseUserId ? (
           <>
             <Text style={styles.note}>
-              アカウント削除では、ログイン情報と個人用のクラウドデータを削除します。共有相手がいる共有データは残ります。
+              アカウント削除では、ログイン情報と個人用のクラウドデータを削除します。共有相手がいる共有データは残ります。Plusを契約している場合は、別途App
+              Storeで解約してください。
             </Text>
             <AppButton
               title={accountDeleting ? 'アカウントを削除中...' : 'アカウントを削除'}
@@ -895,7 +1000,7 @@ export default function SettingsScreen() {
 
       <AppCard>
         <Text style={styles.title}>アプリ情報</Text>
-        <Text style={styles.note}>にゃんストック 1.0.0</Text>
+        <Text style={styles.note}>にゃんストック {appVersion}</Text>
         <Text style={styles.note}>共有スペース参加後の在庫データはクラウド側に保存します。</Text>
       </AppCard>
     </ScrollView>

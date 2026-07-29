@@ -34,6 +34,7 @@ import {
 } from '@/features/media/iconUpload';
 import {
   getProductMasterImageUrl,
+  getProductVariantLabel,
   getProductMasterBrands,
   petProductAmountAndUnit,
   petProductGroupLabels,
@@ -42,7 +43,6 @@ import {
   searchProductMasterPageAsync,
 } from '@/features/products/productMaster';
 import { PetProductGroup, PetProductMaster } from '@/features/products/productTypes';
-import { collectUserProductSuggestion } from '@/features/products/userProductSuggestionService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
 import {
   canCreateInventoryItem,
@@ -746,26 +746,6 @@ export default function InventoryFormScreen() {
         updatedAt: now,
       });
       await saveIconReference('inventory_item', itemId, imageUrl?.trim() || undefined);
-      if (!productMasterId && !current) {
-        await collectUserProductSuggestion({
-          suggestion: {
-            id: createId('suggestion'),
-            name: name.trim(),
-            category,
-            purchaseUrl:
-              purchaseLinks.amazon ??
-              purchaseLinks.rakuten ??
-              purchaseLinks.yahoo ??
-              purchaseLinks.other,
-            imageUrl: imageUrl?.trim() || undefined,
-            status: 'pending',
-            createdAt: now,
-            updatedAt: now,
-          },
-          inventoryItemId: itemId,
-          purchaseLinks,
-        });
-      }
       await updateSettings({ selectedCatId: primaryCatId });
       const [items, settings] = await Promise.all([getInventoryItems(), getSettings()]);
       await scheduleInventoryNotifications(items, settings);
@@ -977,6 +957,17 @@ export default function InventoryFormScreen() {
                   <View key={product.id} style={styles.searchResult}>
                     {(() => {
                       const productImageUrl = getProductMasterImageUrl(product);
+                      const variantLabel = getProductVariantLabel(product);
+                      const needsJan = masterSearchResults.some(
+                        (other) =>
+                          other.id !== product.id &&
+                          normalizeProductResultName(other.baseProductName) ===
+                            normalizeProductResultName(product.baseProductName) &&
+                          getProductVariantLabel(other) === variantLabel,
+                      );
+                      const displayedVariantLabel = getProductVariantLabel(product, {
+                        includeJan: needsJan,
+                      });
                       return (
                         <View style={styles.productResultBody}>
                           {productImageUrl ? (
@@ -987,9 +978,13 @@ export default function InventoryFormScreen() {
                             />
                           ) : null}
                           <View style={styles.productResultText}>
-                            <Text style={styles.resultName}>{product.name}</Text>
+                            <Text style={styles.resultName}>{product.baseProductName}</Text>
                             <Text style={styles.resultMeta}>
-                              {[product.brand, petProductGroupLabels[product.petGroup]]
+                              {[
+                                product.brand,
+                                petProductGroupLabels[product.petGroup],
+                                displayedVariantLabel,
+                              ]
                                 .filter(Boolean)
                                 .join(' ・ ')}
                             </Text>
@@ -1307,6 +1302,10 @@ export default function InventoryFormScreen() {
   );
 }
 
+function normalizeProductResultName(value: string): string {
+  return value.normalize('NFKC').trim().toLowerCase();
+}
+
 function DisclosureSection({
   title,
   hint,
@@ -1388,7 +1387,7 @@ function petTypeToProductGroup(petType: PetType): PetProductGroup {
 
 function getProductNameWithBrand(product: PetProductMaster): string {
   const brand = product.brand?.trim();
-  const name = product.name.trim();
+  const name = product.baseProductName.trim() || product.name.trim();
   if (!brand) return name;
   return name.normalize('NFKC').toLowerCase().includes(brand.normalize('NFKC').toLowerCase())
     ? name

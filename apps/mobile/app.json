@@ -2,14 +2,12 @@
   "expo": {
     "name": "にゃんストック",
     "slug": "nyan-stock",
-    "version": "1.0.1",
+    "version": "2.0.0",
     "orientation": "portrait",
     "scheme": "nyanstock",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -19,20 +17,21 @@
       "supportsTablet": true,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.nyanstock.app",
-      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "ペットや商品のアイコンに使う写真を撮影して追加するためにカメラを使用します。",
         "NSPhotoLibraryUsageDescription": "ペットや商品のアイコン画像を選択するために写真ライブラリを使用します。",
         "NSUserTrackingUsageDescription": "あなたに関連性の高い広告を表示し、広告の効果を測定するために、他社のアプリやWebサイトをまたいで端末識別子を使用することを許可しますか？"
       }
     },
     "android": {
       "package": "com.nyanstock.app",
-      "versionCode": 1,
-      "permissions": [
-        "com.android.vending.BILLING",
-        "com.google.android.gms.permission.AD_ID"
+      "permissions": ["com.android.vending.BILLING", "com.google.android.gms.permission.AD_ID"],
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -52,7 +51,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "ペットや商品のアイコン画像を選択するために写真ライブラリを使用します。"
+          "photosPermission": "ペットや商品のアイコン画像を選択するために写真ライブラリを使用します。",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [
@@ -60,6 +61,7 @@
         {
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",
           "iosAppId": "ca-app-pub-4606903514071634~6737780220",
+          "delayAppMeasurementInit": true,
           "optimizeInitialization": true,
           "optimizeAdLoading": true
         }

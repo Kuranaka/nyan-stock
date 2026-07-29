@@ -378,6 +378,62 @@ test('multiple explicitly named species remain one multi-species product', () =>
   assert.match(candidate.canonicalKey, /gerbil\|hamster/);
 });
 
+test('cross-group products remain eligible for each explicitly named search pet group', () => {
+  const catQuery = makeQuery('cat', 'cat', '犬 猫 おやつ');
+  const dogQuery = makeQuery('dog', 'dog', '犬 猫 おやつ');
+  catQuery.negativeKeywords = ['犬', 'ドッグ'];
+  dogQuery.negativeKeywords = ['猫', 'キャット'];
+  const title = '犬猫用 デンタルおやつ 50g';
+  const description = '犬と猫の両方に使えます。';
+
+  const catCandidate = normalizeRetailerListing(
+    makeListing(title, description, catQuery, { sourceItemId: 'dog-cat-treat-for-cat-search' }),
+    catQuery,
+  );
+  const dogCandidate = normalizeRetailerListing(
+    makeListing(title, description, dogQuery, { sourceItemId: 'dog-cat-treat-for-dog-search' }),
+    dogQuery,
+  );
+
+  assert.equal(catCandidate.petGroup, 'cat');
+  assert.deepEqual(catCandidate.targetSpecies, ['cat']);
+  assert.doesNotMatch(catCandidate.issues.map((issue) => issue.issueType).join(' '), /multiple_pet_groups_detected/);
+  assert.notEqual(catCandidate.status, 'rejected');
+  assert.equal(dogCandidate.petGroup, 'dog');
+  assert.deepEqual(dogCandidate.targetSpecies, ['dog']);
+  assert.doesNotMatch(dogCandidate.issues.map((issue) => issue.issueType).join(' '), /multiple_pet_groups_detected/);
+  assert.notEqual(dogCandidate.status, 'rejected');
+});
+
+test('a cross-group result is rejected when the searched species is not explicitly named', () => {
+  const query = makeQuery('small_animal', 'ferret', 'フェレット おやつ');
+  const candidate = normalizeRetailerListing(
+    makeListing('犬猫ハムスター用 デンタルおやつ', '犬、猫、ハムスターに使えます。', query, {
+      sourceItemId: 'cross-group-without-ferret',
+    }),
+    query,
+  );
+
+  assert.equal(candidate.status, 'rejected');
+  assert.ok(candidate.issues.some((issue) => issue.issueType === 'multiple_pet_groups_detected'));
+});
+
+test('a title emptied by normalization is rejected instead of being merged', () => {
+  const query = makeQuery('cat', 'cat', '猫用品');
+  const candidate = normalizeRetailerListing(
+    makeListing('【送料無料】テストブランド', '猫用の商品です。', query, {
+      brandName: 'テストブランド',
+      janCode: '4901234567894',
+      sourceItemId: 'empty-normalized-name',
+    }),
+    query,
+  );
+
+  assert.equal(candidate.baseProductName, '');
+  assert.equal(candidate.status, 'rejected');
+  assert.ok(candidate.issues.some((issue) => issue.issueType === 'base_product_name_missing'));
+});
+
 test('an explicit title species overrides unrelated species mentioned in the description', () => {
   const query = makeQuery('small_animal', 'ferret', 'フェレット おやつ');
   const candidate = normalizeRetailerListing(

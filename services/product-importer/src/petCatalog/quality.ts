@@ -1,6 +1,6 @@
 import { CatalogQualitySnapshot, ProductSearchQuery, QualityFinding, QualityRow } from './types.js';
 
-const capacityPattern = /\d+(?:\.\d+)?\s*(?:kg|g|mg|ml|mL|L|ℓ)|\d+\s*(?:個|袋|枚|本|缶|箱|パック|包)\s*(?:入|入り|セット)/i;
+const capacityPattern = /\d+(?:\.\d+)?\s*(?:kg|mg|ml|g|l|ℓ)(?![a-z0-9])|\d+\s*(?:個|袋|枚|本|缶|箱|パック|包)\s*(?:入|入り|セット)/i;
 const salesCopyPattern = /送料無料|送料込|ポイント\s*\d*倍|あす楽|即納|限定セール|まとめ買い|正規品/;
 const reptileFoodQueryPattern = /フード|餌|飼料|ペレット|ゼリー/;
 const reptileDietPattern = /草食|肉食|雑食|昆虫食/;
@@ -272,7 +272,11 @@ export function runPetCatalogQualityChecks(snapshot: CatalogQualitySnapshot): Qu
     'ferret_food_merged_with_herbivore',
     'error',
     snapshot.products
-      .filter((row) => isFood(row) && hasAllSpeciesClasses(row, ['ferret'], ['rabbit', 'guinea_pig', 'chinchilla', 'degu']))
+      .filter((row) =>
+        string(row, 'status') !== 'rejected' &&
+        isFood(row) &&
+        hasAllSpeciesClasses(row, ['ferret'], ['rabbit', 'guinea_pig', 'chinchilla', 'degu']),
+      )
       .map(id),
     'フェレット用フードを草食小動物用フードと統合している。',
   );
@@ -280,7 +284,14 @@ export function runPetCatalogQualityChecks(snapshot: CatalogQualitySnapshot): Qu
     findings,
     'guinea_pig_food_merged_with_hamster',
     'error',
-    snapshot.products.filter((row) => isFood(row) && hasSpecies(row, 'guinea_pig') && hasSpecies(row, 'hamster')).map(id),
+    snapshot.products
+      .filter((row) =>
+        string(row, 'status') !== 'rejected' &&
+        isFood(row) &&
+        hasSpecies(row, 'guinea_pig') &&
+        hasSpecies(row, 'hamster'),
+      )
+      .map(id),
     'モルモット用フードとハムスター用フードを統合している。',
   );
   add(

@@ -17,11 +17,19 @@
       "distribution": "store",
       "autoIncrement": true,
       "credentialsSource": "local",
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_SUPABASE_AUTH_FLOW_TYPE": "pkce"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_SUPABASE_AUTH_FLOW_TYPE": "pkce"
+      }
     }
   },
   "submit": {

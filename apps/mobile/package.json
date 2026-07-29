@@ -1,6 +1,6 @@
 {
   "name": "nyan-stock",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -11,10 +11,13 @@
     "web:clear": "expo start --web --clear",
     "build:ios:testflight": "npx eas-cli build --platform ios --profile testflight",
     "submit:ios:testflight": "npx eas-cli submit --platform ios --profile testflight --latest",
+    "eas-build-pre-install": "node scripts/validate-release-env.mjs && node scripts/validate-release-config.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "validate:purchase-frequency": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/validate-purchase-frequency.mjs",
+    "validate:release-config": "node scripts/validate-release-config.mjs",
     "security:validate": "node scripts/validate-security-hardening.mjs",
     "smoke:sync": "node scripts/smoke-household-sync.mjs",
+    "verify:release": "npm run validate:release-config && tsc --noEmit && npm run lint && npm run validate:purchase-frequency && npm run security:validate",
     "format": "prettier --write ."
   },
   "dependencies": {

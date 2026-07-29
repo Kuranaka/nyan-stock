@@ -1,5 +1,6 @@
 import { PetProductMaster, PetProductMasterRetailer } from '../../../../packages/shared/src/index.js';
 
+import { normalizeBaseProductName } from './normalizeListing.js';
 import { CatalogQualitySnapshot, PET_GROUPS, QualityRow } from './types.js';
 
 export type BuildPetProductMastersOptions = {
@@ -13,6 +14,7 @@ export type BuildPetProductMastersResult = {
   masters: PetProductMaster[];
   skippedLegacyVariantIds: string[];
   invalidVariantIds: string[];
+  deduplicatedVariantIds: string[];
 };
 
 export function buildPetProductMasters(
@@ -68,11 +70,15 @@ export function buildPetProductMasters(
       string(variant, 'model_number', 'modelNumber') ||
       string(identities.find((row) => string(row, 'key_type', 'keyType') === 'model_number'), 'normalized_value', 'normalizedValue') ||
       undefined;
-    const baseName = string(product, 'normalized_name', 'normalizedName') || string(product, 'base_product_name', 'baseProductName');
+    const storedBaseName = string(product, 'normalized_name', 'normalizedName') || string(product, 'base_product_name', 'baseProductName');
+    const baseName = normalizeBaseProductName(storedBaseName) || storedBaseName.trim();
     const capacityValue = optionalNumber(variant, 'capacity_value', 'capacityValue');
     const capacityUnit = optionalString(variant, 'capacity_unit', 'capacityUnit');
     const quantity = optionalNumber(variant, 'quantity');
-    const name = appendVariantLabel(baseName, capacityValue, capacityUnit, quantity);
+    // Capacity and quantity belong to the variant fields. Re-appending them to
+    // the display name would undo product-name normalization and expose sales
+    // listing text such as "2個入" in the app.
+    const name = baseName.trim();
     const imageUrls = unique(retailers.map((row) => row.imageUrl).filter((value): value is string => Boolean(value)));
     const marketCodes = unique(
       links
@@ -99,7 +105,7 @@ export function buildPetProductMasters(
       variantId,
       name,
       normalizedName: normalizeName(name),
-      baseProductName: string(product, 'base_product_name', 'baseProductName') || baseName,
+      baseProductName: normalizeBaseProductName(string(product, 'base_product_name', 'baseProductName')) || baseName,
       brand: optionalString(product, 'brand'),
       series: optionalString(product, 'series'),
       petGroup: petGroup as PetProductMaster['petGroup'],
@@ -143,12 +149,127 @@ export function buildPetProductMasters(
     });
   }
 
+  const deduplicatedVariantIds = retireDuplicatePublishedMasters(masters);
   masters.sort((left, right) => left.petGroup.localeCompare(right.petGroup) || left.name.localeCompare(right.name, 'ja') || left.id.localeCompare(right.id));
   return {
     masters: options.limit === undefined ? masters : masters.slice(0, options.limit),
     skippedLegacyVariantIds,
     invalidVariantIds,
+    deduplicatedVariantIds,
   };
+}
+
+function retireDuplicatePublishedMasters(masters: PetProductMaster[]): string[] {
+  const deduplicatedVariantIds: string[] = [];
+
+  // A product can acquire multiple fallback variants for the same sellable SKU
+  // as listings are imported. Keep capacity, quantity, JAN and model differences,
+  // but expose only one master when all of those fields are identical.
+  retireDuplicateGroups(
+    masters,
+    (master) => JSON.stringify([
+      master.productId,
+      master.normalizedName,
+      ...skuIdentity(master),
+    ]),
+    deduplicatedVariantIds,
+  );
+
+  // Products created independently can still represent the exact same SKU.
+  // Cross-product retirement requires a strong identity plus identical product
+  // classification so that same-name products for another pet/category survive.
+  retireDuplicateGroups(
+    masters,
+    (master) => {
+      if (!master.janCode && !master.modelNumber) return undefined;
+      return JSON.stringify([
+        master.normalizedName,
+        ...skuIdentity(master),
+        master.brand ?? '',
+        master.series ?? '',
+        master.petGroup,
+        [...master.targetSpecies].sort(),
+        master.targetSpeciesGroup ?? '',
+        master.targetScope,
+        master.targetSize ?? '',
+        master.targetAge ?? '',
+        master.lifeStage ?? '',
+        master.habitatType ?? '',
+        master.feedingType ?? '',
+        master.categoryId,
+        master.subcategoryId,
+        master.purpose ?? '',
+        master.productFunction ?? '',
+        master.flavor ?? '',
+        master.primaryIngredient ?? '',
+      ]);
+    },
+    deduplicatedVariantIds,
+  );
+
+  return deduplicatedVariantIds;
+}
+
+function retireDuplicateGroups(
+  masters: PetProductMaster[],
+  keyFor: (master: PetProductMaster) => string | undefined,
+  deduplicatedVariantIds: string[],
+): void {
+  const groups = new Map<string, PetProductMaster[]>();
+  for (const master of masters) {
+    if (master.status !== 'published') continue;
+    const key = keyFor(master);
+    if (!key) continue;
+    groups.set(key, [...(groups.get(key) ?? []), master]);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [keeper, ...duplicates] = [...group].sort(compareCanonicalMaster);
+    mergeMasterSources(keeper, group);
+    for (const duplicate of duplicates) {
+      duplicate.status = 'retired';
+      deduplicatedVariantIds.push(duplicate.variantId);
+    }
+  }
+}
+
+function skuIdentity(master: PetProductMaster): unknown[] {
+  return [
+    master.janCode ?? '',
+    master.modelNumber ?? '',
+    master.capacityValue ?? null,
+    master.capacityUnit ?? '',
+    master.quantity ?? null,
+    master.packageType ?? '',
+  ];
+}
+
+function compareCanonicalMaster(left: PetProductMaster, right: PetProductMaster): number {
+  return right.retailers.length - left.retailers.length ||
+    right.imageUrls.length - left.imageUrls.length ||
+    right.confidence - left.confidence ||
+    left.id.localeCompare(right.id);
+}
+
+function mergeMasterSources(keeper: PetProductMaster, group: PetProductMaster[]): void {
+  const retailers = group.flatMap((master) => master.retailers).sort(compareRetailers);
+  const seenRetailers = new Set<string>();
+  keeper.retailers = retailers.filter((retailer) => {
+    const key = `${retailer.source}:${retailer.sourceItemId}`;
+    if (seenRetailers.has(key)) return false;
+    seenRetailers.add(key);
+    return true;
+  });
+  keeper.imageUrls = unique(
+    group.flatMap((master) => [master.imageUrl, ...master.imageUrls])
+      .concat(keeper.retailers.map((retailer) => retailer.imageUrl))
+      .filter((value): value is string => Boolean(value)),
+  );
+  keeper.imageUrl = keeper.imageUrls[0];
+  keeper.marketCodes = unique(group.flatMap((master) => master.marketCodes));
+  keeper.createdAt = earliestTimestamp(group.map((master) => master.createdAt));
+  keeper.updatedAt = latestTimestamp(group.map((master) => master.updatedAt));
 }
 
 function retailerFromLink(link: QualityRow, listing: QualityRow | undefined): PetProductMasterRetailer | undefined {
@@ -175,17 +296,6 @@ function compareRetailers(left: PetProductMasterRetailer, right: PetProductMaste
     sourceOrder[left.source] - sourceOrder[right.source] ||
     (left.price ?? Number.MAX_SAFE_INTEGER) - (right.price ?? Number.MAX_SAFE_INTEGER) ||
     left.sourceItemId.localeCompare(right.sourceItemId);
-}
-
-function appendVariantLabel(name: string, value?: number, unit?: string, quantity?: number): string {
-  const parts: string[] = [];
-  if (value !== undefined) parts.push(`${formatNumber(value)}${unit ?? ''}`);
-  if (quantity !== undefined && quantity > 1) parts.push(`${quantity}個入`);
-  return parts.length > 0 ? `${name} ${parts.join(' ')}`.trim() : name.trim();
-}
-
-function formatNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
 }
 
 function packageType(variant: QualityRow, product: QualityRow): 'main' | 'refill' | undefined {

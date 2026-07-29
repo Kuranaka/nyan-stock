@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 
 import { colors } from '@/constants/colors';
 import { completeSupabaseOAuthCallback } from '@/features/auth/supabaseAuth';
+import { confirmInitialNotificationSetting } from '@/features/notifications/initialNotificationSetting';
 import { updateSettings } from '@/features/settings/settingsStorage';
 
 export default function AuthCallbackScreen() {
@@ -22,7 +23,11 @@ export default function AuthCallbackScreen() {
       try {
         await completeSupabaseOAuthCallback(callbackUrl);
         setMessage('ログインを完了しています...');
-        await updateSettings({ onboardingCompleted: true });
+        const completedSettings = await updateSettings({ onboardingCompleted: true });
+        await confirmInitialNotificationSetting(completedSettings, {
+          onboardingJustCompleted: true,
+          settingsAlreadySaved: true,
+        });
         if (!cancelled) {
           router.replace('/cat-profile');
         }

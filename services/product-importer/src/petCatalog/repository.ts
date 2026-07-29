@@ -94,7 +94,7 @@ const QUALITY_CANDIDATE_COLUMNS =
   'habitat_type,feeding_type,flavor,purpose,product_function,classification_evidence,confidence,status';
 const QUALITY_PRODUCT_COLUMNS =
   'id,canonical_key,normalized_name,brand,base_product_name,pet_group,target_species,target_species_group,target_scope,' +
-  'target_size,target_age,life_stage,habitat_type,feeding_type,flavor,purpose,product_function';
+  'target_size,target_age,life_stage,habitat_type,feeding_type,flavor,purpose,product_function,status';
 const QUALITY_VARIANT_COLUMNS = 'id,product_id,jan_code';
 const QUALITY_IDENTITY_COLUMNS = 'id,variant_id,key_type,normalized_value';
 const QUALITY_PRODUCT_LISTING_COLUMNS = 'product_id,raw_listing_id,candidate_id,variant_id';
@@ -1070,7 +1070,7 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
           `select=product_id&product_id=eq.${encodeURIComponent(previousProductId)}&limit=1`,
         );
         if (remainingLinks.length === 0) {
-          await this.delete('products', `id=eq.${encodeURIComponent(previousProductId)}&status=eq.draft`);
+          await this.retireUnlinkedDraftProduct(previousProductId);
         }
       }
     }
@@ -1184,10 +1184,7 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
         `select=product_id&product_id=eq.${encodeURIComponent(previousProductId)}&limit=1`,
       );
       if (remainingLinks.length === 0) {
-        await this.delete(
-          'products',
-          `id=eq.${encodeURIComponent(previousProductId)}&status=eq.draft`,
-        );
+        await this.retireUnlinkedDraftProduct(previousProductId);
       }
     }
     await this.patch('product_candidates', `id=eq.${encodeURIComponent(candidate.id)}`, { status: 'merged' });
@@ -1369,6 +1366,17 @@ class SupabasePetCatalogRepository implements PetCatalogRepository {
   }
 
   async close(): Promise<void> {}
+
+  private async retireUnlinkedDraftProduct(productId: string): Promise<void> {
+    // Release-facing masters deliberately retain their product references.
+    // Mark a superseded draft as rejected so the next master build retires it;
+    // deleting it would violate that FK until the release row is rebuilt.
+    await this.patch(
+      'products',
+      `id=eq.${encodeURIComponent(productId)}&status=eq.draft`,
+      { status: 'rejected' },
+    );
+  }
 
   private async upsert(
     table: string,
@@ -2063,13 +2071,27 @@ export function buildProductIdentityKeys(
   listing: StoredRetailerListing,
 ): ProductIdentityKeyInput[] {
   const keys: ProductIdentityKeyInput[] = [];
+  const petGroupNamespace = candidate.classificationEvidence.notes.some((note) =>
+    note.startsWith('複数pet group向け表記'),
+  )
+    ? `pet_group:${candidate.petGroup ?? 'unknown'}`
+    : undefined;
   const jan = (candidate.janCode ?? listing.janCode)?.replace(/\D/g, '');
   const validJan = jan && /^\d{8,14}$/.test(jan) ? jan : undefined;
   if (validJan) {
-    keys.push({ keyType: 'jan', namespace: '', normalizedValue: validJan, source: listing.source, confidence: 1 });
+    keys.push({
+      keyType: 'jan',
+      namespace: petGroupNamespace ?? '',
+      normalizedValue: validJan,
+      source: listing.source,
+      confidence: 1,
+    });
   }
   const model = normalizeModelNumber(candidate.modelNumber ?? listing.modelNumber);
-  const namespace = normalizeIdentityNamespace(candidate.brand ?? listing.brandName ?? listing.makerName);
+  const brandNamespace = normalizeIdentityNamespace(candidate.brand ?? listing.brandName ?? listing.makerName);
+  const namespace = petGroupNamespace && brandNamespace
+    ? `${brandNamespace}|${petGroupNamespace}`
+    : brandNamespace;
   // Retailer feeds sometimes expose a series-level model number shared by
   // multiple capacity variants. A valid JAN is SKU-specific, so do not also
   // register the model number as a competing strong identity in that case.

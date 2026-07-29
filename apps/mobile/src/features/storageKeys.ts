@@ -6,5 +6,7 @@ export const storageKeys = {
   reviewPrompt: 'nyan-stock:review-prompt',
   authSession: 'nyan-stock:auth-session',
   householdSync: 'nyan-stock:household-sync',
-  userProductSuggestions: 'nyan-stock:user-product-suggestions',
+  // Retained only so data reset can remove values written by versions that
+  // collected local product-master suggestions. Current versions never write it.
+  legacyUserProductSuggestions: 'nyan-stock:user-product-suggestions',
 };

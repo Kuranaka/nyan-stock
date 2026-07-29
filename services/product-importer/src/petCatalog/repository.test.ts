@@ -185,6 +185,32 @@ test('capacity-only variants use different fallback keys without changing produc
   );
 });
 
+test('strong identities for explicitly cross-group products are scoped by selected pet group', () => {
+  const cat = makeCandidate({
+    petGroup: 'cat',
+    targetSpecies: ['cat'],
+    janCode: '4901234567894',
+    classificationEvidence: {
+      petGroup: [], targetSpecies: [], targetSpeciesGroup: [],
+      searchContext: { queryId: 'query-cat', petGroup: 'cat' },
+      notes: ['複数pet group向け表記のうち、商品名に明記された検索対象pet_group=catを採用した。'],
+    },
+  });
+  const dog = makeCandidate({
+    petGroup: 'dog',
+    targetSpecies: ['dog'],
+    janCode: '4901234567894',
+    classificationEvidence: {
+      petGroup: [], targetSpecies: [], targetSpeciesGroup: [],
+      searchContext: { queryId: 'query-dog', petGroup: 'dog' },
+      notes: ['複数pet group向け表記のうち、商品名に明記された検索対象pet_group=dogを採用した。'],
+    },
+  });
+
+  assert.equal(buildProductIdentityKeys(cat, makeListing())[0].namespace, 'pet_group:cat');
+  assert.equal(buildProductIdentityKeys(dog, makeListing())[0].namespace, 'pet_group:dog');
+});
+
 function makeCandidate(overrides: Partial<ProductCandidate> = {}): ProductCandidate {
   return {
     id: 'candidate-test',

@@ -6,5 +6,4 @@ export type {
   ProductMaster,
   ProductProvider,
   ProductUnit,
-  UserProductSuggestion,
 } from '@nyan-stock/shared';

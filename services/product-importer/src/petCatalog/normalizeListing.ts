@@ -177,11 +177,42 @@ export function normalizeRetailerListing(
     ...detectSpecies(description, 'description', evidence),
     ...detectAliasSpecies(description, 'description', listing.contentLocale, aliases, evidence),
   ];
+  const titlePetGroups = new Set(
+    titleSpecies.flatMap((code) => speciesRules.filter((item) => item.code === code).map((item) => item.petGroup)),
+  );
+  const queryTargetIsExplicit =
+    !query.targetSpecies ||
+    titleSpecies.some((code) =>
+      speciesRules.some(
+        (item) => item.code === code && (item.code === query.targetSpecies || item.parentCode === query.targetSpecies),
+      ),
+    );
+  const preferredTitlePetGroup =
+    titlePetGroups.size > 1 && titlePetGroups.has(query.petGroup) && queryTargetIsExplicit
+      ? query.petGroup
+      : undefined;
+  const selectedTitleSpecies = preferredTitlePetGroup
+    ? titleSpecies.filter((code) =>
+        speciesRules.some(
+          (item) =>
+            item.code === code &&
+            item.petGroup === preferredTitlePetGroup &&
+            (!query.targetSpecies || item.code === query.targetSpecies || item.parentCode === query.targetSpecies),
+        ),
+      )
+    : titleSpecies;
+  if (preferredTitlePetGroup) {
+    evidence.notes.push(
+      `複数pet group向け表記のうち、商品名に明記された検索対象pet_group=${preferredTitlePetGroup}を採用した。`,
+    );
+  }
   // Retailer descriptions frequently contain recommendations and related
   // product names for other animals. An explicit species in the title is the
   // stronger product-level signal; use description species only when the title
   // itself has no species evidence.
-  const targetSpecies = collapseGenericSpecies(titleSpecies.length > 0 ? titleSpecies : descriptionSpecies).sort();
+  const targetSpecies = collapseGenericSpecies(
+    selectedTitleSpecies.length > 0 ? selectedTitleSpecies : descriptionSpecies,
+  ).sort();
   detectGroupEvidence(normalizedTitle, 'title', evidence);
   detectGroupEvidence(description, 'description', evidence);
   detectApiCategoryEvidence(categoryText, evidence);
@@ -190,7 +221,10 @@ export function normalizeRetailerListing(
 
   const candidateGroups = new Set<PetGroup>([
     ...evidence.petGroup
-      .filter((item) => titleSpecies.length === 0 || item.source !== 'description')
+      .filter((item) => {
+        if (preferredTitlePetGroup) return item.value === preferredTitlePetGroup;
+        return titleSpecies.length === 0 || item.source !== 'description';
+      })
       .map((item) => item.value),
     ...targetSpecies.flatMap((code) => speciesRules.filter((item) => item.code === code).map((item) => item.petGroup)),
   ]);
@@ -257,6 +291,7 @@ export function normalizeRetailerListing(
     baseProductName,
     petGroup,
     targetSpecies,
+    explicitCrossGroupTarget: Boolean(preferredTitlePetGroup),
     variantSignalCount: [targetAge, targetSize, lifeStage, feedingType, habitatType, flavor, productFunction].filter(Boolean)
       .length,
   });
@@ -265,6 +300,7 @@ export function normalizeRetailerListing(
     listing,
     query,
     evidence,
+    baseProductName,
     petGroup,
     targetSpecies,
     targetSpeciesGroup,
@@ -274,6 +310,7 @@ export function normalizeRetailerListing(
     suspiciousPackageToken: packageData.suspiciousToken,
     confidence,
     candidateGroups,
+    preferredTitlePetGroup,
   });
   const status = confidence >= 0.95 && issues.length === 0 ? 'merge_ready' : 'review_required';
 
@@ -632,6 +669,7 @@ function calculateMergeConfidence(input: {
   baseProductName: string;
   petGroup?: PetGroup;
   targetSpecies: string[];
+  explicitCrossGroupTarget: boolean;
   variantSignalCount: number;
 }): number {
   const score =
@@ -639,6 +677,7 @@ function calculateMergeConfidence(input: {
     (normalizeKeyPart(input.baseProductName).length >= 5 ? 0.35 : 0.15) +
     (input.petGroup ? 0.15 : 0) +
     (input.targetSpecies.length > 0 ? 0.15 : 0) +
+    (input.explicitCrossGroupTarget ? 0.15 : 0) +
     (input.variantSignalCount > 0 ? 0.1 : 0.05);
   return roundConfidence(Math.min(score, 1));
 }
@@ -647,6 +686,7 @@ function buildIssues(input: {
   listing: StoredListingLike;
   query: ProductSearchQuery;
   evidence: ClassificationEvidence;
+  baseProductName: string;
   petGroup?: PetGroup;
   targetSpecies: string[];
   targetSpeciesGroup?: string;
@@ -656,12 +696,20 @@ function buildIssues(input: {
   suspiciousPackageToken?: string;
   confidence: number;
   candidateGroups: Set<PetGroup>;
+  preferredTitlePetGroup?: PetGroup;
 }): ReviewIssue[] {
   const issues: ReviewIssue[] = [];
   const text = `${input.listing.rawTitle} ${input.listing.rawDescription ?? ''}`;
   const add = (issueType: ReviewIssue['issueType'], issueDetail: string, suggestedAction: string) => {
     if (!issues.some((item) => item.issueType === issueType)) issues.push({ issueType, issueDetail, suggestedAction });
   };
+  if (!input.baseProductName.trim()) {
+    add(
+      'base_product_name_missing',
+      '販売訴求・容量・記号等を除いた後の商品名が空になった。',
+      'メーカー名と正式商品名を確認し、商品を識別できる名称を設定する。',
+    );
+  }
   if (input.candidateGroups.size > 1) {
     add('multiple_pet_groups_detected', `複数のpet_group候補を検出: ${[...input.candidateGroups].join(', ')}`, '公式の対象動物表記を確認する。');
   }
@@ -694,7 +742,11 @@ function buildIssues(input: {
     );
   }
   const negativeHit = input.query.negativeKeywords.find((word) => word && text.includes(word));
-  if ((input.petGroup && input.petGroup !== input.query.petGroup) || negativeHit) {
+  const ignoredCrossGroupNegative =
+    negativeHit &&
+    input.preferredTitlePetGroup &&
+    isOtherPetGroupKeyword(negativeHit, input.preferredTitlePetGroup);
+  if ((input.petGroup && input.petGroup !== input.query.petGroup) || (negativeHit && !ignoredCrossGroupNegative)) {
     add(
       'possible_wrong_search_result',
       negativeHit
@@ -707,6 +759,17 @@ function buildIssues(input: {
     add('variant_merge_uncertain', `分類・統合confidence=${input.confidence.toFixed(2)}`, 'バリエーション差と統合先を人手で確認する。');
   }
   return issues;
+}
+
+function isOtherPetGroupKeyword(keyword: string, selectedPetGroup: PetGroup): boolean {
+  const groups = new Set<PetGroup>();
+  for (const item of speciesRules) {
+    if (item.pattern.test(keyword)) groups.add(item.petGroup);
+  }
+  for (const item of groupRules) {
+    if (item.pattern.test(keyword)) groups.add(item.petGroup);
+  }
+  return groups.size > 0 && !groups.has(selectedPetGroup);
 }
 
 type StoredListingLike = RetailerListingInput & { id: string };

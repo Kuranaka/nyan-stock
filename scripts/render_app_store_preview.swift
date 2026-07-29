@@ -15,10 +15,10 @@ let outputDirectory = sourceDirectory.appendingPathComponent("app-store")
 let outputURL = outputDirectory.appendingPathComponent("nyan-stock-app-store-preview.mp4")
 
 let clips = [
-  Clip(filename: "nyan-stock-preview-01.mp4", start: 0, duration: 6, title: "いつもの猫用品を\nかんたん登録"),
+  Clip(filename: "nyan-stock-preview-01.mp4", start: 0, duration: 6, title: "いつものペット用品を\nかんたん登録"),
   Clip(filename: "nyan-stock-preview-01.mp4", start: 10, duration: 7, title: "残り日数を\n自動で見える化"),
   Clip(filename: "nyan-stock-preview-02.mp4", start: 0, duration: 6, title: "必要なとき、すぐ購入先を確認"),
-  Clip(filename: "nyan-stock-preview-03.mp4", start: 0, duration: 7, title: "猫用品の費用も\nひと目で確認"),
+  Clip(filename: "nyan-stock-preview-03.mp4", start: 0, duration: 7, title: "ペット用品の費用も\nひと目で確認"),
   Clip(filename: "nyan-stock-preview-01.mp4", start: 22, duration: 4, title: "")
 ]
 
@@ -163,7 +163,7 @@ parentLayer.addSublayer(catPhoto)
 
 let catCaption = CALayer()
 catCaption.frame = CGRect(x: 70, y: 1435, width: 746, height: 132)
-catCaption.contents = titleImage("猫用品の管理を、もっと気軽に", size: catCaption.bounds.size, fontSize: 42, color: .black)
+catCaption.contents = titleImage("ペット用品の管理を、もっと気軽に", size: catCaption.bounds.size, fontSize: 42, color: .black)
 catCaption.contentsGravity = .resizeAspect
 opacityAnimation(catCaption, keyTimes: [0, NSNumber(value: endingStart / 30), NSNumber(value: (endingStart + 0.18) / 30), NSNumber(value: photoFadeStart / 30), NSNumber(value: photoFadeEnd / 30), 1], values: [0, 0, 1, 1, 0, 0], key: "catCaption")
 parentLayer.addSublayer(catCaption)

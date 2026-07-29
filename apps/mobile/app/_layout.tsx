@@ -13,7 +13,11 @@ import {
   requestAdPersonalizationPermission,
 } from '@/features/ads/adMob';
 import { getInventoryItemIdFromNotificationResponse } from '@/features/notifications/notificationService';
-import { configureRevenueCat } from '@/features/subscription/subscriptionService';
+import {
+  getSubscriptionEntitlement,
+  SubscriptionEntitlement,
+  subscriptionChangedEventName,
+} from '@/features/subscription/subscriptionService';
 import { getSettings, onboardingVisibilityEventName } from '@/features/settings/settingsStorage';
 import {
   householdRealtimeEventName,
@@ -27,6 +31,7 @@ export default function RootLayout() {
   const router = useRouter();
   const [adRequestsReady, setAdRequestsReady] = useState(false);
   const [personalizedAdsAllowed, setPersonalizedAdsAllowed] = useState(false);
+  const [shouldPrepareAds, setShouldPrepareAds] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | undefined>();
 
   useEffect(() => {
@@ -89,10 +94,33 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    void configureRevenueCat().catch((error: unknown) => {
-      console.warn('[RevenueCat] initialization failed', error);
-    });
-  }, []);
+    if (onboardingCompleted !== true) {
+      setShouldPrepareAds(false);
+      return;
+    }
+
+    let active = true;
+    const updateAdEligibility = (entitlement: SubscriptionEntitlement) => {
+      // If RevenueCat cannot resolve the plan, prefer no ad request. A paid
+      // customer must not see an ad or consent prompt because of a transient outage.
+      if (active) setShouldPrepareAds(entitlement.source !== 'error' && entitlement.shouldShowAds);
+    };
+    const listener = DeviceEventEmitter.addListener(
+      subscriptionChangedEventName,
+      updateAdEligibility,
+    );
+
+    void getSubscriptionEntitlement()
+      .then(updateAdEligibility)
+      .catch((error: unknown) => {
+        console.warn('[RevenueCat] initialization failed', error);
+      });
+
+    return () => {
+      active = false;
+      listener.remove();
+    };
+  }, [onboardingCompleted]);
 
   useEffect(() => {
     let active = true;
@@ -130,11 +158,16 @@ export default function RootLayout() {
       }
     };
 
-    void prepareAds();
+    if (onboardingCompleted === true && shouldPrepareAds) {
+      void prepareAds();
+    } else {
+      setAdRequestsReady(false);
+      setPersonalizedAdsAllowed(false);
+    }
     return () => {
       active = false;
     };
-  }, []);
+  }, [onboardingCompleted, shouldPrepareAds]);
 
   return (
     <View style={styles.app}>
@@ -177,7 +210,6 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="cat-profile" options={{ title: 'ペットプロフィール' }} />
           <Stack.Screen name="inventory-form" options={{ title: '商品登録' }} />
-          <Stack.Screen name="barcode-scan" options={{ title: 'バーコード読み取り' }} />
           <Stack.Screen name="inventory-detail" options={{ title: '商品詳細' }} />
           <Stack.Screen
             name="cost-dashboard"
@@ -196,7 +228,7 @@ export default function RootLayout() {
       <AdBanner
         adRequestsReady={adRequestsReady}
         personalizedAdsAllowed={personalizedAdsAllowed}
-        show={onboardingCompleted === true}
+        show={onboardingCompleted === true && shouldPrepareAds}
       />
       <BottomShortcuts show={onboardingCompleted === true} />
     </View>
