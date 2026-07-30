@@ -215,6 +215,37 @@ export default function CostDashboardScreen() {
         />
       </AppCard>
 
+      <AppCard style={styles.card}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>
+          {monthlyActualMissingPriceCount > 0 ? '価格入力済み分の内訳' : '今月買ったもの'}
+        </Text>
+        {actualBreakdown.length > 0 ? (
+          <View style={styles.barList}>
+            {actualBreakdown.map((row) => (
+              <ActualCostBar
+                key={row.inventoryItemId}
+                row={row}
+                total={monthlyActual}
+                onPress={row.item ? () => openItem(row.inventoryItemId) : undefined}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>
+            今月の購入記録はまだありません。補充を記録すると、ここに内訳が表示されます。
+          </Text>
+        )}
+      </AppCard>
+
+      {visibleItems.length === 0 ? (
+        <AppCard style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>月額予測できる用品がありません</Text>
+          <Text style={styles.emptyText}>
+            用品を登録すると、毎月かかる金額の目安を確認できます。
+          </Text>
+        </AppCard>
+      ) : null}
+
       {upcomingPurchaseRows.length > 0 ? (
         <AppCard style={styles.card}>
           <View style={styles.upcomingHeader}>
@@ -253,37 +284,6 @@ export default function CostDashboardScreen() {
               </Pressable>
             ))}
           </View>
-        </AppCard>
-      ) : null}
-
-      <AppCard style={styles.card}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
-          {monthlyActualMissingPriceCount > 0 ? '価格入力済み分の内訳' : '今月買ったもの'}
-        </Text>
-        {actualBreakdown.length > 0 ? (
-          <View style={styles.barList}>
-            {actualBreakdown.map((row) => (
-              <ActualCostBar
-                key={row.inventoryItemId}
-                row={row}
-                total={monthlyActual}
-                onPress={row.item ? () => openItem(row.inventoryItemId) : undefined}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.emptyText}>
-            今月の購入記録はまだありません。補充を記録すると、ここに内訳が表示されます。
-          </Text>
-        )}
-      </AppCard>
-
-      {visibleItems.length === 0 ? (
-        <AppCard style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>月額予測できる用品がありません</Text>
-          <Text style={styles.emptyText}>
-            用品を登録すると、毎月かかる金額の目安を確認できます。
-          </Text>
         </AppCard>
       ) : null}
     </ScrollView>
