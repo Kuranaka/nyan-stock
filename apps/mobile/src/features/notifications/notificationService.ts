@@ -215,7 +215,7 @@ export async function scheduleInventoryNotifications(
       .filter((plan) => !alreadyScheduledIdentifiers.has(plan.identifier))
       .map((plan) => {
         const remainingText =
-          plan.beforeDays === 0 ? '今日なくなる目安です' : `残り${plan.beforeDays}日くらいです`;
+          plan.beforeDays === 0 ? '今日なくなる見込みです' : `残り${plan.beforeDays}日くらいです`;
         return Notifications.scheduleNotificationAsync({
           identifier: plan.identifier,
           content: {

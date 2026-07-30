@@ -624,7 +624,7 @@ export default function InventoryDetailScreen() {
     if ((!item.estimationMode || item.estimationMode === 'usage') && replenishAmount <= 0) {
       Alert.alert(
         '入力を確認してください',
-        '設定済みの内容量が0以下です。残量・計算設定から内容量を確認してください。',
+        '設定済みの内容量が0以下です。商品情報の編集画面で、内容量を確認してください。',
       );
       return;
     }
@@ -639,12 +639,12 @@ export default function InventoryDetailScreen() {
         [
           { text: 'キャンセル', style: 'cancel' },
           {
-            text: '残りに足す',
+            text: '残り日数を加える',
             onPress: () =>
               confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'add_remaining'),
           },
           {
-            text: '周期に戻す',
+            text: '補充日から数え直す',
             onPress: () =>
               confirmPriceAndSaveReplenish(replenishAmount, priceNumber, 'reset_cycle'),
           },
@@ -808,7 +808,11 @@ export default function InventoryDetailScreen() {
       Alert.alert('入力を確認してください', '価格は0以上の数字で入力してください。');
       return;
     }
-    if (editAmount.trim() && (amountNumber === undefined || amountNumber < 0)) {
+    if (
+      editEstimationMode === 'usage' &&
+      editAmount.trim() &&
+      (amountNumber === undefined || amountNumber < 0)
+    ) {
       Alert.alert('入力を確認してください', '内容量は0以上の数字で入力してください。');
       return;
     }
@@ -834,9 +838,7 @@ export default function InventoryDetailScreen() {
     const didChangeLastingDaysBasis =
       editEstimationMode === 'lasting_days' &&
       (editEstimationMode !== (item.estimationMode ?? 'usage') ||
-        amountNumber !== item.amount ||
         lastingDaysNumber !== item.lastingDays ||
-        editUnit !== item.unit ||
         editPurchaseDate !== item.purchaseDate);
     const shouldRecalculateEstimatedEndDate = didChangeUsageBasis || didChangeLastingDaysBasis;
 
@@ -846,14 +848,8 @@ export default function InventoryDetailScreen() {
       category: editCategory,
       price: priceNumber,
       estimationMode: editEstimationMode,
-      amount:
-        editEstimationMode === 'purchase_frequency' || editEstimationMode === 'no_estimate'
-          ? item.amount
-          : (amountNumber ?? 0),
-      unit:
-        editEstimationMode === 'purchase_frequency' || editEstimationMode === 'no_estimate'
-          ? item.unit
-          : editUnit,
+      amount: editEstimationMode === 'usage' ? (amountNumber ?? 0) : item.amount,
+      unit: editEstimationMode === 'usage' ? editUnit : item.unit,
       dailyUsage: editEstimationMode === 'usage' ? dailyUsageNumber : undefined,
       lastingDays: editEstimationMode === 'lasting_days' ? lastingDaysNumber : undefined,
       purchaseDate: editPurchaseDate,
@@ -966,13 +962,13 @@ export default function InventoryDetailScreen() {
     if (!purchaseFrequencyDays) {
       Alert.alert(
         'まだ切り替えできません',
-        '購入頻度が計算されてから切り替えできます。先に補充を記録してください。',
+        '購入間隔が計算されてから切り替えできます。先に補充を記録してください。',
       );
       return;
     }
     Alert.alert(
       '残り日数の計算方法を切り替えますか？',
-      `現在の購入頻度 ${purchaseFrequencyDays}日ごと を、固定の使い切る日数として使います。`,
+      `現在の購入間隔（${purchaseFrequencyDays}日ごと）を、固定の「使い切る日数」に設定します。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -1236,11 +1232,10 @@ export default function InventoryDetailScreen() {
                 ))}
               </View>
             </View>
-            {editEstimationMode !== 'purchase_frequency' && editEstimationMode !== 'no_estimate' ? (
+            {editEstimationMode === 'usage' ? (
               <>
                 <AppTextInput
                   label={`内容量（${unitLabels[editUnit]}）`}
-                  requirement={editEstimationMode === 'lasting_days' ? 'optional' : undefined}
                   value={editAmount}
                   onChangeText={setEditAmount}
                   keyboardType="decimal-pad"
@@ -1347,7 +1342,7 @@ export default function InventoryDetailScreen() {
             {item.estimationMode === 'purchase_frequency' ? (
               <>
                 <Info
-                  label="現在の購入頻度"
+                  label="現在の購入間隔"
                   value={
                     purchaseFrequencyDays === undefined
                       ? '補充履歴を学習中'
@@ -1356,7 +1351,7 @@ export default function InventoryDetailScreen() {
                 />
                 {purchaseFrequencyDays !== undefined ? (
                   <AppButton
-                    title="使い切る日数方式に切り替える"
+                    title="日数を指定する方法に切り替える"
                     variant="secondary"
                     disabled={switchingEstimationMode}
                     loading={switchingEstimationMode}
@@ -1506,7 +1501,7 @@ export default function InventoryDetailScreen() {
           bottomActionsYRef.current = event.nativeEvent.layout.y;
         }}
       >
-        <AppButton title="在庫の補充を記録する" onPress={openReplenish} />
+        <AppButton title="補充を記録する" onPress={openReplenish} />
         {showReplenish ? (
           <View
             onLayout={(event) => {

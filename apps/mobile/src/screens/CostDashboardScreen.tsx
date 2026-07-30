@@ -239,7 +239,7 @@ export default function CostDashboardScreen() {
 
       {visibleItems.length === 0 ? (
         <AppCard style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>月額予測できる用品がありません</Text>
+          <Text style={styles.emptyTitle}>月額を予測できる用品がありません</Text>
           <Text style={styles.emptyText}>
             用品を登録すると、毎月かかる金額の目安を確認できます。
           </Text>

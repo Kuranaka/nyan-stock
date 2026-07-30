@@ -241,7 +241,7 @@ export default function HomeScreen() {
       }
       Alert.alert(
         '先にペットプロフィールを登録してください',
-        '商品はペットごとに在庫を記録します。ペットプロフィールを登録してから商品を追加できます。',
+        '用品の在庫は、ペットごとに記録します。ペットプロフィールを登録してから、用品を追加できます。',
         [
           { text: 'キャンセル', style: 'cancel' },
           { text: '登録する', onPress: () => router.push('/cat-profile') },
@@ -400,7 +400,7 @@ export default function HomeScreen() {
             />
             <FilterChip
               count={attentionItems.length}
-              label="要対応"
+              label="要チェック"
               selected={inventoryFilter === 'attention'}
               tone="danger"
               onPress={() => setInventoryFilter('attention')}
@@ -449,7 +449,7 @@ export default function HomeScreen() {
         <View style={styles.list}>{visibleItems.map(inventoryCardFor)}</View>
       ) : (
         <View style={styles.inventoryGroups}>
-          <InventoryGroup title="いま確認" items={attentionItems} renderItem={inventoryCardFor} />
+          <InventoryGroup title="要チェック" items={attentionItems} renderItem={inventoryCardFor} />
           <InventoryGroup title="そろそろ" items={watchItems} renderItem={inventoryCardFor} />
           <InventoryGroup
             title="購入頻度を学習中"
@@ -590,8 +590,8 @@ function DailyBrief({
   nextItem?: InventoryItem;
   onAction: (action: BriefAction) => void;
 }) {
-  let eyebrow = '今日の確認';
-  let title = '今日は対応なし';
+  let eyebrow = 'ストック状況';
+  let title = '余裕あり';
   let message = '急いで買い足す用品はありません。';
   let mark = '✓';
   let tone: 'good' | 'warning' | 'danger' | 'neutral' = 'good';
@@ -599,33 +599,33 @@ function DailyBrief({
   let actionTitle: string | undefined;
 
   if (!hasPets) {
-    eyebrow = '最初のステップ';
-    title = 'まず、ペットを登録しましょう';
+    eyebrow = 'はじめに';
+    title = 'ペットを登録しましょう';
     message = '名前だけで始められます。誕生日や体重はあとから追加できます。';
     mark = '1';
     tone = 'neutral';
     action = 'profile';
-    actionTitle = 'ペットを登録する';
+    actionTitle = 'ペットを登録';
   } else if (itemCount === 0) {
-    eyebrow = 'あと1ステップ';
-    title = 'いつもの用品を1つ登録';
-    message = 'フードやトイレ用品の残り日数が分かるようになります。';
+    eyebrow = '最初の登録';
+    title = 'いつもの用品を登録しましょう';
+    message = 'だいたい何日もつかを入力するだけでも始められます。';
     mark = '＋';
     tone = 'neutral';
     action = 'add';
-    actionTitle = '最初の用品を追加';
+    actionTitle = '用品を追加';
   } else if (attentionCount > 0) {
-    eyebrow = 'いま確認';
-    title = `買い足しを確認したい用品が${attentionCount}件`;
-    message = '在庫切れと残り3日以内の用品を、期限が近い順にまとめました。';
+    eyebrow = '要チェック';
+    title = `買い足したい用品が${attentionCount}件あります`;
+    message = 'なくなった用品や、残り3日以内の用品があります。';
     mark = '!';
     tone = 'danger';
     action = 'attention';
-    actionTitle = '要対応の用品を見る';
+    actionTitle = '要チェックの用品を見る';
   } else if (watchCount > 0) {
-    eyebrow = '今週の準備';
-    title = `そろそろ確認したい用品が${watchCount}件`;
-    message = '残り4〜7日の用品です。次の買い物に入れておくと安心です。';
+    eyebrow = 'そろそろ準備';
+    title = `そろそろ買い足したい用品が${watchCount}件あります`;
+    message = '次の買い物に入れるか確認しておくと安心です。';
     mark = '7';
     tone = 'warning';
     action = 'watch';
@@ -635,7 +635,7 @@ function DailyBrief({
     message =
       nextDays === undefined
         ? '急いで買い足す用品はありません。'
-        : `次は「${nextItem.name}」が約${Math.max(0, nextDays)}日後の予定です。`;
+        : `次は「${nextItem.name}」が約${Math.max(0, nextDays)}日後になくなる見込みです。`;
   }
 
   return (

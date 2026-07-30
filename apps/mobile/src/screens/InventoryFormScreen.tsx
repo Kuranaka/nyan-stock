@@ -407,7 +407,7 @@ export default function InventoryFormScreen() {
           setMasterHasMoreResults(page.hasMore);
           setMasterSearchMessage(
             page.products.length === 0
-              ? '商品マスタに該当する商品が見つかりませんでした。'
+              ? '該当する商品が見つかりませんでした。'
               : `${page.products.length}件の候補を表示しています。`,
           );
         } catch {
@@ -415,7 +415,7 @@ export default function InventoryFormScreen() {
           setMasterSearchResults([]);
           setMasterNextCursor(undefined);
           setMasterHasMoreResults(false);
-          setMasterSearchMessage('商品マスタを読み込めませんでした。検索し直してください。');
+          setMasterSearchMessage('商品情報を読み込めませんでした。検索し直してください。');
         } finally {
           if (isActive && masterSearchGenerationRef.current === searchGeneration) {
             setMasterSearchLoading(false);
@@ -770,7 +770,7 @@ export default function InventoryFormScreen() {
         <AppCard style={styles.searchCard}>
           <Text style={styles.sectionTitle}>先にペットプロフィールを登録してください</Text>
           <Text style={styles.hint}>
-            商品はペットごとに在庫を記録します。まずペットを登録してから、商品を追加できます。
+            用品の在庫は、ペットごとに記録します。まずペットを登録してから、用品を追加できます。
           </Text>
           <AppButton
             title="ペットプロフィールを登録する"
@@ -811,7 +811,7 @@ export default function InventoryFormScreen() {
           </View>
           {targetCatIds.length > 1 ? (
             <Text style={styles.hint}>
-              選択したペットで同じ在庫を共有します。補充や残り日数も共通で更新されます。
+              選択したペットに同じ用品を登録し、在庫情報を共有します。補充や残り日数はまとめて更新されます。
             </Text>
           ) : null}
         </>
@@ -1014,7 +1014,7 @@ export default function InventoryFormScreen() {
                   <View style={styles.loadMoreSection}>
                     <Text style={styles.loadMoreHint}>お探しの商品が見つからない場合</Text>
                     <AppButton
-                      title={`↓ 次の候補を最大${masterPageSize}件表示`}
+                      title={`さらに最大${masterPageSize}件表示`}
                       variant="ghost"
                       loading={masterLoadMoreLoading}
                       disabled={masterSearchLoading}
@@ -1191,7 +1191,9 @@ export default function InventoryFormScreen() {
               expanded={detailsExpanded}
               onToggle={() => setDetailsExpanded((expanded) => !expanded)}
             >
-              <Text style={styles.sectionLead}>自動設定。必要なときだけ変更できます。</Text>
+              <Text style={styles.sectionLead}>
+                自動で設定されます。必要な場合だけ変更してください。
+              </Text>
               <FieldLabel label="カテゴリ" requirement="optional" />
               <View style={styles.wrapRow}>
                 {categories.map((option) => (

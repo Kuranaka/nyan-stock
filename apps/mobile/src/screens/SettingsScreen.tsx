@@ -659,7 +659,7 @@ export default function SettingsScreen() {
         <AppButton title="にゃんストック Plusを見る" onPress={() => router.push('/subscription')} />
       </AppCard>
 
-      <SettingSection title="アカウント" description="ログインをすると共有コードの作成ができます。">
+      <SettingSection title="アカウント" description="ログインすると、共有コードを作成できます。">
         <View style={styles.accountPanel}>
           <AccountProviderIcon session={authSession} />
           <View style={styles.accountBody}>
@@ -682,7 +682,7 @@ export default function SettingsScreen() {
         )}
       </SettingSection>
 
-      <SettingSection title="通知" description="在庫切れの前に、指定した時間で通知します。">
+      <SettingSection title="通知" description="在庫が少なくなる前に、指定した時刻に通知します。">
         <View style={styles.switchRow}>
           <View style={styles.switchText}>
             <Text style={styles.rowTitle}>在庫通知</Text>
@@ -735,7 +735,7 @@ export default function SettingsScreen() {
         description="ペットプロフィール、在庫、購入履歴を共有できます。"
       >
         <View style={styles.syncStatusRow}>
-          <Text style={styles.rowTitle}>共有ステータス</Text>
+          <Text style={styles.rowTitle}>共有状況</Text>
           <Text style={[styles.syncBadge, syncState && styles.syncBadgeActive]}>{syncLabel}</Text>
         </View>
         {!isHouseholdSyncConfigured() ? (
