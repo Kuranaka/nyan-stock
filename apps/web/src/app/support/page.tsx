@@ -5,7 +5,13 @@ import { supportEmail } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'お問い合わせ｜にゃんストック',
-  description: 'にゃんストックへのお問い合わせ窓口です。'
+  description: 'にゃんストック バージョン2.0に関するご質問、不具合、ご意見・ご要望の窓口です。',
+  alternates: { canonical: '/support' },
+  openGraph: {
+    title: 'お問い合わせ｜にゃんストック',
+    description: 'にゃんストック バージョン2.0に関するご質問、不具合、ご意見・ご要望の窓口です。',
+    url: '/support'
+  }
 };
 
 export default function SupportPage() {
@@ -28,7 +34,7 @@ export default function SupportPage() {
               <h2 className="text-lg font-black text-ink">お問い合わせの前に</h2>
               <ul className="mt-3 space-y-2 text-sm leading-7 text-muted">
                 <li>・不具合については、利用端末・OS・アプリのバージョンと、発生した状況をお知らせください。</li>
-                <li>・購入済みの機能については、購入に使用したストアと購入日時を添えてください。</li>
+                <li>・Plusの購入・復元については、購入に使用したストアと購入日時を添えてください。</li>
                 <li>・内容によっては、ご返信までお時間をいただく場合や、ご返信できない場合があります。</li>
               </ul>
             </section>
@@ -49,9 +55,14 @@ export default function SupportPage() {
                   <p className="mt-4 text-sm text-muted">メールアドレス: {supportEmail}</p>
                 </>
               ) : (
-                <p className="mt-3 text-sm leading-7 text-muted">
-                  お問い合わせ用メールアドレスを準備中です。公開前に運営者が連絡先を設定します。
-                </p>
+                <>
+                  <p className="mt-3 text-sm leading-7 text-muted">
+                    にゃんストックのアプリを開き、下部の「設定」から「お問い合わせ」へ進んで内容を送信してください。
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-muted">
+                    個人情報、パスワード、共有コードなどの機密情報は記載しないようお願いいたします。
+                  </p>
+                </>
               )}
             </section>
 

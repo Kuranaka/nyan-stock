@@ -1,14 +1,15 @@
+import Link from 'next/link';
 import { SectionTitle } from '@/components/SectionTitle';
 
 const points = [
-  'メールアドレス等の入力なしでゲスト開始可能',
-  'ゲスト開始時はSupabaseに匿名ユーザーIDを作成',
-  'Google・Appleログインは任意で利用',
-  'Googleからは識別子・メールアドレス・基本プロフィールのみを取得',
-  '住所・電話番号・正確な位置情報は取得しない',
-  '在庫データは端末内保存が基本。共有データと設定したアイコン画像はクラウドに保存',
-  '通知は端末の設定からいつでも変更可能',
-  'データ初期化はアプリ内から実行可能'
+  'メールアドレスを入力せず、Supabaseの匿名ユーザーIDでゲスト開始',
+  'Google・Appleログインは任意。共有コードの作成やデータの引き継ぎに利用',
+  '共有を使わないペット・在庫・購入履歴は原則として端末内に保存',
+  '共有データはクラウドに保存し、参加者間で同期',
+  '設定したペット・商品画像は公開URLで表示。個人や機微情報を含む画像は設定しないでください',
+  '無料プランの広告は同意状況に応じて配信。許可なくIDFAを使ったパーソナライズ広告は配信しません',
+  '端末内データの初期化とアカウント削除は別操作。アカウント削除はログイン情報・個人用クラウドデータ・アップロード画像を削除',
+  '住所・電話番号・正確な位置情報・決済情報の入力を求めません'
 ];
 
 export function PrivacySection() {
@@ -17,8 +18,12 @@ export function PrivacySection() {
       <div className="mx-auto max-w-6xl">
         <SectionTitle title="プライバシーに配慮した設計です" />
         <p className="mx-auto mb-6 max-w-3xl text-center text-sm leading-7 text-muted">
-          GoogleログインでGoogleアカウントのメール本文、Google Drive、カレンダーなどのデータへアクセスすることはありません。
-          取得情報と利用目的はプライバシーポリシーで確認できます。
+          Googleログインでメール本文、Google Drive、カレンダーなどへアクセスすることはありません。
+          外部サービス、保持期間、削除の取扱いを含む詳細は、
+          <Link className="font-bold text-caramel underline-offset-4 hover:underline" href="/privacy">
+            プライバシーポリシー
+          </Link>
+          をご確認ください。
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {points.map((point) => (

@@ -1,10 +1,23 @@
+import type { Metadata } from 'next';
 import { LegalPage } from '@/components/LegalPage';
+
+const title = 'アフィリエイトについて｜にゃんストック';
+const description =
+  'にゃんストックの商品リンクに含まれる場合があるアフィリエイトリンクと、外部サイトでの取引について説明します。';
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: '/affiliate' },
+  openGraph: { title, description, url: '/affiliate' }
+};
 
 export default function AffiliatePage() {
   return (
     <LegalPage
       title="アフィリエイトについて"
       effectiveDate="2026年7月3日"
+      lastUpdatedDate="2026年7月29日"
       lead="にゃんストックでは、サービス運営のため、商品リンクにアフィリエイトリンクを含める場合があります。利用者が安心して利用できるよう、以下のとおり明示します。"
       sections={[
         {

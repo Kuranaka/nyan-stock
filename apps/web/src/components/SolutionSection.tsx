@@ -3,34 +3,34 @@ import { SectionTitle } from '@/components/SectionTitle';
 
 const features = [
   {
-    icon: '日',
-    title: '残り日数を自動計算',
-    body: '内容量と1日あたりの消費量から、残り何日でなくなるかを表示。'
+    icon: '🐾',
+    title: 'ペットごとにすっきり管理',
+    body: '猫を中心に8区分へ対応。複数のペットがいても、プロフィールと用品を分けて見られます。'
   },
   {
-    icon: '知',
-    title: 'なくなる前に通知',
-    body: '残り7日、3日、1日など、買い忘れやすいタイミングでお知らせ。'
+    icon: '学',
+    title: '補充から買い時を自動学習',
+    body: '補充を2回記録すると、その間隔から次の買い時を予測。だいたいの日数や使用量からの計算も選べます。'
   },
   {
-    icon: '買',
-    title: 'いつもの商品をすぐ購入',
-    body: 'Amazon・楽天・Yahooなど、登録した購入URLからすぐ再購入。'
-  },
-  {
-    icon: '履',
-    title: '補充履歴を記録',
-    body: 'いつ・何を・いくらで買ったかを記録。'
+    icon: '整',
+    title: '必要なものから確認',
+    body: '要対応・そろそろ・学習中・日数表示なしで整理。買い時が近い用品を迷わず確認できます。'
   },
   {
     icon: '円',
-    title: '月のペット用品コストを見える化',
-    body: 'フード・トイレ用品・おやつなどの支出をざっくり把握。'
+    title: '支出とこれからを見える化',
+    body: '今月の実績、月額予測、今後30日の買い足し見込みをまとめて確認できます。'
   },
   {
-    icon: '🐾',
-    title: 'ペットごとに管理',
-    body: '猫、犬、うさぎ、小動物、鳥、観賞魚、爬虫類・両生類、昆虫の8区分に対応し、用品をペットごとに整理できます。'
+    icon: '買',
+    title: 'いつもの購入先をすぐ確認',
+    body: '登録URLを開くほか、URLがなくても商品名からAmazon・楽天・Yahooを検索できます。購入は外部サイトで行います。'
+  },
+  {
+    icon: '共',
+    title: '家族とも同じ在庫を共有',
+    body: '共有コードでペット・在庫・購入履歴を同期。買った人と補充した人が違っても、同じ状態を確認できます。'
   }
 ];
 
@@ -38,7 +38,11 @@ export function SolutionSection() {
   return (
     <section id="features" className="px-4 py-16 sm:px-6">
       <div className="mx-auto max-w-6xl">
-        <SectionTitle title="にゃんストックで、いつものペット用品をかんたん管理" />
+        <SectionTitle
+          eyebrow="Features"
+          title="買い時も、費用も、家族との共有もひとつに"
+          description="入力を増やすのではなく、普段の補充記録を次の行動に変える機能を揃えました。"
+        />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
             <FeatureCard key={feature.title} {...feature} />

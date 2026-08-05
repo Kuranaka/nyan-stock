@@ -1,10 +1,23 @@
+import type { Metadata } from 'next';
 import { LegalPage } from '@/components/LegalPage';
+
+const title = '利用規約｜にゃんストック';
+const description =
+  'にゃんストック バージョン2.0の利用条件、共有機能、商品リンク、Plusの自動更新型サブスクリプションについて説明します。';
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: '/terms' },
+  openGraph: { title, description, url: '/terms' }
+};
 
 export default function TermsPage() {
   return (
     <LegalPage
       title="利用規約"
       effectiveDate="2026年7月23日"
+      lastUpdatedDate="2026年7月29日"
       lead="この利用規約（以下「本規約」といいます。）は、にゃんストック運営（以下「運営者」といいます。）が提供するペット用品の在庫管理・買い忘れ防止アプリ「にゃんストック」および関連するWebサイト（以下総称して「本サービス」といいます。）の利用条件を定めるものです。"
       sections={[
         {
@@ -23,7 +36,7 @@ export default function TermsPage() {
         {
           title: 'アカウント・共有同期',
           body: [
-            '利用者は、GoogleまたはAppleによるログイン、匿名ゲスト参加、共有コードを利用して、家族や他アカウントと在庫データを共有できる場合があります。',
+            'GoogleまたはAppleでログインした利用者は、共有スペースを新規作成できます。匿名ゲストを含む利用者は、発行済みの共有コードを使って共有スペースへ参加できます。',
             'Googleログインでは、ログインの本人確認およびアカウント識別に必要な基本プロフィール情報のみを利用します。Googleアカウントのメール本文、Google Drive、カレンダー、連絡先その他のGoogleサービス上のデータにはアクセスしません。',
             '共有コードを第三者に渡した場合、その第三者がペットプロフィール、在庫、購入履歴等を閲覧・更新できることがあります。利用者は、共有コードを自己の責任で管理するものとします。',
             'ログアウト、共有解除、端末内データの初期化を行っても、クラウド側の共有データが直ちに削除されるとは限りません。',
@@ -108,7 +121,7 @@ export default function TermsPage() {
         {
           title: 'お問い合わせ',
           body: [
-            '本規約に関するお問い合わせは、本サービスまたはWebサイトに掲載するお問い合わせ先までご連絡ください。',
+            '本規約に関するお問い合わせは、アプリ内の「設定 > お問い合わせ」またはWebサイトのお問い合わせページに表示される窓口からご連絡ください。',
             '運営者: にゃんストック運営'
           ]
         }
