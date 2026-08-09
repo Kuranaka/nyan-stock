@@ -1,12 +1,14 @@
 {
   "name": "nyan-stock-web",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run validate:env",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src next.config.ts"
+    "lint": "eslint src next.config.ts scripts",
+    "validate:env": "node scripts/validate-production-env.mjs"
   },
   "dependencies": {
     "next": "^16.2.10",

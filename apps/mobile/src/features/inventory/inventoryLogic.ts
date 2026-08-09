@@ -1,6 +1,6 @@
 import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 
-import { InventoryItem, InventoryStatus, PurchaseHistory } from './inventoryTypes';
+import type { InventoryItem, InventoryStatus, PurchaseHistory } from './inventoryTypes';
 
 export function getInventoryCatIds(item: InventoryItem): string[] {
   return Array.from(new Set([item.catId, ...(item.sharedCatIds ?? [])].filter(Boolean)));

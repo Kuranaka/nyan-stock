@@ -7,6 +7,7 @@ import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
 import { EmptyState } from '@/components/EmptyState';
+import { DataLoadErrorNotice } from '@/components/DataLoadErrorNotice';
 import { PetScopeSelector } from '@/components/PetScopeSelector';
 import { unitLabels } from '@/constants/categories';
 import { colors } from '@/constants/colors';
@@ -27,6 +28,7 @@ import {
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { scheduleInventoryNotifications } from '@/features/notifications/notificationService';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
+import { useDataLoadError } from '@/hooks/useDataLoadError';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
 
@@ -50,19 +52,22 @@ export default function PurchaseHistoryScreen() {
   const [editingPrice, setEditingPrice] = useState('');
   const [savingHistoryPrice, setSavingHistoryPrice] = useState(false);
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | undefined>();
+  const { loadError, runWithLoadError } = useDataLoadError();
 
   const load = useCallback(async () => {
-    const [nextHistory, nextItems, nextCats, settings] = await Promise.all([
-      getPurchaseHistory(),
-      getInventoryItems(),
-      getCats(),
-      getSettings(),
-    ]);
-    setHistory(nextHistory);
-    setItems(nextItems);
-    setCats(nextCats);
-    setSelectedCatId(resolveSelectedCatId(nextCats, routeCatId ?? settings.selectedCatId));
-  }, [routeCatId]);
+    await runWithLoadError(async () => {
+      const [nextHistory, nextItems, nextCats, settings] = await Promise.all([
+        getPurchaseHistory(),
+        getInventoryItems(),
+        getCats(),
+        getSettings(),
+      ]);
+      setHistory(nextHistory);
+      setItems(nextItems);
+      setCats(nextCats);
+      setSelectedCatId(resolveSelectedCatId(nextCats, routeCatId ?? settings.selectedCatId));
+    });
+  }, [routeCatId, runWithLoadError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -264,6 +269,7 @@ export default function PurchaseHistoryScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {loadError ? <DataLoadErrorNotice message={loadError} onRetry={() => void load()} /> : null}
       <PetScopeSelector
         cats={cats}
         selectedCatId={selectedCatId}

@@ -1,12 +1,21 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, format, parseISO } from 'date-fns';
 
+import {
+  inventoryItemsStorageSchema,
+  purchaseHistoryStorageSchema,
+} from '@/features/persistence/storageSchemas';
+import {
+  readVersionedStorage,
+  removeVersionedStorage,
+  writeVersionedStorage,
+  writeVersionedStorageBatch,
+} from '@/features/persistence/versionedStorage';
 import { storageKeys } from '@/features/storageKeys';
 import {
+  applyActiveHouseholdInventoryMutation,
   clearActiveHouseholdInventoryData,
   deleteActiveHouseholdPurchaseHistory,
   getActiveHouseholdSnapshot,
-  syncActiveHouseholdInventoryAndHistory,
   upsertActiveHouseholdInventoryItem,
   upsertActiveHouseholdPurchaseHistory,
 } from '@/features/sync/householdSyncService';
@@ -15,9 +24,13 @@ import { nowIso } from '@/utils/date';
 import {
   calculateEstimatedEndDate,
   calculateRemainingDays,
-  getInventoryCatIds,
 } from './inventoryLogic';
 import { calculatePurchaseFrequencyPrediction } from './purchaseFrequency';
+import {
+  planInventoryItemDeletion,
+  planPetRemovalFromInventory,
+  withPurchaseHistorySnapshot,
+} from './inventoryMutationPlan';
 import { InventoryItem, LastingDaysReplenishMode, PurchaseHistory } from './inventoryTypes';
 
 let cachedInventoryItems: InventoryItem[] | undefined;
@@ -30,8 +43,7 @@ export async function getInventoryItems(): Promise<InventoryItem[]> {
     return snapshot.inventoryItems;
   }
 
-  const raw = await AsyncStorage.getItem(storageKeys.inventoryItems);
-  const items = raw ? (JSON.parse(raw) as InventoryItem[]) : [];
+  const items = await readVersionedStorage(storageKeys.inventoryItems, inventoryItemsStorageSchema);
   cachedInventoryItems = items;
   return items;
 }
@@ -76,45 +88,36 @@ export async function saveInventoryItem(item: InventoryItem): Promise<void> {
     ? items.map((current) => (current.id === item.id ? normalized : current))
     : [normalized, ...items];
   cachedInventoryItems = next;
-  await AsyncStorage.setItem(storageKeys.inventoryItems, JSON.stringify(next));
+  await writeVersionedStorage(storageKeys.inventoryItems, next, inventoryItemsStorageSchema);
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
-  const deletedItem = items.find((item) => item.id === id);
-  const nextItems = items.filter((item) => item.id !== id);
-  const nextHistory = deletedItem
-    ? history.map((entry) =>
-        entry.inventoryItemId === id ? withPurchaseHistorySnapshot(entry, deletedItem) : entry,
-      )
-    : history;
-  cachedInventoryItems = nextItems;
-  cachedPurchaseHistory = nextHistory;
+  const plan = planInventoryItemDeletion(items, history, id);
 
-  if (await syncActiveHouseholdInventoryAndHistory(nextItems, nextHistory)) return;
-
-  await AsyncStorage.multiSet([
-    [storageKeys.inventoryItems, JSON.stringify(nextItems)],
-    [storageKeys.purchaseHistory, JSON.stringify(nextHistory)],
-  ]);
+  await persistInventoryMutation(
+    {
+      deleteInventoryItemIds: plan.deleteInventoryItemIds,
+      upsertPurchaseHistory: plan.upsertPurchaseHistory,
+    },
+    plan.nextItems,
+    plan.nextHistory,
+  );
 }
 
 export async function deleteInventoryItemsForCat(catId: string): Promise<void> {
   const [items, history] = await Promise.all([getInventoryItems(), getPurchaseHistory()]);
-  const nextItems = removeCatFromInventoryItems(items, catId);
-  const itemsById = new Map(items.map((item) => [item.id, item]));
-  const nextHistory = history.map((entry) => {
-    const item = itemsById.get(entry.inventoryItemId);
-    return item && getInventoryCatIds(item).includes(catId)
-      ? withPurchaseHistorySnapshot(entry, item)
-      : entry;
-  });
-  cachedInventoryItems = nextItems;
-  cachedPurchaseHistory = nextHistory;
-  if (await syncActiveHouseholdInventoryAndHistory(nextItems, nextHistory)) return;
+  const plan = planPetRemovalFromInventory(items, history, catId, nowIso());
 
-  await AsyncStorage.setItem(storageKeys.inventoryItems, JSON.stringify(nextItems));
-  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
+  await persistInventoryMutation(
+    {
+      upsertInventoryItems: plan.upsertInventoryItems,
+      deleteInventoryItemIds: plan.deleteInventoryItemIds,
+      upsertPurchaseHistory: plan.upsertPurchaseHistory,
+    },
+    plan.nextItems,
+    plan.nextHistory,
+  );
 }
 
 export async function getPurchaseHistory(): Promise<PurchaseHistory[]> {
@@ -124,8 +127,10 @@ export async function getPurchaseHistory(): Promise<PurchaseHistory[]> {
     return snapshot.purchaseHistory;
   }
 
-  const raw = await AsyncStorage.getItem(storageKeys.purchaseHistory);
-  const history = raw ? (JSON.parse(raw) as PurchaseHistory[]) : [];
+  const history = await readVersionedStorage(
+    storageKeys.purchaseHistory,
+    purchaseHistoryStorageSchema,
+  );
   cachedPurchaseHistory = history;
   return history;
 }
@@ -142,7 +147,11 @@ export async function addPurchaseHistory(entry: PurchaseHistory): Promise<void> 
   const history = await getPurchaseHistory();
   const nextHistory = [normalized, ...history];
   cachedPurchaseHistory = nextHistory;
-  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
+  await writeVersionedStorage(
+    storageKeys.purchaseHistory,
+    nextHistory,
+    purchaseHistoryStorageSchema,
+  );
 }
 
 export async function updatePurchaseHistoryPrice(
@@ -156,7 +165,11 @@ export async function updatePurchaseHistoryPrice(
     return nextHistory;
 
   cachedPurchaseHistory = nextHistory;
-  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
+  await writeVersionedStorage(
+    storageKeys.purchaseHistory,
+    nextHistory,
+    purchaseHistoryStorageSchema,
+  );
   return nextHistory;
 }
 
@@ -177,51 +190,21 @@ export async function deletePurchaseHistory(id: string): Promise<PurchaseHistory
   if (itemToRecalculate) {
     const nextItem = rebuildPurchaseFrequencyPrediction(itemToRecalculate, nextHistory);
     const nextItems = items.map((item) => (item.id === nextItem.id ? nextItem : item));
-    cachedInventoryItems = nextItems;
-
-    const [itemSyncResult, historyDeleteResult] = await Promise.allSettled([
-      upsertActiveHouseholdInventoryItem(nextItem),
-      deleteActiveHouseholdPurchaseHistory(id),
-    ]);
-    const syncedItem = itemSyncResult.status === 'fulfilled' && itemSyncResult.value;
-    const deletedRemoteHistory =
-      historyDeleteResult.status === 'fulfilled' && historyDeleteResult.value;
-    if (syncedItem && deletedRemoteHistory) {
-      return nextHistory;
-    }
-    const usesLocalStorage =
-      itemSyncResult.status === 'fulfilled' &&
-      !itemSyncResult.value &&
-      historyDeleteResult.status === 'fulfilled' &&
-      !historyDeleteResult.value;
-    if (!usesLocalStorage) {
-      const reconciliation = await reconcilePurchaseFrequencyHistoryDeletion(
-        id,
-        itemToRecalculate.id,
-      );
-      if (reconciliation?.deletionPersisted) return reconciliation.history;
-
-      const mutationError =
-        itemSyncResult.status === 'rejected'
-          ? itemSyncResult.reason
-          : historyDeleteResult.status === 'rejected'
-            ? historyDeleteResult.reason
-            : undefined;
-      throw mutationError instanceof Error
-        ? mutationError
-        : new Error('共有データを保存できませんでした。');
-    }
-
-    await AsyncStorage.multiSet([
-      [storageKeys.inventoryItems, JSON.stringify(nextItems)],
-      [storageKeys.purchaseHistory, JSON.stringify(nextHistory)],
-    ]);
+    await persistInventoryMutation(
+      { upsertInventoryItems: [nextItem], deletePurchaseHistoryIds: [id] },
+      nextItems,
+      nextHistory,
+    );
     return nextHistory;
   }
 
   if (await deleteActiveHouseholdPurchaseHistory(id)) return nextHistory;
 
-  await AsyncStorage.setItem(storageKeys.purchaseHistory, JSON.stringify(nextHistory));
+  await writeVersionedStorage(
+    storageKeys.purchaseHistory,
+    nextHistory,
+    purchaseHistoryStorageSchema,
+  );
   return nextHistory;
 }
 
@@ -231,7 +214,7 @@ export async function replenishInventoryItem(
   resetOpenedDate: boolean,
   lastingDaysReplenishMode: LastingDaysReplenishMode = 'add_remaining',
 ): Promise<InventoryItem> {
-  const allHistory = await getPurchaseHistory();
+  const [allHistory, allItems] = await Promise.all([getPurchaseHistory(), getInventoryItems()]);
   const replenishmentHistory = withPurchaseHistorySnapshot(
     {
       ...history,
@@ -260,8 +243,22 @@ export async function replenishInventoryItem(
         : undefined,
     updatedAt: nowIso(),
   };
-  await saveInventoryItem(nextItem);
-  await addPurchaseHistory(replenishmentHistory);
+  const nextItems = allItems.some((current) => current.id === nextItem.id)
+    ? allItems.map((current) => (current.id === nextItem.id ? nextItem : current))
+    : [nextItem, ...allItems];
+  const nextHistory = allHistory.some((entry) => entry.id === replenishmentHistory.id)
+    ? allHistory.map((entry) =>
+        entry.id === replenishmentHistory.id ? replenishmentHistory : entry,
+      )
+    : [replenishmentHistory, ...allHistory];
+  await persistInventoryMutation(
+    {
+      upsertInventoryItems: [nextItem],
+      upsertPurchaseHistory: [replenishmentHistory],
+    },
+    nextItems,
+    nextHistory,
+  );
   return nextItem;
 }
 
@@ -271,8 +268,8 @@ export async function clearInventoryData(): Promise<void> {
   if (await clearActiveHouseholdInventoryData()) return;
 
   await Promise.all([
-    AsyncStorage.removeItem(storageKeys.inventoryItems),
-    AsyncStorage.removeItem(storageKeys.purchaseHistory),
+    removeVersionedStorage(storageKeys.inventoryItems),
+    removeVersionedStorage(storageKeys.purchaseHistory),
   ]);
 }
 
@@ -284,15 +281,6 @@ function upsertCachedInventoryItem(
   return items.some((current) => current.id === item.id)
     ? items.map((current) => (current.id === item.id ? item : current))
     : [item, ...items];
-}
-
-function withPurchaseHistorySnapshot(entry: PurchaseHistory, item: InventoryItem): PurchaseHistory {
-  return {
-    ...entry,
-    itemName: entry.itemName ?? item.name,
-    itemCategory: entry.itemCategory ?? item.category,
-    catIds: entry.catIds ?? getInventoryCatIds(item),
-  };
 }
 
 function rebuildPurchaseFrequencyPrediction(
@@ -308,44 +296,26 @@ function rebuildPurchaseFrequencyPrediction(
   };
 }
 
-async function reconcilePurchaseFrequencyHistoryDeletion(
-  deletedHistoryId: string,
-  inventoryItemId: string,
-): Promise<{ deletionPersisted: boolean; history: PurchaseHistory[] } | undefined> {
-  const snapshot = await getActiveHouseholdSnapshot();
-  if (!snapshot) return undefined;
-
-  const deletionPersisted = !snapshot.purchaseHistory.some(
-    (entry) => entry.id === deletedHistoryId,
-  );
-  const remoteItem = snapshot.inventoryItems.find((item) => item.id === inventoryItemId);
-  let nextItems = snapshot.inventoryItems;
-  if (remoteItem?.estimationMode === 'purchase_frequency') {
-    const reconciledItem = rebuildPurchaseFrequencyPrediction(remoteItem, snapshot.purchaseHistory);
-    if (!(await upsertActiveHouseholdInventoryItem(reconciledItem))) return undefined;
-    nextItems = snapshot.inventoryItems.map((item) =>
-      item.id === reconciledItem.id ? reconciledItem : item,
-    );
-  }
-
+async function persistInventoryMutation(
+  mutation: Parameters<typeof applyActiveHouseholdInventoryMutation>[0],
+  nextItems: InventoryItem[],
+  nextHistory: PurchaseHistory[],
+): Promise<void> {
+  await applyActiveHouseholdInventoryMutation(mutation);
   cachedInventoryItems = nextItems;
-  cachedPurchaseHistory = snapshot.purchaseHistory;
-  return { deletionPersisted, history: snapshot.purchaseHistory };
-}
-
-function removeCatFromInventoryItems(items: InventoryItem[], catId: string): InventoryItem[] {
-  return items
-    .map((item): InventoryItem | undefined => {
-      const catIds = getInventoryCatIds(item).filter((currentCatId) => currentCatId !== catId);
-      if (catIds.length === 0) return undefined;
-      return {
-        ...item,
-        catId: catIds[0],
-        sharedCatIds: catIds.length > 1 ? catIds.slice(1) : undefined,
-        updatedAt: nowIso(),
-      };
-    })
-    .filter((item): item is InventoryItem => Boolean(item));
+  cachedPurchaseHistory = nextHistory;
+  await writeVersionedStorageBatch([
+    {
+      key: storageKeys.inventoryItems,
+      value: nextItems,
+      schema: inventoryItemsStorageSchema,
+    },
+    {
+      key: storageKeys.purchaseHistory,
+      value: nextHistory,
+      schema: purchaseHistoryStorageSchema,
+    },
+  ]);
 }
 
 function calculateReplenishedEstimatedEndDate(

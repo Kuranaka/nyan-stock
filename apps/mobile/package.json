@@ -1,6 +1,6 @@
 {
   "name": "nyan-stock",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -13,11 +13,12 @@
     "submit:ios:testflight": "npx eas-cli submit --platform ios --profile testflight --latest",
     "eas-build-pre-install": "node scripts/validate-release-env.mjs && node scripts/validate-release-config.mjs",
     "lint": "eslint . --ext .ts,.tsx",
+    "test": "node --import tsx --test src/features/*/*.test.ts",
     "validate:purchase-frequency": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/validate-purchase-frequency.mjs",
     "validate:release-config": "node scripts/validate-release-config.mjs",
     "security:validate": "node scripts/validate-security-hardening.mjs",
     "smoke:sync": "node scripts/smoke-household-sync.mjs",
-    "verify:release": "npm run validate:release-config && tsc --noEmit && npm run lint && npm run validate:purchase-frequency && npm run security:validate",
+    "verify:release": "npm run validate:release-config && tsc --noEmit && npm run lint && npm test && npm run validate:purchase-frequency && npm run security:validate",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -60,6 +61,7 @@
     "eslint-import-resolver-typescript": "3.6.1",
     "prettier": "^3.3.3",
     "react-dom": "19.1.0",
+    "tsx": "^4.19.2",
     "typescript": "~5.9.2"
   }
 }

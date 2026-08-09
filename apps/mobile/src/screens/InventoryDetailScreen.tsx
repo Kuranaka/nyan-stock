@@ -8,6 +8,11 @@ import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
 import { DatePickerField } from '@/components/DatePickerField';
 import { StatusBadge } from '@/components/StatusBadge';
+import {
+  InventoryInfo as Info,
+  InventoryMetric as Metric,
+  PurchaseButton,
+} from '@/components/inventory/InventoryDetailPrimitives';
 import { categories, categoryLabels, unitLabels, units } from '@/constants/categories';
 import { colors } from '@/constants/colors';
 import { getCachedCats, getCats } from '@/features/cats/catStorage';
@@ -32,6 +37,13 @@ import {
   saveInventoryItem,
 } from '@/features/inventory/inventoryStorage';
 import { calculatePurchaseFrequencyPrediction } from '@/features/inventory/purchaseFrequency';
+import {
+  calculateRemainingAmount,
+  formatNotifyBeforeDays,
+  formatQuantity,
+  formatRemainingStockValue,
+  getReplenishAmount,
+} from '@/features/inventory/inventoryPresentation';
 import {
   InventoryEstimationMode,
   InventoryCategory,
@@ -1620,90 +1632,6 @@ export default function InventoryDetailScreen() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
-}
-
-function PurchaseButton({
-  label,
-  configured,
-  saved,
-  onPress,
-}: {
-  label: string;
-  configured: boolean;
-  saved: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <AppButton
-      title={configured ? `${label}で${saved ? '買う' : '探す'}` : `${label} URL未設定`}
-      variant={saved ? 'primary' : 'secondary'}
-      disabled={!configured}
-      onPress={onPress}
-    />
-  );
-}
-
-function formatRemainingStockValue(item: InventoryItem, percent: number | undefined): string {
-  if (percent === undefined) return '未設定';
-  if (item.estimationMode === 'lasting_days') {
-    if (item.amount > 0) {
-      return `${formatQuantity((item.amount * Math.max(0, percent)) / 100)}${unitLabels[item.unit]}`;
-    }
-    return `${percent}%`;
-  }
-  if (item.amount <= 0) return '未設定';
-  if (!item.estimationMode || item.estimationMode === 'usage') {
-    const remainingAmount = calculateRemainingAmount(item);
-    if (remainingAmount === undefined) return `${percent}%`;
-    return `${formatQuantity(remainingAmount)}${unitLabels[item.unit]}`;
-  }
-  return `${percent}%`;
-}
-
-function formatNotifyBeforeDays(days: number[]): string {
-  if (days.length === 0) return '通知なし';
-  return [...days]
-    .sort((a, b) => b - a)
-    .map((day) => `残り${day}日`)
-    .join('・');
-}
-
-function calculateRemainingAmount(item: InventoryItem): number | undefined {
-  if (!item.estimationMode || item.estimationMode === 'usage') {
-    const remainingDays = calculateRemainingDays(item);
-    if (remainingDays === undefined || !item.dailyUsage || item.dailyUsage <= 0) return undefined;
-    return Math.min(item.amount, Math.max(0, remainingDays * item.dailyUsage));
-  }
-  const percent = calculateRemainingPercent(item);
-  if (percent === undefined || item.amount <= 0) return undefined;
-  return (item.amount * Math.max(0, percent)) / 100;
-}
-
-function formatQuantity(value: number): string {
-  if (Number.isInteger(value)) return String(value);
-  return String(Math.round(value * 10) / 10);
-}
-
-function getReplenishAmount(item: InventoryItem): number {
-  return item.amount;
-}
-
 const styles = StyleSheet.create({
   container: {
     gap: 14,
@@ -1806,39 +1734,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  metric: {
-    flex: 1,
-    backgroundColor: colors.muted,
-    borderRadius: 14,
-    padding: 14,
-  },
-  metricLabel: {
-    color: colors.subText,
-    fontSize: 13,
-  },
-  metricValue: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 4,
-  },
   quickAdjustPanel: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: 10,
     paddingTop: 12,
-  },
-  infoRow: {
-    gap: 3,
-  },
-  infoLabel: {
-    color: colors.subText,
-    fontSize: 12,
-  },
-  infoValue: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 23,
   },
   infoHeader: {
     alignItems: 'center',

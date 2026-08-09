@@ -10,6 +10,13 @@ Supabase は **開発用** と **本番用** に別々のプロジェクトを�
 - EAS の Environment variables に `development` と `production` を作成し、各環境に `EXPO_PUBLIC_APP_ENV`、`EXPO_PUBLIC_SUPABASE_URL`、`EXPO_PUBLIC_SUPABASE_ANON_KEY` と必要な `EXPO_PUBLIC_SUPABASE_*` を設定します。`apps/mobile/eas.json` は development / preview を `development`、production を `production` に固定済みです。
 - 本番 URL や本番 anon key をローカルの `.env.development.local` に書かないでください。`EXPO_PUBLIC_` の値はアプリへ埋め込まれるため、service-role key などの秘密情報も絶対に入れません。
 
+ゲスト利用と、ゲストから Google / Apple へのデータ引き継ぎには、Supabase Dashboard の **Authentication > Sign In / Providers** で次を環境ごとに有効にします。`supabase/config.toml` の同名設定はローカルSupabase用であり、Dashboard上の開発・本番プロジェクトには自動反映されません。
+
+- Anonymous Sign-Ins
+- Allow Manual Linking（Enable Manual Linking と表示される場合もあります）
+
+Manual Linking が無効な環境では、ゲストで使い始めたあとに Google / Apple ログインへ切り替えると、既存のゲストIDを維持したまま外部IDを紐づけられず、引き継ぎ設定エラーになります。
+
 EAS CLI を使う場合は、環境ごとに値を登録します（値はダッシュボードで入力しても構いません）。
 
 ```bash

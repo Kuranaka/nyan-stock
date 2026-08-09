@@ -1,4 +1,7 @@
 node_modules/
+.DS_Store
+.tmp_*/
+exports/
 apps/*/node_modules/
 apps/mobile/.expo/
 apps/mobile/dist/
@@ -19,3 +22,13 @@ apps/web/next-env.d.ts
 supabase/.branches/
 supabase/.temp/
 supabase/supabase/
+
+# Reproducible local media/render outputs. Curated release assets already tracked
+# under artifacts/ remain tracked; these working directories are intentionally local.
+artifacts/app-preview/
+artifacts/app-store-screenshots/**/source/
+artifacts/app-store-screenshots/**/final/
+
+# Generated mobile fallback data is no longer imported by the app. The canonical
+# product data lives in Supabase and the importer seed files.
+apps/mobile/src/data/productMaster.generated.ts

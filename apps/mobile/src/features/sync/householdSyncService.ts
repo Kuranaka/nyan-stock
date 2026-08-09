@@ -1,8 +1,18 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { ensureSupabaseSessionForSharing, getCurrentAuthSession, getSupabaseSession } from '@/features/auth/supabaseAuth';
 import { Cat } from '@/features/cats/catTypes';
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
+import {
+  catsStorageSchema,
+  inventoryItemsStorageSchema,
+  purchaseHistoryStorageSchema,
+} from '@/features/persistence/storageSchemas';
+import type { StorageSchema } from '@/features/persistence/storageCodec';
+import {
+  readVersionedStorage,
+  removeVersionedStorage,
+  writeVersionedStorage,
+  writeVersionedStorageBatch,
+} from '@/features/persistence/versionedStorage';
 import { storageKeys } from '@/features/storageKeys';
 import {
   getSupabaseAnonKey,
@@ -18,6 +28,7 @@ import {
   saveHouseholdSyncState,
 } from './householdSyncStorage';
 import { HouseholdSnapshot, HouseholdSyncState, RemoteHouseholdSnapshot } from './householdSyncTypes';
+import { loadAllKeysetPages } from './keysetPagination';
 
 const householdSnapshotsTable = process.env.EXPO_PUBLIC_SUPABASE_HOUSEHOLD_SNAPSHOTS_TABLE ?? 'household_snapshots';
 
@@ -66,6 +77,15 @@ const householdsTable = process.env.EXPO_PUBLIC_SUPABASE_HOUSEHOLDS_TABLE ?? 'ho
 const householdCatsTable = process.env.EXPO_PUBLIC_SUPABASE_HOUSEHOLD_CATS_TABLE ?? 'household_cats';
 const householdInventoryItemsTable = process.env.EXPO_PUBLIC_SUPABASE_HOUSEHOLD_INVENTORY_ITEMS_TABLE ?? 'household_inventory_items';
 const householdPurchaseHistoryTable = process.env.EXPO_PUBLIC_SUPABASE_HOUSEHOLD_PURCHASE_HISTORY_TABLE ?? 'household_purchase_history';
+const householdEntityPageSize = 500;
+let activeHouseholdSnapshotRequest: Promise<HouseholdSnapshot | undefined> | undefined;
+
+export type HouseholdInventoryMutation = {
+  upsertInventoryItems?: InventoryItem[];
+  deleteInventoryItemIds?: string[];
+  upsertPurchaseHistory?: PurchaseHistory[];
+  deletePurchaseHistoryIds?: string[];
+};
 
 export function isHouseholdSyncConfigured(): boolean {
   return isSupabaseConfigured();
@@ -215,13 +235,32 @@ export async function getCurrentRemoteSnapshot(): Promise<RemoteHouseholdSnapsho
 }
 
 export async function getActiveHouseholdSnapshot(): Promise<HouseholdSnapshot | undefined> {
+  if (activeHouseholdSnapshotRequest) return activeHouseholdSnapshotRequest;
+
+  const request = loadActiveHouseholdSnapshot();
+  activeHouseholdSnapshotRequest = request;
+  try {
+    return await request;
+  } finally {
+    if (activeHouseholdSnapshotRequest === request) activeHouseholdSnapshotRequest = undefined;
+  }
+}
+
+async function loadActiveHouseholdSnapshot(): Promise<HouseholdSnapshot | undefined> {
   // A household ID can remain in local storage after an account has been signed out
   // or its guest session has expired. Reading local inventory must still work in
   // that state; only perform remote work when an authenticated sync session exists.
   const state = await getHouseholdSyncState();
   if (!state || !isHouseholdSyncConfigured() || !(await getSupabaseSession())) return undefined;
 
-  const remote = await fetchRemoteHouseholdData(state.householdId);
+  let remote: RemoteHouseholdSnapshot | undefined;
+  try {
+    remote = await fetchRemoteHouseholdData(state.householdId);
+  } catch {
+    throw new Error(
+      '共有中の在庫を読み込めませんでした。共有データはオフラインでは表示できないため、インターネット接続を確認してもう一度お試しください。',
+    );
+  }
   if (!remote) {
     // This happens when a member has been removed or the shared space no longer
     // exists. Do not recreate it from the removed member's local cache.
@@ -242,7 +281,7 @@ export async function upsertActiveHouseholdCat(cat: Cat): Promise<boolean> {
     upsertHousehold(state.householdId, cat.updatedAt, updatedBy),
     upsertEntityRow(householdCatsTable, state.householdId, cat.id, cat, cat.updatedAt, updatedBy),
   ]);
-  await patchLocalCache(storageKeys.cats, (cats: Cat[]) =>
+  await patchLocalCache(storageKeys.cats, catsStorageSchema, (cats) =>
     cats.some((item) => item.id === cat.id)
       ? cats.map((item) => (item.id === cat.id ? cat : item))
       : [...cats, cat],
@@ -261,7 +300,9 @@ export async function deleteActiveHouseholdCat(id: string): Promise<boolean> {
     upsertHousehold(state.householdId, now, updatedBy),
     deleteEntityRow(householdCatsTable, state.householdId, id),
   ]);
-  await patchLocalCache(storageKeys.cats, (cats: Cat[]) => cats.filter((cat) => cat.id !== id));
+  await patchLocalCache(storageKeys.cats, catsStorageSchema, (cats) =>
+    cats.filter((cat) => cat.id !== id),
+  );
   await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
@@ -277,7 +318,7 @@ export async function clearActiveHouseholdCats(): Promise<boolean> {
     upsertHousehold(state.householdId, now, updatedBy),
     ...rows.map((row) => deleteEntityRow(householdCatsTable, state.householdId, row.id)),
   ]);
-  await AsyncStorage.removeItem(storageKeys.cats);
+  await removeVersionedStorage(storageKeys.cats);
   await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
@@ -291,7 +332,7 @@ export async function upsertActiveHouseholdInventoryItem(item: InventoryItem): P
     upsertHousehold(state.householdId, item.updatedAt, updatedBy),
     upsertEntityRow(householdInventoryItemsTable, state.householdId, item.id, item, item.updatedAt, updatedBy),
   ]);
-  await patchLocalCache(storageKeys.inventoryItems, (items: InventoryItem[]) =>
+  await patchLocalCache(storageKeys.inventoryItems, inventoryItemsStorageSchema, (items) =>
     items.some((current) => current.id === item.id)
       ? items.map((current) => (current.id === item.id ? item : current))
       : [item, ...items],
@@ -310,7 +351,9 @@ export async function deleteActiveHouseholdInventoryItem(id: string): Promise<bo
     upsertHousehold(state.householdId, now, updatedBy),
     deleteEntityRow(householdInventoryItemsTable, state.householdId, id),
   ]);
-  await patchLocalCache(storageKeys.inventoryItems, (items: InventoryItem[]) => items.filter((item) => item.id !== id));
+  await patchLocalCache(storageKeys.inventoryItems, inventoryItemsStorageSchema, (items) =>
+    items.filter((item) => item.id !== id),
+  );
   await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
@@ -325,7 +368,7 @@ export async function upsertActiveHouseholdPurchaseHistory(entry: PurchaseHistor
     upsertHousehold(state.householdId, updatedAt, updatedBy),
     upsertEntityRow(householdPurchaseHistoryTable, state.householdId, entry.id, entry, updatedAt, updatedBy),
   ]);
-  await patchLocalCache(storageKeys.purchaseHistory, (history: PurchaseHistory[]) =>
+  await patchLocalCache(storageKeys.purchaseHistory, purchaseHistoryStorageSchema, (history) =>
     history.some((current) => current.id === entry.id)
       ? history.map((current) => (current.id === entry.id ? entry : current))
       : [entry, ...history],
@@ -344,44 +387,34 @@ export async function deleteActiveHouseholdPurchaseHistory(id: string): Promise<
     upsertHousehold(state.householdId, now, updatedBy),
     deleteEntityRow(householdPurchaseHistoryTable, state.householdId, id),
   ]);
-  await patchLocalCache(storageKeys.purchaseHistory, (history: PurchaseHistory[]) =>
+  await patchLocalCache(storageKeys.purchaseHistory, purchaseHistoryStorageSchema, (history) =>
     history.filter((entry) => entry.id !== id),
   );
   await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
 
-export async function syncActiveHouseholdInventoryAndHistory(
-  inventoryItems: InventoryItem[],
-  purchaseHistory: PurchaseHistory[],
+export async function applyActiveHouseholdInventoryMutation(
+  mutation: HouseholdInventoryMutation,
 ): Promise<boolean> {
   const state = await getActiveState();
   if (!state) return false;
 
-  const now = nowIso();
-  const updatedBy = await getCurrentUserLabel();
-  await Promise.all([
-    upsertHousehold(state.householdId, now, updatedBy),
-    syncEntityRows(
-      householdInventoryItemsTable,
-      state.householdId,
-      inventoryItems,
-      (item) => item.id,
-      updatedBy,
-    ),
-    syncEntityRows(
-      householdPurchaseHistoryTable,
-      state.householdId,
-      purchaseHistory,
-      (entry) => entry.id,
-      updatedBy,
-    ),
-  ]);
-  await AsyncStorage.multiSet([
-    [storageKeys.inventoryItems, JSON.stringify(inventoryItems)],
-    [storageKeys.purchaseHistory, JSON.stringify(purchaseHistory)],
-  ]);
-  await saveHouseholdSyncState({ ...state, lastPushedAt: now });
+  const client = requireSupabaseClient();
+  const { error } = await client.rpc('apply_household_inventory_mutation', {
+    p_household_id: state.householdId,
+    p_upsert_inventory_items: mutation.upsertInventoryItems ?? [],
+    p_delete_inventory_item_ids: mutation.deleteInventoryItemIds ?? [],
+    p_upsert_purchase_history: mutation.upsertPurchaseHistory ?? [],
+    p_delete_purchase_history_ids: mutation.deletePurchaseHistoryIds ?? [],
+  });
+  if (error) {
+    logSupabaseRpcError('apply_household_inventory_mutation', error);
+    throw new Error('共有データを一括保存できませんでした。');
+  }
+
+  const updatedAt = nowIso();
+  await saveHouseholdSyncState({ ...state, lastPushedAt: updatedAt });
   return true;
 }
 
@@ -389,22 +422,23 @@ export async function clearActiveHouseholdInventoryData(): Promise<boolean> {
   const state = await getActiveState();
   if (!state) return false;
 
-  const [inventoryRows, historyRows] = await Promise.all([
-    fetchEntityRows<InventoryItem>(householdInventoryItemsTable, state.householdId),
-    fetchEntityRows<PurchaseHistory>(householdPurchaseHistoryTable, state.householdId),
-  ]);
-  const now = nowIso();
-  const updatedBy = await getCurrentUserLabel();
+  const inventoryRows = await fetchEntityRows<InventoryItem>(
+    householdInventoryItemsTable,
+    state.householdId,
+  );
+  const historyRows = await fetchEntityRows<PurchaseHistory>(
+    householdPurchaseHistoryTable,
+    state.householdId,
+  );
+  const clearedRemote = await applyActiveHouseholdInventoryMutation({
+    deleteInventoryItemIds: inventoryRows.map((row) => row.id),
+    deletePurchaseHistoryIds: historyRows.map((row) => row.id),
+  });
+  if (!clearedRemote) return false;
   await Promise.all([
-    upsertHousehold(state.householdId, now, updatedBy),
-    ...inventoryRows.map((row) => deleteEntityRow(householdInventoryItemsTable, state.householdId, row.id)),
-    ...historyRows.map((row) => deleteEntityRow(householdPurchaseHistoryTable, state.householdId, row.id)),
+    removeVersionedStorage(storageKeys.inventoryItems),
+    removeVersionedStorage(storageKeys.purchaseHistory),
   ]);
-  await Promise.all([
-    AsyncStorage.removeItem(storageKeys.inventoryItems),
-    AsyncStorage.removeItem(storageKeys.purchaseHistory),
-  ]);
-  await saveHouseholdSyncState({ ...state, lastPushedAt: now });
   return true;
 }
 
@@ -469,25 +503,33 @@ function parseMembershipResult(data: unknown, fallbackMessage: string): Househol
 }
 
 async function createLocalSnapshot(): Promise<HouseholdSnapshot> {
-  const [catsRaw, inventoryItemsRaw, purchaseHistoryRaw] = await Promise.all([
-    AsyncStorage.getItem(storageKeys.cats),
-    AsyncStorage.getItem(storageKeys.inventoryItems),
-    AsyncStorage.getItem(storageKeys.purchaseHistory),
+  const [cats, inventoryItems, purchaseHistory] = await Promise.all([
+    readVersionedStorage(storageKeys.cats, catsStorageSchema),
+    readVersionedStorage(storageKeys.inventoryItems, inventoryItemsStorageSchema),
+    readVersionedStorage(storageKeys.purchaseHistory, purchaseHistoryStorageSchema),
   ]);
   return {
-    cats: catsRaw ? JSON.parse(catsRaw) : [],
-    inventoryItems: inventoryItemsRaw ? JSON.parse(inventoryItemsRaw) : [],
-    purchaseHistory: purchaseHistoryRaw ? JSON.parse(purchaseHistoryRaw) : [],
+    cats,
+    inventoryItems,
+    purchaseHistory,
     updatedAt: nowIso(),
     updatedBy: await getCurrentUserLabel(),
   };
 }
 
 async function applyRemoteSnapshot(snapshot: HouseholdSnapshot): Promise<void> {
-  await AsyncStorage.multiSet([
-    [storageKeys.cats, JSON.stringify(snapshot.cats ?? [])],
-    [storageKeys.inventoryItems, JSON.stringify(snapshot.inventoryItems ?? [])],
-    [storageKeys.purchaseHistory, JSON.stringify(snapshot.purchaseHistory ?? [])],
+  await writeVersionedStorageBatch([
+    { key: storageKeys.cats, value: snapshot.cats ?? [], schema: catsStorageSchema },
+    {
+      key: storageKeys.inventoryItems,
+      value: snapshot.inventoryItems ?? [],
+      schema: inventoryItemsStorageSchema,
+    },
+    {
+      key: storageKeys.purchaseHistory,
+      value: snapshot.purchaseHistory ?? [],
+      schema: purchaseHistoryStorageSchema,
+    },
   ]);
 }
 
@@ -545,12 +587,18 @@ async function fetchRemoteHouseholdData(householdId: string): Promise<RemoteHous
 }
 
 async function fetchNormalizedSnapshot(householdId: string): Promise<RemoteHouseholdSnapshot> {
-  const [cats, inventoryItems, purchaseHistory, household] = await Promise.all([
-    fetchEntityPayloads<Cat>(householdCatsTable, householdId),
-    fetchEntityPayloads<InventoryItem>(householdInventoryItemsTable, householdId),
-    fetchEntityPayloads<PurchaseHistory>(householdPurchaseHistoryTable, householdId),
-    fetchHousehold(householdId),
-  ]);
+  // The entity tables can exceed PostgREST's default 1,000-row response cap.
+  // Scan them sequentially so several full-table reads do not compete for DB memory.
+  const cats = await fetchEntityPayloads<Cat>(householdCatsTable, householdId);
+  const inventoryItems = await fetchEntityPayloads<InventoryItem>(
+    householdInventoryItemsTable,
+    householdId,
+  );
+  const purchaseHistory = await fetchEntityPayloads<PurchaseHistory>(
+    householdPurchaseHistoryTable,
+    householdId,
+  );
+  const household = await fetchHousehold(householdId);
   const updatedAt = household?.updated_at ?? nowIso();
   return {
     householdId,
@@ -569,17 +617,10 @@ async function fetchNormalizedSnapshot(householdId: string): Promise<RemoteHouse
 }
 
 async function fetchEntityPayloads<T>(tableName: string, householdId: string): Promise<T[]> {
-  const endpoint = `${getRestEndpoint(tableName)}?household_id=eq.${encodeURIComponent(householdId)}&select=id,payload,updated_at&order=updated_at.desc`;
-  const response = await fetch(endpoint, {
-    headers: await getSupabaseHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error('共有データを取得できませんでした。');
-  }
-
-  const rows = (await response.json()) as HouseholdEntityRow<T>[];
-  return rows.map((row) => row.payload);
+  const rows = await fetchAllEntityRows<T>(tableName, householdId);
+  return rows
+    .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
+    .map((row) => row.payload);
 }
 
 async function upsertNormalizedSnapshot(
@@ -588,23 +629,27 @@ async function upsertNormalizedSnapshot(
   updatedBy?: string,
 ): Promise<void> {
   await upsertHousehold(householdId, snapshot.updatedAt, updatedBy);
-  await Promise.all([
-    syncEntityRows(householdCatsTable, householdId, snapshot.cats, (cat) => cat.id, updatedBy),
-    syncEntityRows(
-      householdInventoryItemsTable,
-      householdId,
-      snapshot.inventoryItems,
-      (item) => item.id,
-      updatedBy,
-    ),
-    syncEntityRows(
-      householdPurchaseHistoryTable,
-      householdId,
-      snapshot.purchaseHistory,
-      (entry) => entry.id,
-      updatedBy,
-    ),
-  ]);
+  await upsertEntityRows(
+    householdCatsTable,
+    householdId,
+    snapshot.cats,
+    (cat) => cat.id,
+    updatedBy,
+  );
+  await upsertEntityRows(
+    householdInventoryItemsTable,
+    householdId,
+    snapshot.inventoryItems,
+    (item) => item.id,
+    updatedBy,
+  );
+  await upsertEntityRows(
+    householdPurchaseHistoryTable,
+    householdId,
+    snapshot.purchaseHistory,
+    (entry) => entry.id,
+    updatedBy,
+  );
 }
 
 async function upsertHousehold(
@@ -675,51 +720,48 @@ async function getActiveState(): Promise<HouseholdSyncState | undefined> {
 
 async function patchLocalCache<T>(
   key: string,
+  schema: StorageSchema<T[]>,
   patch: (items: T[]) => T[],
 ): Promise<void> {
-  const raw = await AsyncStorage.getItem(key);
-  const current = raw ? (JSON.parse(raw) as T[]) : [];
-  await AsyncStorage.setItem(key, JSON.stringify(patch(current)));
+  const current = await readVersionedStorage(key, schema);
+  await writeVersionedStorage(key, patch(current), schema);
 }
 
-async function syncEntityRows<T>(
+async function upsertEntityRows<T>(
   tableName: string,
   householdId: string,
   records: T[],
   getId: (record: T) => string,
   updatedBy?: string,
 ): Promise<void> {
-  const existingRows = await fetchEntityRows<T>(tableName, householdId);
-  const nextIds = new Set(records.map(getId));
-  const deletedIds = existingRows.map((row) => row.id).filter((id) => !nextIds.has(id));
-
-  await Promise.all(deletedIds.map((id) => deleteEntityRow(tableName, householdId, id)));
-
   if (records.length === 0) return;
 
   const now = nowIso();
-  const body = JSON.stringify(
-    records.map((record) => ({
-      id: getId(record),
-      household_id: householdId,
-      payload: record,
-      updated_at: getRecordUpdatedAt(record) ?? now,
-      updated_by: updatedBy,
-    })),
-  );
-  const response = await fetch(`${getRestEndpoint(tableName)}?on_conflict=household_id,id`, {
-    method: 'POST',
-    headers: {
-      ...(await getSupabaseHeaders()),
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    },
-    body,
-  });
+  for (let offset = 0; offset < records.length; offset += householdEntityPageSize) {
+    const batch = records.slice(offset, offset + householdEntityPageSize);
+    const body = JSON.stringify(
+      batch.map((record) => ({
+        id: getId(record),
+        household_id: householdId,
+        payload: record,
+        updated_at: getRecordUpdatedAt(record) ?? now,
+        updated_by: updatedBy,
+      })),
+    );
+    const response = await fetch(`${getRestEndpoint(tableName)}?on_conflict=household_id,id`, {
+      method: 'POST',
+      headers: {
+        ...(await getSupabaseHeaders()),
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body,
+    });
 
-  if (!response.ok) {
-    await logSupabaseRestError(`sync ${tableName}`, response);
-    throw new Error('共有データを保存できませんでした。');
+    if (!response.ok) {
+      await logSupabaseRestError(`upsert ${tableName}`, response);
+      throw new Error('共有データを保存できませんでした。');
+    }
   }
 }
 
@@ -751,16 +793,28 @@ async function fetchEntityRows<T>(
   tableName: string,
   householdId: string,
 ): Promise<HouseholdEntityRow<T>[]> {
-  const endpoint = `${getRestEndpoint(tableName)}?household_id=eq.${encodeURIComponent(householdId)}&select=id,payload,updated_at`;
-  const response = await fetch(endpoint, {
-    headers: await getSupabaseHeaders(),
-  });
+  return fetchAllEntityRows<T>(tableName, householdId);
+}
 
-  if (!response.ok) {
-    throw new Error('共有データを取得できませんでした。');
-  }
+async function fetchAllEntityRows<T>(
+  tableName: string,
+  householdId: string,
+): Promise<HouseholdEntityRow<T>[]> {
+  return loadAllKeysetPages(async (afterId, limit) => {
+    const cursorFilter = afterId ? `&id=gt.${encodeURIComponent(afterId)}` : '';
+    const endpoint = `${getRestEndpoint(tableName)}?household_id=eq.${encodeURIComponent(
+      householdId,
+    )}&select=id,household_id,payload,updated_at,updated_by&order=id.asc&limit=${limit}${cursorFilter}`;
+    const response = await fetch(endpoint, {
+      headers: await getSupabaseHeaders(),
+    });
 
-  return (await response.json()) as HouseholdEntityRow<T>[];
+    if (!response.ok) {
+      throw new Error('共有データを取得できませんでした。');
+    }
+
+    return (await response.json()) as HouseholdEntityRow<T>[];
+  }, householdEntityPageSize);
 }
 
 async function deleteEntityRow(

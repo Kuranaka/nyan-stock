@@ -1,8 +1,7 @@
-import { ReactNode, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   DeviceEventEmitter,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -12,7 +11,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -22,6 +20,13 @@ import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { AppTextInput } from '@/components/AppTextInput';
 import { SignInButtons } from '@/components/SignInButtons';
+import {
+  AccountProviderIcon,
+  InfoLine,
+  SettingRow,
+  SettingSection,
+  StatChip,
+} from '@/components/settings/SettingPrimitives';
 import { colors } from '@/constants/colors';
 import { insertSeedData } from '@/data/seedData';
 import { areAdMobPrivacyOptionsRequired, showAdMobPrivacyOptions } from '@/features/ads/adMob';
@@ -33,6 +38,7 @@ import {
   signOutSupabaseAuth,
 } from '@/features/auth/supabaseAuth';
 import { getInventoryItems } from '@/features/inventory/inventoryStorage';
+import { removeVersionedStorage } from '@/features/persistence/versionedStorage';
 import {
   cancelAllInventoryNotifications,
   getNotificationPermissionState,
@@ -68,9 +74,8 @@ import { HouseholdSyncState } from '@/features/sync/householdSyncTypes';
 import { householdRealtimeResubscribeEventName } from '@/features/sync/householdRealtime';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
-import googleLogo from '@/assets/google-g-logo.png';
 
-const appVersion = Constants.expoConfig?.version ?? '2.0.0';
+const appVersion = Constants.expoConfig?.version ?? '2.0.1';
 const resettableLocalDataKeys = [
   storageKeys.cats,
   storageKeys.inventoryItems,
@@ -254,7 +259,7 @@ export default function SettingsScreen() {
 
               await cancelAllInventoryNotifications();
               await Promise.all(
-                resettableLocalDataKeys.map((key) => AsyncStorage.removeItem(key)),
+                resettableLocalDataKeys.map((key) => removeVersionedStorage(key)),
               );
               await saveSettings(resetSettings);
               setSettings(resetSettings);
@@ -278,7 +283,7 @@ export default function SettingsScreen() {
 
   const clearLocalDeviceData = async () => {
     await cancelAllInventoryNotifications();
-    await Promise.all(Object.values(storageKeys).map((key) => AsyncStorage.removeItem(key)));
+    await Promise.all(Object.values(storageKeys).map((key) => removeVersionedStorage(key)));
   };
 
   const addSeedData = () => {
@@ -1007,100 +1012,6 @@ export default function SettingsScreen() {
   );
 }
 
-type SettingSectionProps = {
-  title: string;
-  description?: string;
-  children: ReactNode;
-};
-
-function SettingSection({ title, description, children }: SettingSectionProps) {
-  return (
-    <AppCard style={styles.card}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.title}>{title}</Text>
-        {description ? <Text style={styles.note}>{description}</Text> : null}
-      </View>
-      {children}
-    </AppCard>
-  );
-}
-
-type SettingRowProps = {
-  title: string;
-  description: string;
-  onPress: () => void;
-};
-
-function SettingRow({ title, description, onPress }: SettingRowProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
-    >
-      <View style={styles.menuText}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowDescription}>{description}</Text>
-      </View>
-      <Text style={styles.chevron}>›</Text>
-    </Pressable>
-  );
-}
-
-type StatChipProps = {
-  label: string;
-  value: string;
-};
-
-function StatChip({ label, value }: StatChipProps) {
-  return (
-    <View style={styles.statChip}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
-type InfoLineProps = {
-  label: string;
-  value: string;
-};
-
-function InfoLine({ label, value }: InfoLineProps) {
-  return (
-    <View style={styles.infoLine}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
-}
-
-type AccountProviderIconProps = {
-  session: AuthSession | undefined;
-};
-
-function AccountProviderIcon({ session }: AccountProviderIconProps) {
-  if (session?.provider === 'google') {
-    return (
-      <View style={styles.accountLogoAvatar}>
-        <Image
-          accessibilityIgnoresInvertColors
-          source={googleLogo}
-          style={styles.accountGoogleLogo}
-        />
-      </View>
-    );
-  }
-
-  const label = session?.provider === 'apple' ? 'A' : session?.provider === 'guest' ? 'ゲ' : '?';
-
-  return (
-    <View style={styles.accountAvatar}>
-      <Text style={styles.accountAvatarText}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
@@ -1129,9 +1040,6 @@ const styles = StyleSheet.create({
   summaryCard: {
     borderColor: colors.primaryLight,
     gap: 16,
-  },
-  sectionHeader: {
-    gap: 4,
   },
   sectionEyebrow: {
     color: colors.primaryDark,
@@ -1173,26 +1081,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  statChip: {
-    backgroundColor: colors.muted,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexGrow: 1,
-    minWidth: 112,
-    padding: 12,
-  },
-  statLabel: {
-    color: colors.subText,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-    marginTop: 4,
-  },
   accountPanel: {
     alignItems: 'center',
     backgroundColor: colors.muted,
@@ -1202,33 +1090,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 12,
-  },
-  accountAvatar: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    borderRadius: 18,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  accountLogoAvatar: {
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  accountGoogleLogo: {
-    height: 20,
-    width: 20,
-  },
-  accountAvatarText: {
-    color: colors.primaryDark,
-    fontSize: 16,
-    fontWeight: '900',
   },
   accountBody: {
     flex: 1,
@@ -1333,25 +1194,6 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: 12,
   },
-  infoLine: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-  },
-  infoLabel: {
-    color: colors.subText,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  infoValue: {
-    color: colors.text,
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-    textAlign: 'right',
-  },
   buttonStack: {
     gap: 10,
   },
@@ -1430,31 +1272,6 @@ const styles = StyleSheet.create({
   joinForm: {
     gap: 12,
   },
-  menuRow: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  menuRowPressed: {
-    backgroundColor: colors.muted,
-    transform: [{ scale: 0.99 }],
-  },
-  menuText: {
-    flex: 1,
-    gap: 3,
-  },
-  chevron: {
-    color: colors.primaryDark,
-    fontSize: 26,
-    fontWeight: '500',
-    lineHeight: 28,
-  },
   todoRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -1493,7 +1310,11 @@ const todoItems = [
   { label: 'Google / Appleログイン', status: '任意ログインに対応済み', done: true },
   { label: 'Xログイン', status: '実装下地あり。今は非表示・未使用' },
   { label: '共有コードによるクラウド共有', status: 'Supabase参照・保存に対応済み', done: true },
-  { label: 'リアルタイム同期、自動マージ', status: '初期版では未対応' },
+  {
+    label: '共有データのリアルタイム更新',
+    status: '共有データの変更通知と再取得に対応済み',
+    done: true,
+  },
   {
     label: 'EC API連携、商品検索',
     status: 'Supabase Edge Function経由の検索に対応済み',

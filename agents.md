@@ -4,7 +4,7 @@
 
 This repository is a monorepo for `にゃんストック`.
 
-`にゃんストック` helps cat owners track household cat-supply inventory, estimate remaining days, receive local notifications, and reopen registered purchase links. The repository also contains a public landing page used for pre-release validation and signup collection.
+`にゃんストック` helps households track supplies for cats and seven other companion-animal groups, estimate remaining days, receive local notifications, share data through Supabase, review costs, and reopen registered purchase links. The repository also contains the public App Store landing page and the product-master import pipeline.
 
 ## Repository Layout
 
@@ -21,29 +21,40 @@ nyan-stock/
       next.config.ts
       src/
       app/
+  packages/
+    shared/
+  services/
+    product-importer/
+  supabase/
+    functions/
+    migrations/
   README.md
   agents.md
 ```
 
 - `apps/mobile/`: React Native / Expo / TypeScript app.
 - `apps/web/`: Next.js / TypeScript / Tailwind CSS landing page.
+- `packages/shared/`: Shared product and pet-master types consumed by the mobile app and importer.
+- `services/product-importer/`: Product collection, normalization, review, merge, and quality-check CLI.
+- `supabase/`: Append-only migrations and Edge Functions for auth-backed sharing and support services.
 - Do not put Expo or Next.js app/config files in the repository root.
 - Keep Expo Router's `app/` under `apps/mobile/app/`.
 - Keep Next.js App Router's `app/` under `apps/web/src/app/`.
 - Keep each app's `package.json`, lockfile, and `node_modules` separate.
-- Do not force shared packages yet. The structure should allow a future `packages/shared/` for common types/constants.
+- Keep shared product/pet-master types in `packages/shared/`; app-specific UI and storage types remain inside each app.
 
 ## Tech Stack
 
 ### Mobile App
 
-- Expo SDK 51
-- React Native 0.74
+- Expo SDK 54
+- React Native 0.81
 - TypeScript with `strict` enabled
 - Expo Router under `apps/mobile/app/`
-- AsyncStorage for local-only persistence
+- Versioned and schema-validated AsyncStorage persistence, with legacy-data migration
+- Supabase Auth, PostgREST, and Realtime for optional household sharing
 - Expo Notifications for local reminders
-- Expo WebBrowser for external purchase links
+- React Native Linking for purchase links and Expo WebBrowser for auth/subscription flows
 - date-fns for date calculations
 - ESLint and Prettier
 
@@ -53,7 +64,7 @@ nyan-stock/
 - React
 - TypeScript with `strict` enabled
 - Tailwind CSS
-- Vercel deployment target
+- Cloudflare Pages static-export deployment target
 
 ## Useful Commands
 
@@ -68,6 +79,7 @@ npx expo start
 npm run ios
 npm run android
 npm run lint
+npm test
 npx tsc --noEmit
 npx expo export --platform ios
 ```
@@ -87,15 +99,15 @@ npm run build
 
 If `next dev` or `next build` fails in the sandbox because Turbopack cannot bind a local port, rerun the command with escalated local process/network permissions.
 
-## Vercel Settings
+## Cloudflare Pages Settings
 
-When publishing the LP on Vercel, import the GitHub repository and set:
+When publishing the LP on Cloudflare Pages, connect the GitHub repository and set:
 
 - Root Directory: `apps/web`
-- Build Command: `npm run build`
-- Output Directory: `.next`
+- Build Command: `npm ci && npm run build`
+- Output Directory: `out`
 
-The default Next.js preset is usually sufficient.
+Set `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_SUPPORT_EMAIL`; production builds fail when either is invalid or missing.
 
 ## Directory Map
 
@@ -109,6 +121,10 @@ The default Next.js preset is usually sufficient.
 - `apps/mobile/src/features/inventory/`: Inventory types, storage, calculations, purchase links, and EC helpers.
 - `apps/mobile/src/features/notifications/`: Local notification permission and scheduling helpers.
 - `apps/mobile/src/features/settings/`: Settings types and storage helpers.
+- `apps/mobile/src/features/persistence/`: Shared versioned JSON codec, schemas, and AsyncStorage helpers.
+- `apps/mobile/src/features/sync/`: Authenticated household sync, realtime subscriptions, targeted mutations, and keyset pagination.
+- `apps/mobile/src/features/products/`: Remote pet-product master search and mapping.
+- `apps/mobile/src/hooks/`: Cross-screen React hooks such as unsaved-change guards and load-error handling.
 - `apps/mobile/src/utils/`: Date and validation helpers.
 - `apps/mobile/src/data/`: Development seed helpers.
 
@@ -116,8 +132,14 @@ The default Next.js preset is usually sufficient.
 
 - `apps/web/src/app/`: Next.js App Router pages and layout.
 - `apps/web/src/components/`: LP sections and reusable UI components.
-- `apps/web/src/lib/`: Signup and analytics helper functions.
-- `apps/web/public/`: Static public assets such as OGP placeholders.
+- `apps/web/src/lib/`: Site configuration and analytics helpers.
+- `apps/web/public/`: Static screenshots, OGP assets, app-ads.txt, and promotional video.
+
+### Product Importer
+
+- `services/product-importer/src/petCatalog/`: Catalog normalization, review, repository, and quality logic.
+- `services/product-importer/data/seed/`: Canonical seed inputs.
+- `services/product-importer/data/generated/`: Reproducible review and quality outputs; large retained outputs use Git LFS.
 
 ## Implementation Guidelines
 
@@ -153,7 +175,7 @@ The default Next.js preset is usually sufficient.
 - Keep screens out of direct storage details. Use the storage modules in `apps/mobile/src/features/**`.
 - Keep inventory math in `apps/mobile/src/features/inventory/inventoryLogic.ts`.
 - Keep purchase URL handling in `apps/mobile/src/features/inventory/purchaseLink.ts`.
-- Do not add login, server sync, cloud storage, barcode scanning, OCR, or AI diagnosis unless explicitly requested.
+- Extend the existing auth, household sync, and cloud icon storage only when explicitly requested, preserving membership-scoped access.
 - EC API/product-search integrations are allowed only when explicitly requested and must keep affiliate disclosure visible near purchase/search actions.
 - Preserve the local-first privacy model: no address, phone number, exact location, or account data.
 - Avoid veterinary or medical claims. Use wording like "記録する", "変化に気づきやすくする", and "気になる場合は獣医師に相談".
@@ -165,7 +187,6 @@ The default Next.js preset is usually sufficient.
 - Keep the LP as a standalone Next.js site in `apps/web/`.
 - Use TypeScript and Tailwind CSS.
 - Keep copy in Japanese and avoid veterinary or medical claims.
-- Signup form submission can be local-only initially, but keep the submit function easy to connect later to Google Forms, Formspree, Supabase, Firebase, or a custom API.
 - Analytics helpers can log to `console.log` initially, but should preserve event names for future GA4 / Clarity work.
 - Legal pages may contain placeholder text during development, but must include TODO notes for pre-release legal review.
 - Affiliate disclosure must be visible and understandable.
@@ -176,13 +197,13 @@ Inventory items carry `catId` for multi-cat support.
 
 Inventory status rules:
 
-- Missing or non-positive `dailyUsage`: `unknown`
+- `no_estimate`, or a mode without a resolvable estimated end date: `unknown`
 - Remaining days `<= 0`: `out`
 - Remaining days `<= 3`: `warning`
 - Remaining days `<= 7`: `watch`
 - Remaining days `>= 8`: `in_stock`
 
-`openedDate` is used as the calculation base when available; otherwise `purchaseDate` is used.
+Usage-based estimates use `openedDate` when available; otherwise they use `purchaseDate`. The current lasting-days form uses `purchaseDate` until opened-date input is added to that flow.
 
 ## Verification Checklist
 

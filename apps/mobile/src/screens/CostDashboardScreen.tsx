@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
+import { DataLoadErrorNotice } from '@/components/DataLoadErrorNotice';
 import { PetScopeSelector } from '@/components/PetScopeSelector';
 import { colors } from '@/constants/colors';
 import { getCats } from '@/features/cats/catStorage';
@@ -22,6 +23,7 @@ import { getInventoryItems, getPurchaseHistory } from '@/features/inventory/inve
 import { InventoryItem, PurchaseHistory } from '@/features/inventory/inventoryTypes';
 import { buildMonthlyCostAnalysis } from '@/features/inventory/monthlyCostAnalysis';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
+import { useDataLoadError } from '@/hooks/useDataLoadError';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 
 export default function CostDashboardScreen() {
@@ -31,19 +33,22 @@ export default function CostDashboardScreen() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [history, setHistory] = useState<PurchaseHistory[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
+  const { loadError, runWithLoadError } = useDataLoadError();
 
   const load = useCallback(async () => {
-    const [nextCats, nextItems, nextHistory, settings] = await Promise.all([
-      getCats(),
-      getInventoryItems(),
-      getPurchaseHistory(),
-      getSettings(),
-    ]);
-    setCats(nextCats);
-    setItems(nextItems);
-    setHistory(nextHistory);
-    setSelectedCatId(resolveSelectedCatId(nextCats, settings.selectedCatId));
-  }, []);
+    await runWithLoadError(async () => {
+      const [nextCats, nextItems, nextHistory, settings] = await Promise.all([
+        getCats(),
+        getInventoryItems(),
+        getPurchaseHistory(),
+        getSettings(),
+      ]);
+      setCats(nextCats);
+      setItems(nextItems);
+      setHistory(nextHistory);
+      setSelectedCatId(resolveSelectedCatId(nextCats, settings.selectedCatId));
+    });
+  }, [runWithLoadError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -135,6 +140,8 @@ export default function CostDashboardScreen() {
       <Text accessibilityRole="header" style={styles.title}>
         費用
       </Text>
+
+      {loadError ? <DataLoadErrorNotice message={loadError} onRetry={() => void load()} /> : null}
 
       {cats.length > 0 ? (
         <View style={styles.filterSection}>

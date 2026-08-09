@@ -36,6 +36,30 @@ const checks = [
     },
   },
   {
+    name: 'household inventory mutations are explicit and atomic',
+    file: 'supabase/migrations/20260808000000_atomic_household_inventory_mutations.sql',
+    assert: (source) => {
+      assert(
+        source.includes('create or replace function public.apply_household_inventory_mutation'),
+        'atomic household mutation RPC is missing',
+      );
+      assert(source.includes('security definer'), 'atomic household mutation is not protected');
+      assert(
+        source.includes('not public.is_household_member(p_household_id)'),
+        'household membership validation is missing',
+      );
+      assert(
+        source.includes('p_delete_inventory_item_ids') &&
+          source.includes('p_delete_purchase_history_ids'),
+        'mutation does not constrain deletes to explicit entity IDs',
+      );
+      assert(
+        source.includes('to authenticated') && source.includes('from public, anon'),
+        'RPC execution grants are not restricted',
+      );
+    },
+  },
+  {
     name: 'OAuth callback does not accept token-bearing implicit sessions',
     file: 'apps/mobile/src/features/auth/supabaseAuth.ts',
     assert: (source) => {

@@ -1,0 +1,4 @@
+# Large, reproducible review artifacts should use Git LFS when they are intentionally retained.
+artifacts/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+artifacts/**/*.mov filter=lfs diff=lfs merge=lfs -text
+services/product-importer/data/generated/** filter=lfs diff=lfs merge=lfs -text

@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AppCard } from '@/components/AppCard';
+import { DataLoadErrorNotice } from '@/components/DataLoadErrorNotice';
 import { EmptyState } from '@/components/EmptyState';
 import { PetScopeSelector } from '@/components/PetScopeSelector';
 import { colors } from '@/constants/colors';
@@ -18,6 +19,7 @@ import {
   getMonthlyCostExclusionReason,
 } from '@/features/inventory/monthlyCostAnalysis';
 import { getSettings, updateSettings } from '@/features/settings/settingsStorage';
+import { useDataLoadError } from '@/hooks/useDataLoadError';
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 
 export default function MonthlyCostBreakdownScreen() {
@@ -27,17 +29,20 @@ export default function MonthlyCostBreakdownScreen() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | undefined>();
   const [showAllExcludedItems, setShowAllExcludedItems] = useState(false);
+  const { loadError, runWithLoadError } = useDataLoadError();
 
   const load = useCallback(async () => {
-    const [nextCats, nextItems, settings] = await Promise.all([
-      getCats(),
-      getInventoryItems(),
-      getSettings(),
-    ]);
-    setCats(nextCats);
-    setItems(nextItems);
-    setSelectedCatId(resolveSelectedCatId(nextCats, routeCatId ?? settings.selectedCatId));
-  }, [routeCatId]);
+    await runWithLoadError(async () => {
+      const [nextCats, nextItems, settings] = await Promise.all([
+        getCats(),
+        getInventoryItems(),
+        getSettings(),
+      ]);
+      setCats(nextCats);
+      setItems(nextItems);
+      setSelectedCatId(resolveSelectedCatId(nextCats, routeCatId ?? settings.selectedCatId));
+    });
+  }, [routeCatId, runWithLoadError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,6 +84,7 @@ export default function MonthlyCostBreakdownScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {loadError ? <DataLoadErrorNotice message={loadError} onRetry={() => void load()} /> : null}
       <PetScopeSelector
         cats={cats}
         selectedCatId={selectedCatId}

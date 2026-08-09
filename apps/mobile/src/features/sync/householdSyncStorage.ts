@@ -1,24 +1,21 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { storageKeys } from '@/features/storageKeys';
+import { householdSyncStorageSchema } from '@/features/persistence/storageSchemas';
+import {
+  readVersionedStorage,
+  removeVersionedStorage,
+  writeVersionedStorage,
+} from '@/features/persistence/versionedStorage';
 
 import { HouseholdSyncState } from './householdSyncTypes';
 
 export async function getHouseholdSyncState(): Promise<HouseholdSyncState | undefined> {
-  const raw = await AsyncStorage.getItem(storageKeys.householdSync);
-  if (!raw) return undefined;
-
-  try {
-    return JSON.parse(raw) as HouseholdSyncState;
-  } catch {
-    return undefined;
-  }
+  return readVersionedStorage(storageKeys.householdSync, householdSyncStorageSchema);
 }
 
 export async function saveHouseholdSyncState(state: HouseholdSyncState): Promise<void> {
-  await AsyncStorage.setItem(storageKeys.householdSync, JSON.stringify(state));
+  await writeVersionedStorage(storageKeys.householdSync, state, householdSyncStorageSchema);
 }
 
 export async function clearHouseholdSyncState(): Promise<void> {
-  await AsyncStorage.removeItem(storageKeys.householdSync);
+  await removeVersionedStorage(storageKeys.householdSync);
 }

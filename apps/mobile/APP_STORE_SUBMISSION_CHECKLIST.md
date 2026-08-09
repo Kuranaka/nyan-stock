@@ -5,9 +5,9 @@
 
 ## 正本
 
-- リリース概要: [RELEASE_2.0.0.md](./RELEASE_2.0.0.md)
+- リリース概要: [RELEASE_2.0.1.md](./RELEASE_2.0.1.md)
 - Simulator / TestFlightの動作確認とGo / No-Go:
-  [SMOKE_TEST_2.0.0.md](./SMOKE_TEST_2.0.0.md)
+  [SMOKE_TEST_2.0.1.md](./SMOKE_TEST_2.0.1.md)
 - ストア文面とReview Notes:
   [app-store-metadata.md](../../docs/app-store-metadata.md)
 - App Privacy申告:
@@ -21,17 +21,19 @@
 ### ビルドとバックエンド
 
 - [ ] EAS上の現在のiOSビルド番号を確認し、既存のApp Store Connectビルドより大きいTestFlight候補を作成する。
-      2026年7月26日の確認値は`20`。次の候補はauto increment後の`21`以上にする。
+      2026年8月9日の確認値は`20`。次の候補はauto increment後の`21`以上にする。
 - [ ] EAS production環境のSupabase URL / anon key / 認証redirectが提出先プロジェクトの値であり、
       `RELEASE_SUPABASE_PROJECT_REF`が本番URLのプロジェクト識別子と一致することを確認する。
       公開ビルドでは`implicit`認証を使わず、PKCEを使う。
-      2026年7月26日のEAS設定読み取りでは`RELEASE_SUPABASE_PROJECT_REF`が未登録のため、
+      2026年8月9日のEAS設定読み取りでも`RELEASE_SUPABASE_PROJECT_REF`が未登録のため、
       store build作成前に追加が必要。
 - [ ] Web の `NEXT_PUBLIC_SITE_URL` と `NEXT_PUBLIC_SUPPORT_EMAIL` を実在する本番値に設定し、`/privacy` がログイン不要で表示されることを確認する。
       2026年7月26日時点の公開`/terms`は「猫用品」表記と旧施行日のままのため、
       `apps/web`の最新版をデプロイし、公開URLを再確認するまで提出しない。
 - [ ] 本番の`/privacy`とアプリ内ポリシーに、データ別の保持基準、削除後のバックアップ・ログ、委託先の保護・監督、Resend、旧版の商品マスタ改善用データ、検索語・商品URLの識別可能性が同じ内容で掲載されていることを確認する。
 - [ ] Supabaseへ`20260726000004_disable_mobile_product_master_suggestions.sql`を適用し、旧版を含むモバイルクライアントから商品マスタ改善用データを送信できないことを確認する。
+- [x] Supabaseへ`20260808000000_atomic_household_inventory_mutations.sql`を開発・本番ともに適用し、CLIのmigration履歴でlocal/remote一致を確認する（2026年8月9日）。
+- [ ] 共有中の補充・削除RPCとmembership制約を2アカウントで確認する。
 - [ ] 旧版から過去に送信済みの商品マスタ改善用データについて、本番での保持状況とアカウント削除・削除依頼時の削除を確認する。
 - [ ] `delete-account`と`cleanup-unused-icons`の最新版を提出先Supabaseへデプロイする。
 - [ ] `delete-account`をデプロイするSupabaseプロジェクトに`SUPABASE_URL`、
@@ -69,7 +71,7 @@
 - [ ] Export Compliance、コンテンツ権利、広告識別子、年齢区分、審査連絡先の回答を現行実装に合わせる。
 - [ ] App Review Notesへ正本の文面を転記し、必要な共有コードまたは確認用アカウントを安全に追記する。
 - [ ] TestFlightのフィードバック、クラッシュ、起動指標を確認し、
-      [SMOKE_TEST_2.0.0.md](./SMOKE_TEST_2.0.0.md)のGo判定後に審査へ提出する。
+      [SMOKE_TEST_2.0.1.md](./SMOKE_TEST_2.0.1.md)のGo判定後に審査へ提出する。
 
 ## App Review Notes
 

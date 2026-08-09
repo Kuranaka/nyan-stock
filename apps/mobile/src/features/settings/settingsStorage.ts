@@ -1,22 +1,26 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { storageKeys } from '@/features/storageKeys';
+import { settingsStorageSchema } from '@/features/persistence/storageSchemas';
+import {
+  hasVersionedStorage,
+  readVersionedStorage,
+  removeVersionedStorage,
+  writeVersionedStorage,
+} from '@/features/persistence/versionedStorage';
 
-import { AppSettings, defaultSettings } from './settingsTypes';
+import { AppSettings } from './settingsTypes';
 
 export const onboardingVisibilityEventName = 'nyan-stock:onboarding-visibility-changed';
 
 export async function getSettings(): Promise<AppSettings> {
-  const raw = await AsyncStorage.getItem(storageKeys.settings);
-  return raw ? { ...defaultSettings, ...(JSON.parse(raw) as Partial<AppSettings>) } : defaultSettings;
+  return readVersionedStorage(storageKeys.settings, settingsStorageSchema);
 }
 
 export async function hasSavedSettings(): Promise<boolean> {
-  return (await AsyncStorage.getItem(storageKeys.settings)) !== null;
+  return hasVersionedStorage(storageKeys.settings);
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
-  await AsyncStorage.setItem(storageKeys.settings, JSON.stringify(settings));
+  await writeVersionedStorage(storageKeys.settings, settings, settingsStorageSchema);
 }
 
 export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
@@ -27,5 +31,5 @@ export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSe
 }
 
 export async function clearSettings(): Promise<void> {
-  await AsyncStorage.removeItem(storageKeys.settings);
+  await removeVersionedStorage(storageKeys.settings);
 }

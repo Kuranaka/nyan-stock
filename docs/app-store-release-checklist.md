@@ -7,7 +7,7 @@
 - App name: `にゃんストック`
 - Bundle ID: `com.nyanstock.app`
 - URL scheme: `nyanstock`
-- Current version: `2.0.0`
+- Current version: `2.0.1`
 - Current local iOS build number: `19`（提出時はEASのリモート採番を確認）
 
 Apple Developer / App Store Connectで別のBundle IDを使う場合は、`apps/mobile/app.json` の `ios.bundleIdentifier` と、Supabase OAuthのリダイレクト設定を同時に更新してください。

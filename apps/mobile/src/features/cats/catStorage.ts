@@ -1,6 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { storageKeys } from '@/features/storageKeys';
+import { catsStorageSchema } from '@/features/persistence/storageSchemas';
+import {
+  readVersionedStorage,
+  removeVersionedStorage,
+  writeVersionedStorage,
+} from '@/features/persistence/versionedStorage';
 import {
   clearActiveHouseholdCats,
   deleteActiveHouseholdCat,
@@ -19,8 +23,7 @@ export async function getCats(): Promise<Cat[]> {
     return snapshot.cats;
   }
 
-  const raw = await AsyncStorage.getItem(storageKeys.cats);
-  const cats = raw ? (JSON.parse(raw) as Cat[]) : [];
+  const cats = await readVersionedStorage(storageKeys.cats, catsStorageSchema);
   cachedCats = cats;
   return cats;
 }
@@ -50,7 +53,7 @@ export async function saveCat(cat: Cat): Promise<void> {
     ? cats.map((item) => (item.id === cat.id ? cat : item))
     : [...cats, cat];
   cachedCats = next;
-  await AsyncStorage.setItem(storageKeys.cats, JSON.stringify(next));
+  await writeVersionedStorage(storageKeys.cats, next, catsStorageSchema);
 }
 
 export async function deleteCat(id: string): Promise<void> {
@@ -62,14 +65,14 @@ export async function deleteCat(id: string): Promise<void> {
   const cats = await getCats();
   const next = cats.filter((cat) => cat.id !== id);
   cachedCats = next;
-  await AsyncStorage.setItem(storageKeys.cats, JSON.stringify(next));
+  await writeVersionedStorage(storageKeys.cats, next, catsStorageSchema);
 }
 
 export async function clearCats(): Promise<void> {
   cachedCats = undefined;
   if (await clearActiveHouseholdCats()) return;
 
-  await AsyncStorage.removeItem(storageKeys.cats);
+  await removeVersionedStorage(storageKeys.cats);
 }
 
 function upsertCachedCat(cats: Cat[] | undefined, cat: Cat): Cat[] {
