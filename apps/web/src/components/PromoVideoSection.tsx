@@ -9,7 +9,7 @@ export function PromoVideoSection() {
             playsInline
             preload="metadata"
             poster="/videos/nyanstock-ad-poster.jpg"
-            aria-label="にゃんストックの機能を15秒で紹介する動画"
+            aria-label="にゃんストックの紹介動画"
           >
             <source src="/videos/nyanstock-ad-15s.mp4" type="video/mp4" />
             お使いのブラウザでは動画を再生できません。
