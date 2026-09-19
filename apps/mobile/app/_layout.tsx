@@ -1,8 +1,7 @@
-import { Stack } from 'expo-router';
-import { useRouter } from 'expo-router';
+import { Stack, useRootNavigationState, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DeviceEventEmitter, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AdBanner, BottomShortcuts } from '@/components/AdBanner';
@@ -27,6 +26,37 @@ import {
 
 const productionBannerUnitId = process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID?.trim();
 
+function NotificationResponseHandler() {
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const handledNotificationResponseRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!rootNavigationState?.key || !lastNotificationResponse) return;
+
+    const inventoryItemId = getInventoryItemIdFromNotificationResponse(lastNotificationResponse);
+    if (!inventoryItemId) return;
+
+    const responseKey = `${lastNotificationResponse.notification.request.identifier}:${lastNotificationResponse.actionIdentifier}`;
+    if (handledNotificationResponseRef.current === responseKey) return;
+
+    try {
+      router.push({ pathname: '/inventory-detail', params: { id: inventoryItemId } });
+      handledNotificationResponseRef.current = responseKey;
+      try {
+        Notifications.clearLastNotificationResponse();
+      } catch (error) {
+        console.warn('[notifications] failed to clear the handled response', error);
+      }
+    } catch (error) {
+      console.warn('[notifications] failed to open inventory detail', error);
+    }
+  }, [lastNotificationResponse, rootNavigationState?.key, router]);
+
+  return null;
+}
+
 export default function RootLayout() {
   const router = useRouter();
   const [adRequestsReady, setAdRequestsReady] = useState(false);
@@ -48,26 +78,6 @@ export default function RootLayout() {
       listener.remove();
     };
   }, []);
-
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-
-    const openInventoryItem = (response: Notifications.NotificationResponse | null) => {
-      if (!response) return;
-      const inventoryItemId = getInventoryItemIdFromNotificationResponse(response);
-      if (!inventoryItemId) return;
-
-      router.push({ pathname: '/inventory-detail', params: { id: inventoryItemId } });
-      Notifications.clearLastNotificationResponse();
-    };
-
-    openInventoryItem(Notifications.getLastNotificationResponse());
-    const responseListener =
-      Notifications.addNotificationResponseReceivedListener(openInventoryItem);
-    return () => {
-      responseListener.remove();
-    };
-  }, [router]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -171,6 +181,7 @@ export default function RootLayout() {
 
   return (
     <View style={styles.app}>
+      {Platform.OS === 'web' ? null : <NotificationResponseHandler />}
       <StatusBar style="dark" />
       <View style={styles.stack}>
         <Stack
