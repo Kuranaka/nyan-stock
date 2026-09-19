@@ -75,7 +75,7 @@ import { householdRealtimeResubscribeEventName } from '@/features/sync/household
 import { useHouseholdSyncEvents } from '@/features/sync/useHouseholdSyncEvents';
 import { formatDisplayDate } from '@/utils/date';
 
-const appVersion = Constants.expoConfig?.version ?? '2.0.1';
+const appVersion = Constants.expoConfig?.version ?? '2.0.2';
 const resettableLocalDataKeys = [
   storageKeys.cats,
   storageKeys.inventoryItems,
