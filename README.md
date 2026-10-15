@@ -60,6 +60,8 @@ npm run submit:ios:testflight
 
 本番用のSupabase、RevenueCat、AdMob設定はEASの`production` environmentへ登録します。`EXPO_PUBLIC_`値はアプリへ埋め込まれるため、service-role keyなどの秘密情報は登録しません。
 
+iOS 27 SDKでビルドする場合はScene lifecycleへの対応が必須です。SDK 54向けの対応は、コミット済みの`apps/mobile/ios/app/AppDelegate.swift`内の`SceneDelegate`と`Info.plist`にあります。`expo prebuild --clean`はこのネイティブ実装を上書きするため、再生成時にはScene対応を引き継いでください。配信前にiOS 27での起動、認証リンクからの起動、通知タップ、バックグラウンド復帰を確認します。
+
 ## Webサイト
 
 - Next.js 16 / React 19 / Tailwind CSS

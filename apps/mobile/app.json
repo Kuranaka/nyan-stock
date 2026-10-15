@@ -2,7 +2,7 @@
   "expo": {
     "name": "にゃんストック",
     "slug": "nyan-stock",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "orientation": "portrait",
     "scheme": "nyanstock",
     "icon": "./assets/icon.png",
@@ -18,6 +18,17 @@
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.nyanstock.app",
       "infoPlist": {
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate"
+              }
+            ]
+          }
+        },
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "ペットや商品のアイコン画像を選択するために写真ライブラリを使用します。",
         "NSUserTrackingUsageDescription": "あなたに関連性の高い広告を表示し、広告の効果を測定するために、他社のアプリやWebサイトをまたいで端末識別子を使用することを許可しますか？"

@@ -8,6 +8,7 @@ public class AppDelegate: ExpoAppDelegate {
 
   var reactNativeDelegate: ExpoReactNativeFactoryDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
+  var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
 
   public override func application(
     _ application: UIApplication,
@@ -20,14 +21,7 @@ public class AppDelegate: ExpoAppDelegate {
     reactNativeDelegate = delegate
     reactNativeFactory = factory
     bindReactNativeFactory(factory)
-
-#if os(iOS) || os(tvOS)
-    window = UIWindow(frame: UIScreen.main.bounds)
-    factory.startReactNative(
-      withModuleName: "main",
-      in: window,
-      launchOptions: launchOptions)
-#endif
+    self.launchOptions = launchOptions
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -49,6 +43,79 @@ public class AppDelegate: ExpoAppDelegate {
   ) -> Bool {
     let result = RCTLinkingManager.application(application, continue: userActivity, restorationHandler: restorationHandler)
     return super.application(application, continue: userActivity, restorationHandler: restorationHandler) || result
+  }
+}
+
+// Keep this in the existing Sources entry so both local and CI builds include it.
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+  var window: UIWindow?
+
+  private var appDelegate: AppDelegate? {
+    UIApplication.shared.delegate as? AppDelegate
+  }
+
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    guard let windowScene = scene as? UIWindowScene,
+      let appDelegate,
+      let factory = appDelegate.reactNativeFactory else { return }
+
+    var launchOptions = appDelegate.launchOptions ?? [:]
+    if let context = connectionOptions.urlContexts.first {
+      launchOptions[.url] = context.url
+      launchOptions[.sourceApplication] = context.options.sourceApplication
+      launchOptions[.annotation] = context.options.annotation
+    }
+    if let activity = connectionOptions.userActivities.first {
+      launchOptions[.userActivityDictionary] = [
+        "UIApplicationLaunchOptionsUserActivityTypeKey": activity.activityType,
+        "UIApplicationLaunchOptionsUserActivityKey": activity
+      ]
+    }
+
+    let window = UIWindow(windowScene: windowScene)
+    self.window = window
+    // SDK 54 Expo modules still look up the window through UIApplicationDelegate.
+    appDelegate.window = window
+    factory.startReactNative(withModuleName: "main", in: window, launchOptions: launchOptions)
+    appDelegate.launchOptions = nil
+  }
+
+  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    for context in URLContexts {
+      var options: [UIApplication.OpenURLOptionsKey: Any] = [
+        .openInPlace: context.options.openInPlace
+      ]
+      options[.sourceApplication] = context.options.sourceApplication
+      options[.annotation] = context.options.annotation
+      _ = appDelegate?.application(UIApplication.shared, open: context.url, options: options)
+    }
+  }
+
+  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+    _ = appDelegate?.application(
+      UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+  }
+
+  // UIKit sends these callbacks to the scene instead of UIApplicationDelegate.
+  // Forward them so Expo auth, notifications, and other subscribers still run.
+  func sceneDidBecomeActive(_ scene: UIScene) {
+    appDelegate?.applicationDidBecomeActive(UIApplication.shared)
+  }
+
+  func sceneWillResignActive(_ scene: UIScene) {
+    appDelegate?.applicationWillResignActive(UIApplication.shared)
+  }
+
+  func sceneWillEnterForeground(_ scene: UIScene) {
+    appDelegate?.applicationWillEnterForeground(UIApplication.shared)
+  }
+
+  func sceneDidEnterBackground(_ scene: UIScene) {
+    appDelegate?.applicationDidEnterBackground(UIApplication.shared)
   }
 }
 

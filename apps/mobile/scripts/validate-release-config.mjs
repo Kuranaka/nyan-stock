@@ -63,6 +63,17 @@ function check(condition, message) {
 
 check(/^\d+\.\d+\.\d+$/.test(appVersion), `app.json version is not x.y.z: ${appVersion}`);
 check(packageJson.version === appVersion, 'package.json version does not match app.json');
+check(
+  infoPlist.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1] === appVersion,
+  'native iOS Info.plist version does not match app.json',
+);
+const sceneConfigurations = expo.ios.infoPlist?.UIApplicationSceneManifest?.UISceneConfigurations;
+check(
+  sceneConfigurations?.UIWindowSceneSessionRoleApplication?.[0]?.UISceneDelegateClassName ===
+    '$(PRODUCT_MODULE_NAME).SceneDelegate' &&
+    /<key>UISceneDelegateClassName<\/key>\s*<string>\$\(PRODUCT_MODULE_NAME\)\.SceneDelegate<\/string>/.test(infoPlist),
+  'iOS must declare its SceneDelegate in both app.json and Info.plist to launch on iOS 27',
+);
 
 const marketingVersions = [...xcodeProject.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(
   (match) => match[1],
